@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/alexedwards/scs/v2"
+	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/static"
 	"log"
 	"net/http"
-    "time"
-	"github.com/kodylow/base58-website/static"
-    "github.com/kodylow/base58-website/internal/config"
+	"time"
 )
 
 const portNumber = ":8080"
@@ -17,37 +18,20 @@ var infoLog *log.Logger
 var errorLog *log.Logger
 
 func main() {
-	r := mux.NewRouter()
 
-	// Route to handle the root path
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Define a slice of courses to render in the template
-		var courses := []static.Course{
-			static.IntroToTransactions,
-			static.IntroToScript,
-			static.EnterSegWit,
-			static.PublicPrivateKeys,
-			static.SigningTransactions,
-			static.Multisig,
-		}
+	fmt.Println(fmt.Sprintf("Starting application on port %s", portNumber))
 
-		fmt.Println(fmt.Sprintf("Starting application on port %s", portNumber))
-        
-        srv := &http.Server{
-            Addr:    portNumber,
-            Handler: routes(&app),
-        }
-    
-        var err = srv.ListenAndServe()
-        log.Fatal(err)
-	})
+	srv := &http.Server{
+		Addr:    portNumber,
+		Handler: routes(&app),
+	}
 
-	// Start the web server
-	http.ListenAndServe(":8080", r)
+	var err = srv.ListenAndServe()
+	log.Fatal(err)
 }
 
-func run() error {
-    session = scs.New()
+func run() {
+	session = scs.New()
 	session.Lifetime = 24 * time.Hour
 	session.Cookie.Persist = true
 	session.Cookie.SameSite = http.SameSiteLaxMode
