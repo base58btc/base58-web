@@ -1,0 +1,1 @@
+go build -o base58-website cmd/web/*.go && ./base58-website

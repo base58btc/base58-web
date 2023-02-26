@@ -1,24 +1,22 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/kodylow/golang-bookings/internal/config"
 	"net/http"
+
+	"github.com/gorilla/mux"
+	"github.com/kodylow/base58-website/internal/handlers"
 )
 
-func routes(app *config.AppConfig) http.Handler {
-    	// Route to handle the root path
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Define a slice of courses to render in the template
-		courses := []static.Course{
-			static.IntroToTransactions,
-			static.IntroToScript,
-			static.EnterSegWit,
-			static.PublicPrivateKeys,
-			static.SigningTransactions,
-			static.Multisig,
-		}
+// Routes sets up the routes for the application
+func Routes() http.Handler {
+	// Create a file server to serve static files from the "static" directory
+	fs := http.FileServer(http.Dir("static"))
 
-		
-	})
+	r := mux.NewRouter()
+
+	// Set up the routes
+	r.HandleFunc("/", handlers.Home).Methods("GET")
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+
+	return r
 }

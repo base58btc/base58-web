@@ -2,35 +2,49 @@ package main
 
 import (
 	"fmt"
-	"github.com/alexedwards/scs/v2"
-	"github.com/kodylow/base58-website/internal/config"
-	"github.com/kodylow/base58-website/static"
 	"log"
 	"net/http"
+	"os"
 	"time"
+
+	"github.com/alexedwards/scs/v2"
+	"github.com/kodylow/base58-website/internal/config"
 )
 
 const portNumber = ":8080"
 
 var app config.AppConfig
 var session *scs.SessionManager
-var infoLog *log.Logger
-var errorLog *log.Logger
 
 func main() {
+	// Initialize the application configuration
+	app.InProduction = false // change to true in prod
+	app.InfoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	app.ErrorLog = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
-	fmt.Println(fmt.Sprintf("Starting application on port %s", portNumber))
-
+	// Start the server
 	srv := &http.Server{
 		Addr:    portNumber,
-		Handler: routes(&app),
+		Handler: Routes(),
 	}
 
-	var err = srv.ListenAndServe()
-	log.Fatal(err)
+	fmt.Println("test")
+
+	fmt.Printf("Starting application on port %s\n", portNumber)
+	err := run()
+	err = srv.ListenAndServe()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-func run() {
+func run() error {
+	// Initialize the application configuration
+	app.InProduction = false // change to true in production
+	app.InfoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	app.ErrorLog = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	// Initialize the session manager
 	session = scs.New()
 	session.Lifetime = 24 * time.Hour
 	session.Cookie.Persist = true
@@ -38,4 +52,5 @@ func run() {
 	session.Cookie.Secure = app.InProduction
 
 	app.Session = session
+	return nil
 }

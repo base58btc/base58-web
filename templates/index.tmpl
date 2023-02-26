@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Base58⛓️🔓</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+  </head>
+  <body>
+    <h1>Base58⛓️🔓</h1>
+    <h1 class="heading-jumbo">{{ .IntroTitle }}</h1>
+    <h2>{{ .Base58Pitch }}</h2>
+    {{range $i, $course := .Courses}}
+    <h3>{{ $course.Title }}</h3>
+    <p><strong>Week:</strong> {{ $course.Week }}</p>
+    <p>{{ $course.Summary }}</p>
+    <p><strong>Topics:</strong></p>
+    <ul>
+      {{
+        range.Topics
+      }}
+      <li>{{.}}</li>
+      {{
+        end
+      }}
+    </ul>
+    {{ end }}
+  </body>
+</html>
