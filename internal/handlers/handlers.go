@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/static"
 )
 
@@ -51,5 +52,29 @@ func getData() pageData {
 		Courses:     static.Courses,
 		IntroTitle:  static.IntroTitle,
 		Base58Pitch: static.Base58Pitch,
+	}
+}
+
+// Notion handles requests for the Notion database page
+func Notion(w http.ResponseWriter, r *http.Request) {
+	// Retrieve data from the Notion API
+	data, err := getters.GetNotionData()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Parse the template file
+	tmpl, err := template.ParseFiles("templates/notion.tmpl")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Render the template with the data
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }

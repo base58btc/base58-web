@@ -8,7 +8,10 @@ import (
 	"time"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/internal/handlers"
 )
 
 const portNumber = ":8080"
@@ -22,6 +25,9 @@ func main() {
 	app.InfoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	app.ErrorLog = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
+	// Load environment variables from .env file
+	err := godotenv.Load("./.env")
+
 	// Start the server
 	srv := &http.Server{
 		Addr:    portNumber,
@@ -31,7 +37,7 @@ func main() {
 	fmt.Println("test")
 
 	fmt.Printf("Starting application on port %s\n", portNumber)
-	err := run()
+	err = run()
 	err = srv.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
@@ -53,4 +59,19 @@ func run() error {
 
 	app.Session = session
 	return nil
+}
+
+// Routes sets up the routes for the application
+func Routes() http.Handler {
+	// Create a file server to serve static files from the "static" directory
+	fs := http.FileServer(http.Dir("static"))
+
+	r := mux.NewRouter()
+
+	// Set up the routes
+	r.HandleFunc("/", handlers.Home).Methods("GET")
+	r.HandleFunc("/notion", handlers.Notion).Methods("GET")
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+
+	return r
 }
