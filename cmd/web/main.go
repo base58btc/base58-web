@@ -7,17 +7,29 @@ import (
 	"os"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/alexedwards/scs/v2"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/kodylow/base58-website/internal/config"
 	"github.com/kodylow/base58-website/internal/handlers"
+	"github.com/kodylow/base58-website/internal/types"
 )
 
-const portNumber = ":8080"
+const configFile = "config.toml"
 
 var app config.AppConfig
 var session *scs.SessionManager
+
+func loadConfig() *types.EnvConfig {
+	var config types.EnvConfig
+
+	_, err := toml.DecodeFile(configFile, &config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &config
+}
 
 func main() {
 	// Initialize the application configuration
@@ -28,16 +40,20 @@ func main() {
 	// Load environment variables from .env file
 	err := godotenv.Load("./.env")
 
+	// Load configs from config.toml
+	app.Env = loadConfig()
+
 	// Start the server
 	srv := &http.Server{
-		Addr:    portNumber,
+		Addr:    app.Env.Port,
 		Handler: Routes(),
 	}
 
-	fmt.Println("test")
-
-	fmt.Printf("Starting application on port %s\n", portNumber)
+	fmt.Printf("Starting application on port %s\n", app.Env.Port)
 	err = run()
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = srv.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
@@ -52,7 +68,7 @@ func run() error {
 
 	// Initialize the session manager
 	session = scs.New()
-	session.Lifetime = 24 * time.Hour
+	session.Lifetime = 72 * time.Hour
 	session.Cookie.Persist = true
 	session.Cookie.SameSite = http.SameSiteLaxMode
 	session.Cookie.Secure = app.InProduction
@@ -68,9 +84,13 @@ func Routes() http.Handler {
 
 	r := mux.NewRouter()
 
-	// Set up the routes
-	r.HandleFunc("/", handlers.Home).Methods("GET")
-	r.HandleFunc("/notion", handlers.Notion).Methods("GET")
+	// Set up the routes, we'll have one page per course
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		handlers.Home(w, r, app.Env)
+	}).Methods("GET")
+	r.HandleFunc("/classes", func(w http.ResponseWriter, r *http.Request) {
+		handlers.Courses(w, r, app.Env)
+	})
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 
 	return r

@@ -1,93 +1,124 @@
 package getters
 
 import (
-	"encoding/json"
-	"net/http"
-	"os"
+	"context"
+	"github.com/kodylow/base58-website/internal/types"
+	"github.com/sorcererxw/go-notion"
+	"strings"
 )
 
-// GetNotionData retrieves data from the Notion API
-func GetNotionData() (NotionResponse, error) {
-	// Set up the API endpoint and database ID
-	endpoint := os.Getenv("NOTION_API_ENDPOINT")
-	databaseID := os.Getenv("NOTION_DATABASE_ID")
+func parseAvail(avail []*notion.SelectOption) []types.CourseAvail {
+	var avails []types.CourseAvail
 
-	// Set up the HTTP client and request headers
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", endpoint+databaseID+"/query", nil)
+	for _, opt := range avail {
+		avail, ok := types.ParseCourseAvail(opt.Name)
+		if ok {
+			avails = append(avails, avail)
+		}
+		/* FIXME: log err */
+	}
+
+	return avails
+}
+
+func parseLevel(opt *notion.SelectOption) types.CourseLevel {
+	level, ok := types.ParseCourseLevel(opt.Name)
+	if !ok {
+		/* FIXME: log err */
+		return types.Devs
+	}
+	return level
+}
+
+func parseRichText(key string, props map[string]notion.PropertyValue) string {
+	val, ok := props[key]
+	if !ok {
+		/* FIXME: log err? */
+		return ""
+	}
+	if len(val.RichText) == 0 {
+		if len(val.Title) != 0 {
+			return val.Title[0].Text.Content
+		}
+		/* FIXME: log err? */
+		return ""
+	}
+
+	return val.RichText[0].Text.Content
+}
+
+func ListCourses(n *types.Notion) ([]*types.Course, error) {
+	/* FIXME: pagination */
+	pages, _, _, _ := n.Client.QueryDatabase(context.Background(),
+		n.Config.CoursesDb, notion.QueryDatabaseParam{})
+
+	var courses []*types.Course
+	/* Convert each page into a Course struct */
+	for _, page := range pages {
+		course := &types.Course{
+			ID:           page.ID,
+			TmplName:     parseRichText("Name", page.Properties),
+			PublicName:   parseRichText("PublicName", page.Properties),
+			Availability: parseAvail(page.Properties["Availability"].MultiSelect),
+			ShortDesc:    parseRichText("ShortDesc", page.Properties),
+			ComingSoon:   page.Properties["Coming Soon"].Checkbox,
+			AppRequired:  page.Properties["Application Required"].Checkbox,
+			Level:        parseLevel(page.Properties["Difficulty"].Select),
+			Visible:   page.Properties["Visible"].Checkbox,
+		}
+		courses = append(courses, course)
+	}
+
+	return courses, nil
+}
+
+func GetCourseSessions(n *types.Notion, courses []*types.Course) ([]*types.CourseSession, error) {
+	var sessions []*types.CourseSession
+
+	/* Build a map of course IDs we're looking for? */
+	var orFilter []*notion.Filter
+	idDict := make(map[string]*types.Course)
+	for _, course := range courses {
+		idDict[course.ID] = course
+		filter := &notion.Filter{
+				Property: "course",
+				Relation: &notion.RelationFilterCondition{
+					Contains: course.ID,
+				},
+			}
+		orFilter = append(orFilter, filter)
+	}
+
+	/* FIXME: pagination */
+	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
+		n.Config.SessionsDb, notion.QueryDatabaseParam{
+			Filter: &notion.Filter{ Or: orFilter, },
+		})
+
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Notion-Version", "2021-08-16")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+os.Getenv("NOTION_API_KEY"))
+	for _, page := range pages {
+		course := idDict[page.Properties["course"].Relation[0].ID]
+		session := &types.CourseSession{
+			ClassRef: parseRichText("ClassRef", page.Properties),
+			CourseName: course.PublicName,
+			Cost: uint64(page.Properties["Cost"].Number),
+			TShirt: page.Properties["T-Shirt"].Checkbox,
+			Online: page.Properties["Online"].Checkbox,
+			TotalSeats: uint(page.Properties["TotalSeats"].Number),
+			SeatsAvail: uint(page.Properties["SeatsAvail"].Number),
+			TimeDesc: parseRichText("Time", page.Properties),
+			Location: parseRichText("Location", page.Properties),
+			Instructor: parseRichText("Instructor", page.Properties),
+			Date: strings.Split(parseRichText("Dates", page.Properties), ","),
+		}
+		if page.Properties["Signup Code"].Select != nil {
+			session.SignupCode = page.Properties["Signup Code"].Select.Name
+		}
 
-	// Send the request and parse the response
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
+		sessions = append(sessions, session)
 	}
-	defer resp.Body.Close()
 
-	var response NotionResponse
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-// NotionResponse is the response from the Notion API
-type NotionResponse struct {
-	Object     string      `json:"object"`
-	Results    []Page      `json:"results"`
-	NextCursor interface{} `json:"next_cursor"`
-	HasMore    bool        `json:"has_more"`
-}
-
-// Page is a struct that holds the data for a page
-type Page struct {
-	Object         string                 `json:"object"`
-	ID             string                 `json:"id"`
-	CreatedTime    string                 `json:"created_time"`
-	LastEditedTime string                 `json:"last_edited_time"`
-	CreatedBy      User                   `json:"created_by"`
-	LastEditedBy   User                   `json:"last_edited_by"`
-	Cover          *Cover                 `json:"cover"`
-	Icon           *Icon                  `json:"icon"`
-	Parent         Parent                 `json:"parent"`
-	Archived       bool                   `json:"archived"`
-	Properties     map[string]interface{} `json:"properties"`
-	URL            string                 `json:"url"`
-}
-
-// User is a struct that holds the data for a user
-type User struct {
-	Object string `json:"object"`
-	ID     string `json:"id"`
-}
-
-// Cover is a struct that holds the data for a cover
-type Cover struct {
-	Type  string `json:"type"`
-	Value struct {
-		External struct {
-			URL string `json:"url"`
-		} `json:"external"`
-	} `json:"value"`
-}
-
-// Icon is a struct that holds the data for an icon
-type Icon struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
-}
-
-// Parent is a struct that holds the data for a parent
-type Parent struct {
-	Type        string `json:"type"`
-	DatabaseID  string `json:"database_id,omitempty"`
-	PageID      string `json:"page_id,omitempty"`
-	WorkspaceID string `json:"workspace_id,omitempty"`
+	return sessions, nil
 }

@@ -10,37 +10,30 @@
       <h1 class="heading-jumbo">{{ .IntroTitle }}</h1>
       <h2>{{ .Base58Pitch }}</h2>
       {{range $i, $course := .Courses}}
-      <h3>{{ $course.Title }}</h3>
-      <p><strong>Week:</strong> {{ $course.Week }}</p>
-      <p>{{ $course.Summary }}</p>
-      <p><strong>Topics:</strong></p>
+      {{ if $course.Visible }}
+      <a href="/classes?k={{ .TmplName }}">
+      <h3>{{ $course.PublicName }}</h3>
+	{{ if $course.ComingSoon }}
+	      <p><strong>Coming Soon!</strong></p>
+	{{ end }}
+      <p><strong>Difficulty:</strong> {{ $course.Level }}</p>
+      <p>{{ $course.ShortDesc}}</p>
+      <p><strong>Available:</strong></p>
       <ul>
         {{
-          range.Topics
+          range.Availability
         }}
         <li>{{.}}</li>
         {{
           end
         }}
       </ul>
+	{{ if $course.AppRequired }}
+	      <p>Application Required. Apply now!</p>
+	{{ end }}
+       </a>
       {{ end }}
-    </section>
-
-    <section id="class-schedule">
-      <h2>Class Schedule</h2>
-      <table id="class-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Duration</th>
-            <th>Dates</th>
-            <th>Times</th>
-            <th>Price</th>
-            <th>StripeID</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      {{ end }}
     </section>
   </body>
 </html>

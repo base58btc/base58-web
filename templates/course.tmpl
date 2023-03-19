@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{ .Course.PublicName }}</title>
+  </head>
+  <body>
+   <h1>{{ .Course.PublicName }}</h1>
+    <p>{{ .Course.ShortDesc }}</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Session</th>
+          <th>Price</th>
+          <th>Location</th>
+          <th>Duration</th>
+          <th>Dates</th>
+          <th>Times</th>
+	  <th>Instructor</th>
+	  <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{
+          range.Sessions
+        }}
+        <tr>
+          <td>{{.CourseName }}</td>
+          <td>${{ .Cost }}</td>
+          <td>{{ .Location }}</td>
+          <td>
+	  {{ $lastidx := LastIdx (len .Date) }}
+	  {{ if gt $lastidx 0 }}
+		{{ index .Date 0 }} - {{ index .Date $lastidx }}
+	  {{ else }}
+		{{ index .Date 0 }}
+	  {{ end }}
+          </td>
+          <td>{{ .TimeDesc }}</td>
+          <td>{{ .Instructor }}</td>
+	  {{ if gt .SeatsAvail 0 }}
+          <td><a href="/checkout?k={{ .ClassRef }}" >Register</a></td>
+	  {{ else }}
+          <td><a href="/waitlist?k={{ .ClassRef }}" />Join Waitlist</td>
+	  {{ end }}
+        </tr>
+        {{
+          end
+        }}
+      </tbody>
+    </table>
+  </body>
+</html>
