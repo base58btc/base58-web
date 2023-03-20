@@ -91,6 +91,12 @@ func Routes() http.Handler {
 	r.HandleFunc("/classes", func(w http.ResponseWriter, r *http.Request) {
 		handlers.Courses(w, r, app.Env)
 	})
+	r.HandleFunc("/waitlist", func(w http.ResponseWriter, r *http.Request) {
+		handlers.Waitlist(w, r, app.Env)
+	})
+	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+		handlers.Register(w, r, app.Env)
+	})
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 
 	return r

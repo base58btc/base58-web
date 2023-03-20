@@ -30,6 +30,7 @@ type (
 	}
 
 	CourseSession struct {
+		ID	   string
 		ClassRef   string
 		CourseName string
 		Cost       uint64

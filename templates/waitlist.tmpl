@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Course Waitlist</title>
+  </head>
+  <body>
+   <h1>{{ .Course.PublicName }}</h1>
+    <p>{{ .Course.ShortDesc }}</p>
+    <p> When: 
+	  {{ $lastidx := LastIdx (len .Session.Date) }}
+	  {{ if gt $lastidx 0 }}
+		{{ index .Session.Date 0 }} - {{ index .Session.Date $lastidx }}
+	  {{ else }}
+		{{ index .Session.Date 0 }}
+	  {{ end }} {{ .Session.TimeDesc }}</p>
+    <p> Where: {{ .Session.Location }}</p>
+    <p> Fiat Price: {{ FiatPrice .Session.Cost }}</p>
+    <p> Bitcoin Price: {{ BtcPrice .Session.Cost }}</p>
+
+	<form method="POST">
+		{{ inputs_for .Form }}
+		<button class="bg-blue hover:bg-blue-dark text-white font-bold py-2 px-4 rounded" type="submit" >
+		Join Waitlist
+	</button>
+	</form>
+  </body>
+</html>

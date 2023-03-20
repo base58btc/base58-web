@@ -38,9 +38,9 @@
           <td>{{ .TimeDesc }}</td>
           <td>{{ .Instructor }}</td>
 	  {{ if gt .SeatsAvail 0 }}
-          <td><a href="/checkout?k={{ .ClassRef }}" >Register</a></td>
+          <td><a href="/register?s={{ .ClassRef }}" >Register</a></td>
 	  {{ else }}
-          <td><a href="/waitlist?k={{ .ClassRef }}" />Join Waitlist</td>
+          <td><a href="/waitlist?s={{ .ClassRef }}" />Join Waitlist</td>
 	  {{ end }}
         </tr>
         {{

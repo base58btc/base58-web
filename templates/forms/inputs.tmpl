@@ -1,0 +1,17 @@
+{{ if ne .Label "nil" }}
+<label {{with .ID}}for="{{.}}"{{end}}>
+	{{.Label}}
+</label>
+{{ end }}
+{{ if eq .Type "select" }}
+<select {{with .ID}}id="{{.}}"{{end}} name="{{.Name}}">
+{{ $p := . }}{{ range $option := (fn_options .ID) }}
+<option value="{{$option.Key}}" {{ if eq $p.Placeholder $option.Key}} selected{{end}}>{{$option.Value}}</option>
+{{end}}
+</select>
+{{ else }}
+<input {{with .ID}}id="{{.}}"{{end}} type="{{.Type}}" name="{{.Name}}" placeholder="{{.Placeholder}}" {{with .Value}}value="{{.}}"{{end}} required>
+{{ end }}
+{{with .Footer}}
+  <p>{{.}}</p>
+{{end}}
