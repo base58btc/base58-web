@@ -10,7 +10,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/alexedwards/scs/v2"
 	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
 	"github.com/kodylow/base58-website/internal/config"
 	"github.com/kodylow/base58-website/internal/handlers"
 	"github.com/kodylow/base58-website/internal/types"
@@ -37,9 +36,6 @@ func main() {
 	app.InfoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	app.ErrorLog = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
-	// Load environment variables from .env file
-	err := godotenv.Load("./.env")
-
 	// Load configs from config.toml
 	app.Env = loadConfig()
 
@@ -50,7 +46,7 @@ func main() {
 	}
 
 	fmt.Printf("Starting application on port %s\n", app.Env.Port)
-	err = run()
+	err := run()
 	if err != nil {
 		log.Fatal(err)
 	}
