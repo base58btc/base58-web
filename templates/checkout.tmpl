@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Checkout</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+   <h1>Let's finish your registration!</h1>
+	<form id="payment-form" data-secret="{{ .ClientSecret }}">
+	  <div id="card-element">
+	    <!-- Elements will create input elements here -->
+	  </div>
+
+	  <!-- We'll put the error messages in this element -->
+	  <div id="card-errors" role="alert"></div>
+
+	  <button id="card-button">Submit Payment</button>
+	</form>
+  </body>
+<script>
+var stripe = Stripe('{{ .PubKey }}');
+var elements = stripe.elements();
+
+/* Set up Stripe.js and Elements to use in checkout form */
+var elements = stripe.elements();
+var style = {
+  base: {
+    color: "#32325d",
+  }
+};
+
+var card = elements.create("card", { style: style });
+card.mount("#card-element");
+
+card.on('change', ({error}) => {
+  let displayError = document.getElementById('card-errors');
+  if (error) {
+    displayError.textContent = error.message;
+  } else {
+    displayError.textContent = '';
+  }
+});
+
+
+/* Submit payment! */
+var form = document.getElementById('payment-form');
+
+form.addEventListener('submit', function(ev) {
+  ev.preventDefault();
+  stripe.confirmCardPayment(form.dataset.secret, {
+    payment_method: {
+      card: card,
+      billing_details: {
+        email: {{ .Email }},
+      }
+    }
+  }).then(function(result) {
+    if (result.error) {
+      // Show error to your customer (for example, insufficient funds)
+      console.log(result.error.message);
+    } else {
+      if (result.paymentIntent.status === 'succeeded') {
+	window.location.href = "/success?s={{ .SessionID }}"
+        // There's a risk of the customer closing the window before callback
+        // execution. Set up a webhook or plugin to listen for the
+        // payment_intent.succeeded event that handles any business critical
+        // post-payment actions.
+      }
+    }
+  });
+});
+</script>
+</html>
+

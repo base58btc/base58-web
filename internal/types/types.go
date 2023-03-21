@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/hex"
 	"strings"
 )
 
@@ -9,15 +10,18 @@ type (
 	/* Configs for the app! */
 	EnvConfig struct {
 		Port   string
+		Secret string
 		Notion NotionConfig
+		Stripe StripeConfig
 	}
 
 	CourseAvail string
 	CourseLevel string
 	ShirtSize   string
+	CheckoutOpt string
 
 	Course struct {
-		ID	     string
+		ID           string
 		TmplName     string
 		PublicName   string
 		Availability []CourseAvail
@@ -30,7 +34,7 @@ type (
 	}
 
 	CourseSession struct {
-		ID	   string
+		ID         string
 		ClassRef   string
 		CourseName string
 		Cost       uint64
@@ -39,19 +43,43 @@ type (
 		TotalSeats uint
 		SeatsAvail uint
 		SignupCode string
-		Date	   []string
+		Date       []string
 		TimeDesc   string
 		Location   string
 		Instructor string
 	}
 
-	SessionSignup struct {
-		Email          string
-		ClassRef       string
-		PaymentRef     string
-		ReplitName     string
-		MailingAddress string
-		Shirt          *ShirtSize
+	ClassRegistration struct {
+		Email       string     `form:"label=Email;type=email;placeholder=hello@example.com"`
+		MailingAddr *string    `form:"label=Mailing Address;placeholder=555 Magneto Way, Oxford, UK 282822"`
+		Shirt       *ShirtSize `form:"label=Shirt size, unisex;type=select;id=shirt;placeholder=med"`
+		ReplitUser  string
+		CheckoutVia CheckoutOpt `form:"label=Checkout Via;type=select;id=checkout;"`
+		Idempotency string      `form:"label=nil;type=hidden"`
+		Timestamp   string      `form:"label=nil;type=hidden"`
+		SessionUUID string      `form:"label=nil;type=hidden"`
+		Cost        uint64      `form:"label=nil;type=hidden"`
+	}
+
+	WaitList struct {
+		Email       string `form:"label=Email;type=email;placeholder=hello@example.com"`
+		Idempotency string `form:"label=nil;type=hidden"`
+		SessionUUID string `form:"label=nil;type=hidden"`
+		Timestamp   string `form:"label=nil;type=hidden"`
+	}
+
+	OptionItem struct {
+		Key   string
+		Value string
+	}
+
+	Checkout struct {
+		RegisterID  string
+		Email       string
+		SessionID   string
+		Price       uint64
+		Type        CheckoutOpt
+		Idempotency string
 	}
 )
 
@@ -74,6 +102,28 @@ const (
 	XL    ShirtSize = "xl"
 	XXL   ShirtSize = "xxl"
 )
+
+const (
+	Bitcoin CheckoutOpt = "bitcoin"
+	Fiat    CheckoutOpt = "usd"
+)
+
+func (s CheckoutOpt) String() string {
+	return string(s)
+}
+
+var mapEnumCheckoutOpt = func() map[string]CheckoutOpt {
+	m := make(map[string]CheckoutOpt)
+	m[string(Bitcoin)] = Bitcoin
+	m[string(Fiat)] = Fiat
+
+	return m
+}()
+
+func ParseCheckoutOpt(str string) (CheckoutOpt, bool) {
+	ss, ok := mapEnumCheckoutOpt[strings.ToLower(str)]
+	return ss, ok
+}
 
 func (s ShirtSize) String() string {
 	return string(s)
@@ -131,4 +181,9 @@ var mapEnumCourseLevel = func() map[string]CourseLevel {
 func ParseCourseLevel(str string) (CourseLevel, bool) {
 	ss, ok := mapEnumCourseLevel[strings.ToLower(str)]
 	return ss, ok
+}
+
+func (e *EnvConfig) SecretBytes() []byte {
+	data, _ := hex.DecodeString(e.Secret)
+	return data
 }

@@ -1,60 +1,69 @@
 package handlers
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html/template"
-	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/gorilla/schema"
+	"github.com/joncalhoun/form"
 	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/types"
 	"github.com/kodylow/base58-website/static"
 	"io/ioutil"
-	"github.com/gorilla/schema"
-	"github.com/joncalhoun/form"
+
+	stripe "github.com/stripe/stripe-go/v74"
+	"github.com/stripe/stripe-go/v74/paymentintent"
 )
 
-// FIXME: how to have select box // radio // dropdowns ?
-type ClassRegistration struct {
-	Email string `form:"label=Email;type=email;placeholder=hello@example.com"`
-	MailngAddr *string `form:"label=Mailing Address;placeholder=555 Magneto Way, Oxford, UK 282822"`
-	Shirt *types.ShirtSize `form:"label=Shirt size, unisex;type=select;id=shirt;placeholder=med"`
-	ReplitUser string
-	Idempotency string `form:"label=nil;type=hidden"`
-}
-
-type WaitList struct {
-	Email string `form:"label=Email;type=email;placeholder=hello@example.com"`
-	Idempotency string `form:"label=nil;type=hidden"`
-	SessionUUID string `form:"label=nil;type=hidden"`
-}
-
-type OptionItem struct {
-	Key string
-	Value string
-}
-
-func ShirtOptions() []OptionItem {
-	return []OptionItem{
+func ShirtOptions() []types.OptionItem {
+	return []types.OptionItem{
 		{Key: string(types.Small), Value: "Small"},
 		{Key: string(types.Med), Value: "Medium"},
 		{Key: string(types.Large), Value: "Large"},
 		{Key: string(types.XL), Value: "XL"},
-		{Key: string(types.XXL), Value: "XXL"},}
+		{Key: string(types.XXL), Value: "XXL"}}
+}
+
+/* Amount is in whole dollar USD */
+func MakeCheckoutOpts(amount uint64) []types.OptionItem {
+	// FIXME: convert USD to btc amount??
+	return []types.OptionItem{
+		{Key: string(types.Bitcoin), Value: fmt.Sprintf("USD $%d", BtcPrice(amount))},
+		{Key: string(types.Fiat), Value: fmt.Sprintf("USD $%d", FiatPrice(amount))},
+	}
+}
+
+func BtcPrice(val uint64) uint64 {
+	return uint64(float64(val) * .85)
+}
+
+func FiatPrice(val uint64) uint64 {
+	return val
+}
+
+func LastIdx(size int) int {
+	return size - 1
 }
 
 type RegistrationData struct {
-	Course *types.Course
+	Course  *types.Course
 	Session *types.CourseSession
-	Form	ClassRegistration
+	Form    types.ClassRegistration
 }
 
 type WaitlistData struct {
-	Course *types.Course
+	Course  *types.Course
 	Session *types.CourseSession
-	Form	WaitList
+	Form    types.WaitList
 }
 
 func getSessionKey(p string, r *http.Request) (string, bool) {
@@ -63,18 +72,41 @@ func getSessionKey(p string, r *http.Request) (string, bool) {
 	return key, ok
 }
 
+func getSessionToken(sec []byte, sessionUUID string, now int64, cost uint64) string {
+	/* Make a lil hash using the sessionUUID + timestamp */
+	h := sha256.New()
+	h.Write(sec)
+	h.Write([]byte(sessionUUID))
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, uint64(now))
+	h.Write(b)
+	binary.LittleEndian.PutUint64(b, cost)
+	h.Write(b)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func checkToken(token string, sec []byte, sessionUUID string, timeStr string, cost uint64) bool {
+	ts, err := strconv.ParseInt(timeStr, 10, 64)
+	if err != nil {
+		return false
+	}
+
+	expToken := getSessionToken(sec, sessionUUID, ts, cost)
+	return expToken == token
+}
+
 func Register(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 	n := &types.Notion{Config: env.Notion}
 	n.Setup()
 
+	sessionID, ok := getSessionKey("s", r)
+	if !ok {
+		/* If there's no session-key, redirect to the front page */
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
-		sessionID, ok := getSessionKey("s", r)
-		if !ok {
-			/* If there's no session-key, redirect to the front page */
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
-		}
 		course, session, err := getters.GetSessionInfo(n, sessionID)
 		if err != nil {
 			log.Fatal(w, err.Error(), http.StatusInternalServerError)
@@ -87,11 +119,14 @@ func Register(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 		}
 		tpl := template.Must(template.New("").Funcs(
 			template.FuncMap{
-				"fn_options": func (id string) []OptionItem {
+				"fn_options": func(id string) []types.OptionItem {
 					if id == "shirt" {
 						return ShirtOptions()
 					}
-					return []OptionItem{}
+					if id == "checkout" {
+						return MakeCheckoutOpts(session.Cost)
+					}
+					return []types.OptionItem{}
 				},
 			}).Parse(string(f)))
 		fb := form.Builder{
@@ -104,18 +139,25 @@ func Register(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 			return
 		}
 		funcMap := fb.FuncMap()
-		funcMap["LastIdx"] = func (size int) int { return size - 1}
-		funcMap["FiatPrice"] = func (val uint64) uint64 { return val }
-		funcMap["BtcPrice"] = func (val uint64) uint64 { return uint64(float64(val) * .85) }
+		funcMap["LastIdx"] = LastIdx
+		funcMap["FiatPrice"] = FiatPrice
+		funcMap["BtcPrice"] = BtcPrice
 		pageTpl := template.Must(template.New("").Funcs(funcMap).Parse(string(f)))
+
+		/* token! */
+		now := time.Now().UTC().UnixNano()
+		idemToken := getSessionToken(env.SecretBytes(), session.ID, now, session.Cost)
+
 		w.Header().Set("Content-Type", "text/html")
 		err = pageTpl.Execute(w, RegistrationData{
-			Course: course,
+			Course:  course,
 			Session: session,
-			Form: ClassRegistration{
-				// FIXME: pick randomly? use a timestamp?
-				Idempotency: "akjbaisisisbneka",
-		}})
+			Form: types.ClassRegistration{
+				Idempotency: idemToken,
+				Timestamp:   strconv.FormatInt(now, 10),
+				SessionUUID: session.ID,
+				Cost:        session.Cost,
+			}})
 		if err != nil {
 			log.Fatal(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -130,21 +172,53 @@ func Register(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 	r.ParseForm()
 	dec := schema.NewDecoder()
 	dec.IgnoreUnknownKeys(true)
-	var form ClassRegistration
+	var form types.ClassRegistration
 	err := dec.Decode(&form, r.PostForm)
 	if err != nil {
 		log.Fatal(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	/* TODO: Write to notion?
-	 *  - update avail class seats (-1)
-	 *  - add entry to class signups table
-	 */
-	w.Header().Set("Content-Type", "application/json")
-	b, _ := json.Marshal(form)
-	fmt.Println(string(b))
-	w.Write(b)
+	/* Check that the Idempotency token is valid */
+	if !checkToken(form.Idempotency, env.SecretBytes(),
+		form.SessionUUID, form.Timestamp, form.Cost) {
+		log.Fatal(w, fmt.Errorf("Invalid session token"), http.StatusBadRequest)
+		return
+	}
+
+	// FIXME: keep track of token usage//timeout?
+
+	/* Save to signups! Note: won't be considered final
+	 * until there's a payment ref attached */
+	id, err := getters.SaveRegistration(n, &form)
+	// TODO: what happens if there's a duplicate/idempotent token?
+	if err != nil {
+		log.Fatal(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	checkout := &types.Checkout{
+		RegisterID:  id,
+		Price:       form.Cost,
+		Type:        form.CheckoutVia,
+		Idempotency: form.Idempotency,
+		SessionID:   sessionID,
+		Email:       form.Email,
+	}
+
+	/* Ok, now we go to checkout! */
+	switch form.CheckoutVia {
+	case types.Bitcoin:
+	case types.Fiat:
+		FiatCheckoutStart(w, r, env, checkout)
+		return
+	default:
+		log.Fatal(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return
 }
 
 func Waitlist(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
@@ -173,11 +247,11 @@ func Waitlist(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 		}
 		tpl := template.Must(template.New("").Funcs(
 			template.FuncMap{
-				"fn_options": func (id string) []OptionItem {
-					return []OptionItem{}
+				"fn_options": func(id string) []types.OptionItem {
+					return []types.OptionItem{}
 				},
 			}).Parse(string(f)))
-		fb := form.Builder{ InputTemplate: tpl, }
+		fb := form.Builder{InputTemplate: tpl}
 
 		f, err = ioutil.ReadFile("templates/waitlist.tmpl")
 		if err != nil {
@@ -185,19 +259,22 @@ func Waitlist(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 			return
 		}
 		funcMap := fb.FuncMap()
-		funcMap["LastIdx"] = func (size int) int { return size - 1}
-		funcMap["FiatPrice"] = func (val uint64) uint64 { return val }
-		funcMap["BtcPrice"] = func (val uint64) uint64 { return uint64(float64(val) * .85) }
+		funcMap["LastIdx"] = LastIdx
+		funcMap["FiatPrice"] = FiatPrice
+		funcMap["BtcPrice"] = BtcPrice
+
+		/* token! */
+		now := time.Now().UTC().UnixNano()
+		idemToken := getSessionToken(env.SecretBytes(), session.ID, now, uint64(0))
 		pageTpl := template.Must(template.New("").Funcs(funcMap).Parse(string(f)))
 		w.Header().Set("Content-Type", "text/html")
 		err = pageTpl.Execute(w, WaitlistData{
-			Course: course,
+			Course:  course,
 			Session: session,
-			Form: WaitList{
-				// FIXME: hash of timestamp + sessionid
-				Idempotency: "akjbaisisisbneka",
+			Form: types.WaitList{
+				Idempotency: idemToken,
 				SessionUUID: session.ID,
-		}})
+			}})
 		if err != nil {
 			log.Fatal(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -209,19 +286,26 @@ func Waitlist(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 		return
 	}
 
-	// FIXME: check idempotency! (our timestamp + UUID hash?)
 	r.ParseForm()
 	dec := schema.NewDecoder()
 	dec.IgnoreUnknownKeys(true)
-	var form WaitList
+	var form types.WaitList
 	err := dec.Decode(&form, r.PostForm)
 	if err != nil {
 		log.Fatal(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	/* Check that the Idempotency token is valid */
+	if !checkToken(form.Idempotency, env.SecretBytes(), form.SessionUUID, form.Timestamp, uint64(0)) {
+		log.Fatal(w, fmt.Errorf("Invalid session token"), http.StatusBadRequest)
+		return
+	}
+
+	/* FIXME: Check that not already saved to waitlist */
+
 	/* Save to waitlist! */
-	err = getters.SaveWaitlist(n, form.SessionUUID, form.Email)
+	err = getters.SaveWaitlist(n, &form)
 	if err != nil {
 		log.Fatal(w, err.Error(), http.StatusBadRequest)
 		return
@@ -231,6 +315,107 @@ func Waitlist(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(form)
 	w.Write(b)
+}
+
+type StripeCheckout struct {
+	ClientSecret string
+	PubKey       string
+	Email        string
+	SessionID    string
+}
+
+func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, env *types.EnvConfig, checkout *types.Checkout) {
+	stripe.Key = env.Stripe.Key
+
+	/* add cents for stripe! */
+	price := int64(FiatPrice(checkout.Price) * 100)
+	/* First we register a payment intent */
+	params := &stripe.PaymentIntentParams{
+		Amount:   stripe.Int64(price),
+		Currency: stripe.String(string(stripe.CurrencyUSD)),
+		AutomaticPaymentMethods: &stripe.PaymentIntentAutomaticPaymentMethodsParams{
+			Enabled: stripe.Bool(true),
+		},
+	}
+
+	if env.Stripe.IsTest() {
+		params.AddMetadata("integration_check", "accept_a_payment")
+	}
+
+	pi, _ := paymentintent.New(params)
+
+	/* Now show the stripe checkout page! */
+	f, err := ioutil.ReadFile("templates/checkout.tmpl")
+	if err != nil {
+		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	pageTpl := template.Must(template.New("").Parse(string(f)))
+
+	w.Header().Set("Content-Type", "text/html")
+	err = pageTpl.Execute(w, &StripeCheckout{
+		ClientSecret: pi.ClientSecret,
+		PubKey:       env.Stripe.Pubkey,
+		Email:        checkout.Email,
+		SessionID:    checkout.SessionID,
+		// TODO: other checkout info??
+	})
+	if err != nil {
+		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+type SuccessData struct {
+	Course  *types.Course
+	Session *types.CourseSession
+}
+
+func Success(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
+	/* Show a success page! */
+	n := &types.Notion{Config: env.Notion}
+	n.Setup()
+
+	sessionID, ok := getSessionKey("s", r)
+	if !ok {
+		/* If there's no session-key, redirect to the front page */
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	course, session, err := getters.GetSessionInfo(n, sessionID)
+	if err != nil {
+		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	f, err := ioutil.ReadFile("templates/success.tmpl")
+	if err != nil {
+		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	t, err := template.New("success").Funcs(template.FuncMap{
+		"LastIdx": LastIdx,
+	}).Parse(string(f))
+	if err != nil {
+		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = t.Execute(w, &SuccessData{
+		Course:  course,
+		Session: session,
+	})
+	if err != nil {
+		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func FiatCheckoutCb(w http.ResponseWriter, r *http.Request, env *types.EnvConfig, checkout *types.Checkout) {
+	/*  payment confirmed todos:
+	 *  - add paymentRef to class signups table
+	 *  - update avail class seats (-1)
+	 *  - send email w/ receipt!
+	 */
 }
 
 func Home(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
@@ -293,7 +478,7 @@ func Courses(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 				return
 			}
 			t, err := template.New("course").Funcs(template.FuncMap{
-				"LastIdx" : func (size int) int { return size - 1 },
+				"LastIdx": LastIdx,
 			}).Parse(string(f))
 			if err != nil {
 				log.Fatal(w, err.Error(), http.StatusInternalServerError)
@@ -310,7 +495,7 @@ func Courses(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 					}
 				}
 			} else {
-				bundled = []*types.Course{ course }
+				bundled = []*types.Course{course}
 			}
 			sessions, err := getters.GetCourseSessions(n, bundled)
 			if err != nil {
@@ -319,7 +504,7 @@ func Courses(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 			}
 
 			err = t.Execute(w, CourseData{
-				Course: course,
+				Course:   course,
 				Sessions: sessions,
 			})
 			if err != nil {

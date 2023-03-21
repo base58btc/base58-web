@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/schema v1.2.0
 	github.com/joncalhoun/form v1.0.1
 	github.com/sorcererxw/go-notion v0.2.4
+	github.com/stripe/stripe-go/v74 v74.12.0
 )
 
 require github.com/stretchr/testify v1.8.1 // indirect

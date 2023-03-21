@@ -2,10 +2,10 @@ package getters
 
 import (
 	"context"
+	"fmt"
 	"github.com/kodylow/base58-website/internal/types"
 	"github.com/sorcererxw/go-notion"
 	"strings"
-	"fmt"
 )
 
 func parseAvail(avail []*notion.SelectOption) []types.CourseAvail {
@@ -48,7 +48,7 @@ func parseRichText(key string, props map[string]notion.PropertyValue) string {
 	return val.RichText[0].Text.Content
 }
 
-func parseCourse(pageID string, props map[string]notion.PropertyValue) (*types.Course) {
+func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Course {
 	course := &types.Course{
 		ID:           pageID,
 		TmplName:     parseRichText("Name", props),
@@ -63,19 +63,19 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) (*types.C
 	return course
 }
 
-func parseSession(pageID string, props map[string]notion.PropertyValue) (*types.CourseSession) {
+func parseSession(pageID string, props map[string]notion.PropertyValue) *types.CourseSession {
 	session := &types.CourseSession{
-		ID: pageID,
-		ClassRef: parseRichText("ClassRef", props),
-		Cost: uint64(props["Cost"].Number),
-		TShirt: props["T-Shirt"].Checkbox,
-		Online: props["Online"].Checkbox,
+		ID:         pageID,
+		ClassRef:   parseRichText("ClassRef", props),
+		Cost:       uint64(props["Cost"].Number),
+		TShirt:     props["T-Shirt"].Checkbox,
+		Online:     props["Online"].Checkbox,
 		TotalSeats: uint(props["TotalSeats"].Number),
 		SeatsAvail: uint(props["SeatsAvail"].Number),
-		TimeDesc: parseRichText("Time", props),
-		Location: parseRichText("Location", props),
+		TimeDesc:   parseRichText("Time", props),
+		Location:   parseRichText("Location", props),
 		Instructor: parseRichText("Instructor", props),
-		Date: strings.Split(parseRichText("Dates", props), ","),
+		Date:       strings.Split(parseRichText("Dates", props), ","),
 	}
 	if props["Signup Code"].Select != nil {
 		session.SignupCode = props["Signup Code"].Select.Name
@@ -99,7 +99,7 @@ func ListCourses(n *types.Notion) ([]*types.Course, error) {
 }
 
 func GetSessionInfo(n *types.Notion, sessionID string) (*types.Course, *types.CourseSession, error) {
-	pages, _, _, err  := n.Client.QueryDatabase(context.Background(),
+	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
 		n.Config.SessionsDb, notion.QueryDatabaseParam{
 			Filter: &notion.Filter{
 				Property: "ClassRef",
@@ -129,7 +129,6 @@ func GetSessionInfo(n *types.Notion, sessionID string) (*types.Course, *types.Co
 	return course, session, nil
 }
 
-
 func GetCourseSessions(n *types.Notion, courses []*types.Course) ([]*types.CourseSession, error) {
 	var sessions []*types.CourseSession
 
@@ -139,18 +138,19 @@ func GetCourseSessions(n *types.Notion, courses []*types.Course) ([]*types.Cours
 	for _, course := range courses {
 		idDict[course.ID] = course
 		filter := &notion.Filter{
-				Property: "course",
-				Relation: &notion.RelationFilterCondition{
-					Contains: course.ID,
-				},
-			}
+			Property: "course",
+			Relation: &notion.RelationFilterCondition{
+				Contains: course.ID,
+			},
+		}
 		orFilter = append(orFilter, filter)
 	}
 
 	/* FIXME: pagination */
 	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
-		n.Config.SessionsDb, notion.QueryDatabaseParam{
-			Filter: &notion.Filter{ Or: orFilter, },
+		n.Config.SessionsDb,
+		notion.QueryDatabaseParam{
+			Filter: &notion.Filter{Or: orFilter},
 		})
 
 	if err != nil {
@@ -166,18 +166,70 @@ func GetCourseSessions(n *types.Notion, courses []*types.Course) ([]*types.Cours
 	return sessions, nil
 }
 
-func SaveWaitlist(n *types.Notion, sessionUUID string, email string) error {
+func SaveRegistration(n *types.Notion, r *types.ClassRegistration) (string, error) {
+	parent := notion.NewDatabaseParent(n.Config.SignupsDb)
+	props := map[string]*notion.PropertyValue{
+		"Email": notion.NewTitlePropertyValue(
+			[]*notion.RichText{
+				{Type: notion.RichTextText,
+					Text: &notion.Text{Content: r.Email}},
+			}...),
+		"session": notion.NewRelationPropertyValue(
+			[]*notion.ObjectReference{{ID: r.SessionUUID}}...,
+		),
+		"Idempotent": notion.NewRichTextPropertyValue(
+			[]*notion.RichText{
+				{Type: notion.RichTextText,
+					Text: &notion.Text{Content: r.Idempotency}},
+			}...),
+		"Replit": notion.NewRichTextPropertyValue(
+			[]*notion.RichText{
+				{Type: notion.RichTextText,
+					Text: &notion.Text{Content: r.ReplitUser}},
+			}...),
+	}
+
+	if r.Shirt != nil {
+		props["T-Shirt Size"] = &notion.PropertyValue{
+			Type: notion.PropertySelect,
+			Select: &notion.SelectOption{
+				Name: r.Shirt.String(),
+			},
+		}
+	}
+
+	if r.MailingAddr != nil {
+		props["Mailing Address"] = notion.NewRichTextPropertyValue(
+			[]*notion.RichText{
+				{Type: notion.RichTextText,
+					Text: &notion.Text{Content: *r.MailingAddr}},
+			}...)
+	}
+	page, err := n.Client.CreatePage(context.Background(), parent, props)
+	if err != nil {
+		return "", err
+	}
+	return page.ID, err
+}
+
+func SaveWaitlist(n *types.Notion, w *types.WaitList) error {
 	parent := notion.NewDatabaseParent(n.Config.WaitlistDb)
 	_, err := n.Client.CreatePage(context.Background(), parent,
-			map[string]*notion.PropertyValue{
-				"Email": notion.NewTitlePropertyValue(
-					[]*notion.RichText{
-						{Type: notion.RichTextText,
-							Text: &notion.Text{Content: email}},
-					}...),
-				"Session": notion.NewRelationPropertyValue(
-					[]*notion.ObjectReference{{ID: sessionUUID }}...
-				),
-			})
+		map[string]*notion.PropertyValue{
+			"Email": notion.NewTitlePropertyValue(
+				[]*notion.RichText{
+					{Type: notion.RichTextText,
+						Text: &notion.Text{Content: w.Email}},
+				}...),
+			"Session": notion.NewRelationPropertyValue(
+				[]*notion.ObjectReference{{ID: w.SessionUUID}}...,
+			),
+			"Idempotent": &notion.PropertyValue{
+				Type: notion.PropertySelect,
+				Select: &notion.SelectOption{
+					Name: w.Idempotency,
+				},
+			},
+		})
 	return err
 }

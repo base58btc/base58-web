@@ -93,6 +93,9 @@ func Routes() http.Handler {
 	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
 		handlers.Register(w, r, app.Env)
 	})
+	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
+		handlers.Success(w, r, app.Env)
+	})
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 
 	return r
