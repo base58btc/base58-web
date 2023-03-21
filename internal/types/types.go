@@ -16,7 +16,7 @@ type (
 	}
 
 	AppContext struct {
-		Env *EnvConfig
+		Env    *EnvConfig
 		Notion *Notion
 	}
 

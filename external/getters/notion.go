@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/kodylow/base58-website/internal/types"
 	"github.com/sorcererxw/go-notion"
+	"os"
 	"strings"
 )
 
@@ -210,6 +211,45 @@ func SaveRegistration(n *types.Notion, r *types.ClassRegistration) (string, erro
 		return "", err
 	}
 	return page.ID, err
+}
+
+func UpdateRegistration(n *types.Notion, pageID string, refID string) (string, error) {
+	page, err := n.Client.UpdatePageProperties(context.Background(), pageID,
+		map[string]*notion.PropertyValue{
+			"PaymentRef": notion.NewRichTextPropertyValue(
+				[]*notion.RichText{
+					{Type: notion.RichTextText,
+						Text: &notion.Text{Content: refID}},
+				}...),
+		})
+	if err != nil {
+		return "", err
+	}
+
+	sessionUUID := page.Properties["session"].Relation[0].ID
+	return sessionUUID, nil
+}
+
+func CountClassRegistration(n *types.Notion, sessionUUID string) error {
+	page, err := n.Client.RetrievePage(context.Background(), sessionUUID)
+	if err != nil {
+		return err
+	}
+
+	session := parseSession(page.ID, page.Properties)
+
+	/* Nothing to do, we oversold. Oops */
+	if session.SeatsAvail < 1 {
+		fmt.Fprintf(os.Stderr, "Oops we oversold this class %s\n", session.ClassRef)
+		return nil
+	}
+
+	seatsNowAvail := session.SeatsAvail - 1
+	_, err = n.Client.UpdatePageProperties(context.Background(), sessionUUID,
+		map[string]*notion.PropertyValue{
+			"SeatsAvail": notion.NewNumberPropertyValue(float64(seatsNowAvail)),
+		})
+	return err
 }
 
 func SaveWaitlist(n *types.Notion, w *types.WaitList) error {

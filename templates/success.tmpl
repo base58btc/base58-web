@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Base58⛓️🔓</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+  </head>
+  <body>
+    <section>
+      <h1><a href="/">Base58⛓️🔓</a></h1>
+      <h1>You're going</h1>
+      <h2>{{ .Course.PublicName }}</h2>
+    <p> When: 
+	  {{ $lastidx := LastIdx (len .Session.Date) }}
+	  {{ if gt $lastidx 0 }}
+		{{ index .Session.Date 0 }} - {{ index .Session.Date $lastidx }}
+	  {{ else }}
+		{{ index .Session.Date 0 }}
+	  {{ end }} {{ .Session.TimeDesc }}</p>
+    <p> Where: {{ .Session.Location }}</p>
+    <p> Taught By: {{ .Session.Instructor }} </td>
+	<p> We'll see you in class soon. </p>
+	<p>Before then, feel free to take a run at our Replit exercises</p>
+	<p>Follow us on Twitter or join our Discord</p>
+    </section>
+  </body>
+</html>

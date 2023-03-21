@@ -75,7 +75,7 @@ func run(env *types.EnvConfig) error {
 	notion.Setup()
 
 	app.Context = types.AppContext{
-		Env: env,
+		Env:    env,
 		Notion: notion,
 	}
 	return nil
@@ -103,6 +103,9 @@ func Routes() http.Handler {
 	})
 	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
 		handlers.Success(w, r, &app.Context)
+	})
+	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
+		handlers.StripeHook(w, r, &app.Context)
 	})
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 

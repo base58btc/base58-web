@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -330,8 +331,11 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *types.AppCon
 		AutomaticPaymentMethods: &stripe.PaymentIntentAutomaticPaymentMethodsParams{
 			Enabled: stripe.Bool(true),
 		},
+		/* Sends customer a receipt from Stripe */
+		/* ReceiptEmail: checkout.Email, */
 	}
 
+	params.AddMetadata("registration_id", checkout.RegisterID)
 	if ctx.Env.Stripe.IsTest() {
 		params.AddMetadata("integration_check", "accept_a_payment")
 	}
@@ -401,12 +405,61 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 	}
 }
 
-func FiatCheckoutCb(w http.ResponseWriter, r *http.Request, ctx *types.AppContext, checkout *types.Checkout) {
-	/*  payment confirmed todos:
-	 *  - add paymentRef to class signups table
-	 *  - update avail class seats (-1)
-	 *  - send email w/ receipt!
-	 */
+func StripeHook(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
+	const MaxBodyBytes = int64(65536)
+	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+	payload, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading request body: %v\n", err)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+	event := stripe.Event{}
+
+	if err := json.Unmarshal(payload, &event); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to parse webhook body json: %v\n", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	switch event.Type {
+	case "payment_intent.succeeded":
+		var payment stripe.PaymentIntent
+		err := json.Unmarshal(event.Data.Raw, &payment)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\n", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		/* Get out payment data */
+		pageID := payment.Metadata["registration_id"]
+		refID := payment.ID
+
+		/* Add RefId to class signups table.
+		 * This marks this signup as confirmed */
+		sessionUUID, err := getters.UpdateRegistration(ctx.Notion, pageID, refID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to update signup %s: %v\n", pageID, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		/* Decrement available class count */
+		err = getters.CountClassRegistration(ctx.Notion, sessionUUID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to decrement signup %s: %v\n", pageID, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// TODO: send email with receipt!!
+
+		fmt.Println("great success!")
+	default:
+		fmt.Fprintf(os.Stderr, "Unhandled event type: %s\n", event.Type)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func Home(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
