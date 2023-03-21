@@ -226,15 +226,14 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
+	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionID)
+	if err != nil {
+		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:
-		course, session, err := getters.GetSessionInfo(ctx.Notion, sessionID)
-		if err != nil {
-			log.Fatal(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
 		f, err := ioutil.ReadFile("templates/forms/inputs.tmpl")
 		if err != nil {
 			log.Fatal(w, err.Error(), http.StatusInternalServerError)
@@ -260,15 +259,16 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 
 		/* token! */
 		now := time.Now().UTC().UnixNano()
-		idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, uint64(0))
+		//idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, uint64(0))
 		pageTpl := template.Must(template.New("").Funcs(funcMap).Parse(string(f)))
 		w.Header().Set("Content-Type", "text/html")
 		err = pageTpl.Execute(w, WaitlistData{
 			Course:  course,
 			Session: session,
 			Form: types.WaitList{
-				Idempotency: idemToken,
+				Idempotency: "waitlist",
 				SessionUUID: session.ID,
+				Timestamp:   strconv.FormatInt(now, 10),
 			}})
 		if err != nil {
 			log.Fatal(w, err.Error(), http.StatusInternalServerError)
@@ -285,17 +285,19 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 	dec := schema.NewDecoder()
 	dec.IgnoreUnknownKeys(true)
 	var form types.WaitList
-	err := dec.Decode(&form, r.PostForm)
+	err = dec.Decode(&form, r.PostForm)
 	if err != nil {
 		log.Fatal(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	/* Check that the Idempotency token is valid */
-	if !checkToken(form.Idempotency, ctx.Env.SecretBytes(), form.SessionUUID, form.Timestamp, uint64(0)) {
-		log.Fatal(w, fmt.Errorf("Invalid session token"), http.StatusBadRequest)
-		return
-	}
+	/*
+		if !checkToken(form.Idempotency, ctx.Env.SecretBytes(), form.SessionUUID, form.Timestamp, uint64(0)) {
+			log.Fatal(w, fmt.Errorf("Invalid session token"), http.StatusBadRequest)
+			return
+		}
+	*/
 
 	/* FIXME: Check that not already saved to waitlist */
 
@@ -305,8 +307,15 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 		log.Fatal(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	/* Send a confirmation email! */
+	err = SendWaitlistConfirmed(ctx, form.Email, session)
+	if err != nil {
+		log.Fatal(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// TODO: show waitlist success?
-	// TODO: send confirmation email!
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(form)
 	w.Write(b)

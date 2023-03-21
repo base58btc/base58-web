@@ -107,6 +107,7 @@ func Routes() http.Handler {
 	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
 		handlers.StripeHook(w, r, &app.Context)
 	})
+
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 
 	return r

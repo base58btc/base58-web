@@ -9,10 +9,11 @@ type (
 
 	/* Configs for the app! */
 	EnvConfig struct {
-		Port   string
-		Secret string
-		Notion NotionConfig
-		Stripe StripeConfig
+		Port     string
+		Secret   string
+		Notion   NotionConfig
+		Stripe   StripeConfig
+		SendGrid SendGridConfig
 	}
 
 	AppContext struct {

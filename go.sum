@@ -13,6 +13,10 @@ github.com/joncalhoun/form v1.0.1 h1:Zwt1q4+3cPZ+RRI9BEBDE+29on68nimFPisTzB4EEEc
 github.com/joncalhoun/form v1.0.1/go.mod h1:SbYxyMZn3Jbjo/Wt8foBEJzqknIzaqPYpIRSx4eoxZM=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/sendgrid/rest v2.6.9+incompatible h1:1EyIcsNdn9KIisLW50MKwmSRSK+ekueiEMJ7NEoxJo0=
+github.com/sendgrid/rest v2.6.9+incompatible/go.mod h1:kXX7q3jZtJXK5c5qK83bSGMdV6tsOE70KbHoqJls4lE=
+github.com/sendgrid/sendgrid-go v3.12.0+incompatible h1:/N2vx18Fg1KmQOh6zESc5FJB8pYwt5QFBDflYPh1KVg=
+github.com/sendgrid/sendgrid-go v3.12.0+incompatible/go.mod h1:QRQt+LX/NmgVEvmdRw0VT/QgUn499+iza2FnDca9fg8=
 github.com/sorcererxw/go-notion v0.2.4 h1:nT8nI8KSvTNP9cgM3WWf+VSCkr6mO+KsvctQR1+C40U=
 github.com/sorcererxw/go-notion v0.2.4/go.mod h1:rFZ80laUSIb1JNKIi9WvjCCkuLM1/Wajeqq2FvE0EZM=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
