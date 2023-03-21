@@ -37,16 +37,16 @@ func main() {
 	app.ErrorLog = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
 	// Load configs from config.toml
-	app.Env = loadConfig()
+	env := loadConfig()
 
 	// Start the server
 	srv := &http.Server{
-		Addr:    app.Env.Port,
+		Addr:    env.Port,
 		Handler: Routes(),
 	}
 
-	fmt.Printf("Starting application on port %s\n", app.Env.Port)
-	err := run()
+	fmt.Printf("Starting application on port %s\n", env.Port)
+	err := run(env)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func main() {
 	}
 }
 
-func run() error {
+func run(env *types.EnvConfig) error {
 	// Initialize the application configuration
 	app.InProduction = false // change to true in production
 	app.InfoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
@@ -70,6 +70,14 @@ func run() error {
 	session.Cookie.Secure = app.InProduction
 
 	app.Session = session
+
+	notion := &types.Notion{Config: env.Notion}
+	notion.Setup()
+
+	app.Context = types.AppContext{
+		Env: env,
+		Notion: notion,
+	}
 	return nil
 }
 
@@ -82,19 +90,19 @@ func Routes() http.Handler {
 
 	// Set up the routes, we'll have one page per course
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handlers.Home(w, r, app.Env)
+		handlers.Home(w, r, &app.Context)
 	}).Methods("GET")
 	r.HandleFunc("/classes", func(w http.ResponseWriter, r *http.Request) {
-		handlers.Courses(w, r, app.Env)
+		handlers.Courses(w, r, &app.Context)
 	})
 	r.HandleFunc("/waitlist", func(w http.ResponseWriter, r *http.Request) {
-		handlers.Waitlist(w, r, app.Env)
+		handlers.Waitlist(w, r, &app.Context)
 	})
 	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
-		handlers.Register(w, r, app.Env)
+		handlers.Register(w, r, &app.Context)
 	})
 	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
-		handlers.Success(w, r, app.Env)
+		handlers.Success(w, r, &app.Context)
 	})
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 

@@ -16,5 +16,5 @@ type AppConfig struct {
 	Session       *scs.SessionManager
 	TemplateCache map[string]*template.Template
 
-	Env *types.EnvConfig
+	Context types.AppContext
 }

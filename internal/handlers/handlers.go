@@ -95,10 +95,7 @@ func checkToken(token string, sec []byte, sessionUUID string, timeStr string, co
 	return expToken == token
 }
 
-func Register(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
-	n := &types.Notion{Config: env.Notion}
-	n.Setup()
-
+func Register(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 	sessionID, ok := getSessionKey("s", r)
 	if !ok {
 		/* If there's no session-key, redirect to the front page */
@@ -107,7 +104,7 @@ func Register(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 	}
 	switch r.Method {
 	case http.MethodGet:
-		course, session, err := getters.GetSessionInfo(n, sessionID)
+		course, session, err := getters.GetSessionInfo(ctx.Notion, sessionID)
 		if err != nil {
 			log.Fatal(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -146,7 +143,7 @@ func Register(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 
 		/* token! */
 		now := time.Now().UTC().UnixNano()
-		idemToken := getSessionToken(env.SecretBytes(), session.ID, now, session.Cost)
+		idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, session.Cost)
 
 		w.Header().Set("Content-Type", "text/html")
 		err = pageTpl.Execute(w, RegistrationData{
@@ -180,7 +177,7 @@ func Register(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 	}
 
 	/* Check that the Idempotency token is valid */
-	if !checkToken(form.Idempotency, env.SecretBytes(),
+	if !checkToken(form.Idempotency, ctx.Env.SecretBytes(),
 		form.SessionUUID, form.Timestamp, form.Cost) {
 		log.Fatal(w, fmt.Errorf("Invalid session token"), http.StatusBadRequest)
 		return
@@ -190,7 +187,7 @@ func Register(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 
 	/* Save to signups! Note: won't be considered final
 	 * until there's a payment ref attached */
-	id, err := getters.SaveRegistration(n, &form)
+	id, err := getters.SaveRegistration(ctx.Notion, &form)
 	// TODO: what happens if there's a duplicate/idempotent token?
 	if err != nil {
 		log.Fatal(w, err.Error(), http.StatusBadRequest)
@@ -210,7 +207,7 @@ func Register(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 	switch form.CheckoutVia {
 	case types.Bitcoin:
 	case types.Fiat:
-		FiatCheckoutStart(w, r, env, checkout)
+		FiatCheckoutStart(w, r, ctx, checkout)
 		return
 	default:
 		log.Fatal(w, err.Error(), http.StatusNotFound)
@@ -221,10 +218,7 @@ func Register(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 	return
 }
 
-func Waitlist(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
-	n := &types.Notion{Config: env.Notion}
-	n.Setup()
-
+func Waitlist(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 	sessionID, ok := getSessionKey("s", r)
 	if !ok {
 		/* If there's no session-key, redirect to the front page */
@@ -234,7 +228,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 
 	switch r.Method {
 	case http.MethodGet:
-		course, session, err := getters.GetSessionInfo(n, sessionID)
+		course, session, err := getters.GetSessionInfo(ctx.Notion, sessionID)
 		if err != nil {
 			log.Fatal(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -265,7 +259,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 
 		/* token! */
 		now := time.Now().UTC().UnixNano()
-		idemToken := getSessionToken(env.SecretBytes(), session.ID, now, uint64(0))
+		idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, uint64(0))
 		pageTpl := template.Must(template.New("").Funcs(funcMap).Parse(string(f)))
 		w.Header().Set("Content-Type", "text/html")
 		err = pageTpl.Execute(w, WaitlistData{
@@ -297,7 +291,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 	}
 
 	/* Check that the Idempotency token is valid */
-	if !checkToken(form.Idempotency, env.SecretBytes(), form.SessionUUID, form.Timestamp, uint64(0)) {
+	if !checkToken(form.Idempotency, ctx.Env.SecretBytes(), form.SessionUUID, form.Timestamp, uint64(0)) {
 		log.Fatal(w, fmt.Errorf("Invalid session token"), http.StatusBadRequest)
 		return
 	}
@@ -305,7 +299,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 	/* FIXME: Check that not already saved to waitlist */
 
 	/* Save to waitlist! */
-	err = getters.SaveWaitlist(n, &form)
+	err = getters.SaveWaitlist(ctx.Notion, &form)
 	if err != nil {
 		log.Fatal(w, err.Error(), http.StatusBadRequest)
 		return
@@ -324,8 +318,8 @@ type StripeCheckout struct {
 	SessionID    string
 }
 
-func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, env *types.EnvConfig, checkout *types.Checkout) {
-	stripe.Key = env.Stripe.Key
+func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *types.AppContext, checkout *types.Checkout) {
+	stripe.Key = ctx.Env.Stripe.Key
 
 	/* add cents for stripe! */
 	price := int64(FiatPrice(checkout.Price) * 100)
@@ -338,7 +332,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, env *types.EnvCon
 		},
 	}
 
-	if env.Stripe.IsTest() {
+	if ctx.Env.Stripe.IsTest() {
 		params.AddMetadata("integration_check", "accept_a_payment")
 	}
 
@@ -355,7 +349,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, env *types.EnvCon
 	w.Header().Set("Content-Type", "text/html")
 	err = pageTpl.Execute(w, &StripeCheckout{
 		ClientSecret: pi.ClientSecret,
-		PubKey:       env.Stripe.Pubkey,
+		PubKey:       ctx.Env.Stripe.Pubkey,
 		Email:        checkout.Email,
 		SessionID:    checkout.SessionID,
 		// TODO: other checkout info??
@@ -370,11 +364,8 @@ type SuccessData struct {
 	Session *types.CourseSession
 }
 
-func Success(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
+func Success(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 	/* Show a success page! */
-	n := &types.Notion{Config: env.Notion}
-	n.Setup()
-
 	sessionID, ok := getSessionKey("s", r)
 	if !ok {
 		/* If there's no session-key, redirect to the front page */
@@ -382,7 +373,7 @@ func Success(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 		return
 	}
 
-	course, session, err := getters.GetSessionInfo(n, sessionID)
+	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionID)
 	if err != nil {
 		log.Fatal(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -410,7 +401,7 @@ func Success(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 	}
 }
 
-func FiatCheckoutCb(w http.ResponseWriter, r *http.Request, env *types.EnvConfig, checkout *types.Checkout) {
+func FiatCheckoutCb(w http.ResponseWriter, r *http.Request, ctx *types.AppContext, checkout *types.Checkout) {
 	/*  payment confirmed todos:
 	 *  - add paymentRef to class signups table
 	 *  - update avail class seats (-1)
@@ -418,7 +409,7 @@ func FiatCheckoutCb(w http.ResponseWriter, r *http.Request, env *types.EnvConfig
 	 */
 }
 
-func Home(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
+func Home(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 	// Parse the template file
 	tmpl, err := template.ParseFiles("templates/index.tmpl")
 	if err != nil {
@@ -426,11 +417,8 @@ func Home(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 		return
 	}
 
-	n := &types.Notion{Config: env.Notion}
-	n.Setup()
-
 	// Define the data to be rendered in the template
-	data, err := getHomeData(n)
+	data, err := getHomeData(ctx.Notion)
 	if err != nil {
 		log.Fatal(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -449,10 +437,7 @@ type CourseData struct {
 	Sessions []*types.CourseSession
 }
 
-func Courses(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
-	n := &types.Notion{Config: env.Notion}
-	n.Setup()
-
+func Courses(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 	/* If there's no class-key, redirect to the front page */
 	hasK := r.URL.Query().Has("k")
 	if !hasK {
@@ -463,7 +448,7 @@ func Courses(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 	}
 
 	k := r.URL.Query().Get("k")
-	courses, err := getters.ListCourses(n)
+	courses, err := getters.ListCourses(ctx.Notion)
 	if err != nil {
 		log.Fatal(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -497,7 +482,7 @@ func Courses(w http.ResponseWriter, r *http.Request, env *types.EnvConfig) {
 			} else {
 				bundled = []*types.Course{course}
 			}
-			sessions, err := getters.GetCourseSessions(n, bundled)
+			sessions, err := getters.GetCourseSessions(ctx.Notion, bundled)
 			if err != nil {
 				log.Fatal(w, err.Error(), http.StatusInternalServerError)
 				return

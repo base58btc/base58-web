@@ -15,6 +15,11 @@ type (
 		Stripe StripeConfig
 	}
 
+	AppContext struct {
+		Env *EnvConfig
+		Notion *Notion
+	}
+
 	CourseAvail string
 	CourseLevel string
 	ShirtSize   string
