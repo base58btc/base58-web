@@ -1,0 +1,108 @@
+- class application (for application req classes)
+	- use typeform + replit?
+	- do multistage? 
+		e.g. collect their email + a few topline ques
+			send email w/ link to replit
+			what do they do when they finish the replit?
+	
+	- questions for taproot class
+	- questions for lightning class
+
+- to build:
+	- order sessions by first date
+	- don't show sessions w/in 12h of start (or after first) date
+	- turn on waitlist for oversold classes
+	- integrate tailwind (make pretty!)
+	- hide unneeded forms from signup
+	- disable submit button on stripe form
+	- errors/writebacks for bad requests
+	- where do logs go?
+	x waitlist page
+		- idempotency check
+	x checkout page (single item atm!)
+		- idempotency check
+		- send email when checked out
+	- checkout with bitcoin
+		- pay to address
+	- emails
+		- write emails in notion, as pages?
+	- watching the mempool, waiting for a pay-to address
+		- when do we degrade/stop watching for an address? (btcpay's timeout)
+		- is there a lightweight way to continually scan for a bunch of addresses?
+			- yes, if we get blocks to scan on a background process?
+			- what to do if payment < or > requested amt?
+
+		- after 60m, we fall back to the on-block check
+		https://mempool.space/api/address/<addr?txs | jq
+		[	
+		txid:
+		{
+		 vout: [{
+			scriptpubkey:
+			scriptpubkey_asm:
+			scriptpubkey_type:
+			scriptpubkey_address:
+			value: (satoshis)
+		}]
+		 status: { confirmed: true/false}
+		}
+		]
+	- nostr pubkey
+		- send nostr notice
+	- next address (from descriptor) 
+		- new address for every *session* update
+	x BIP21 + BOLT11 payment options 
+		x bip21 // LN invoice
+		- click to copy  
+	- notification from LN node that has been paid? (websocket to server?)
+		- stripe calls back to server
+		- CLN notifies server
+		- polling for mempool.space
+		- pipe response to checkout (if still around)
+		- mark as paid in notion
+		- email purchase receipt
+
+- ship w/ nix
+	- https://github.com/NixOS/nixpkgs/pull/57080/files#diff-6f133905935141621e64527de48c170d1905dadcedaf9cd1aba2640c49b7a8df
+	- https://golangexample.com/an-on-site-demonstration-of-packaging-go-applications-with-nix/
+	- https://serokell.io/blog/practical-nix-flakes
+	- https://nixos.wiki/wiki/Nixpkgs/Create_and_debug_packages
+
+
+- to think about:
+	- recurring subscriptions for access to all replit content?
+	- blog
+	- v2: bolt12
+	- v2: specific pages for confs?
+	- v2: popup for newsletter signup?
+	- v2: cart
+	- v2: cookies? https://www.calhoun.io/securing-cookies-in-go/
+	- v2: session marker (store cart state in browser cookies)
+	- v2: static site everything?
+
+
+
+
+
+
+
+- bitcoin acceptance pipeline!
+	- make a service that does a callback when an address is 
+		- confirmed  (includes transaction)
+		- in mempool (includes transaction)
+		- reaches depth X (includes transaction)
+	- service ... sends an event?
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
