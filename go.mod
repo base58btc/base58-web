@@ -13,7 +13,10 @@ require (
 	github.com/stripe/stripe-go/v74 v74.12.0
 )
 
+require github.com/gomodule/redigo v1.8.0 // indirect
+
 require (
+	github.com/alexedwards/scs/redisstore v0.0.0-20230327161757-10d4299e3b24
 	github.com/sendgrid/rest v2.6.9+incompatible // indirect
 	github.com/stretchr/testify v1.8.1 // indirect
 )

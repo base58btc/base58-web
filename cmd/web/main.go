@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -8,7 +9,9 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/alexedwards/scs/redisstore"
 	"github.com/alexedwards/scs/v2"
+	"github.com/gomodule/redigo/redis"
 	"github.com/gorilla/mux"
 	"github.com/kodylow/base58-website/internal/config"
 	"github.com/kodylow/base58-website/internal/handlers"
@@ -45,7 +48,7 @@ func main() {
 		Handler: Routes(),
 	}
 
-	fmt.Printf("Starting application on port %s\n", env.Port)
+	fmt.Printf("Starting application on port %s...", env.Port)
 	err := run(env)
 	if err != nil {
 		log.Fatal(err)
@@ -63,17 +66,14 @@ func run(env *types.EnvConfig) error {
 	app.ErrorLog = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
 	// Initialize the session manager
-	session = scs.New()
-	session.Lifetime = 72 * time.Hour
-	session.Cookie.Persist = true
-	session.Cookie.SameSite = http.SameSiteLaxMode
-	session.Cookie.Secure = app.InProduction
-
+	session = initSession()
 	app.Session = session
 
+	// Initialize the Notion client
 	notion := &types.Notion{Config: env.Notion}
 	notion.Setup()
 
+	// Set up the application context
 	app.Context = types.AppContext{
 		Env:    env,
 		Notion: notion,
@@ -83,6 +83,7 @@ func run(env *types.EnvConfig) error {
 
 // Routes sets up the routes for the application
 func Routes() http.Handler {
+	log.Printf("Initializing routes...")
 	// Create a file server to serve static files from the "static" directory
 	fs := http.FileServer(http.Dir("static"))
 
@@ -111,4 +112,41 @@ func Routes() http.Handler {
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 
 	return r
+}
+
+func initSession() *scs.SessionManager {
+	log.Printf("Initializing session...")
+	session := scs.New()
+
+	redisPool := newRedisPool()
+	session.Store = redisstore.New(redisPool)
+
+	session.Lifetime = 24 * time.Hour
+	session.Cookie.Persist = true
+	session.Cookie.SameSite = http.SameSiteLaxMode
+	session.Cookie.Secure = true
+
+	return session
+}
+
+// newRedisPool initializes the Redis connection pool for session management server side
+func newRedisPool() *redis.Pool {
+	log.Printf("Initializing Redis...")
+
+	redisPool := &redis.Pool{
+		DialContext: func(ctx context.Context) (redis.Conn, error) {
+			return redis.Dial("tcp", os.Getenv("REDIS"))
+		},
+	}
+
+	// Ping the Redis server to check the connection
+	conn := redisPool.Get()
+	defer conn.Close()
+
+	_, err := conn.Do("PING")
+	if err != nil {
+		log.Fatalf("Could not connect to Redis: %v", err)
+	}
+
+	return redisPool
 }
