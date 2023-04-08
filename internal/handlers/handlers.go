@@ -18,12 +18,51 @@ import (
 	"github.com/joncalhoun/form"
 	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/types"
+	"github.com/kodylow/base58-website/internal/config"
 	"github.com/kodylow/base58-website/static"
 	"io/ioutil"
+	"github.com/gorilla/mux"
 
 	stripe "github.com/stripe/stripe-go/v74"
 	"github.com/stripe/stripe-go/v74/paymentintent"
 )
+
+// Routes sets up the routes for the application
+func Routes(app *config.AppConfig) (http.Handler, error) {
+	// Create a file server to serve static files from the "static" directory
+	fs := http.FileServer(http.Dir("static"))
+
+	r := mux.NewRouter()
+
+	// Set up the routes, we'll have one page per course
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		Home(w, r, &app.Context)
+	}).Methods("GET")
+	r.HandleFunc("/classes", func(w http.ResponseWriter, r *http.Request) {
+		Courses(w, r, &app.Context)
+	})
+	r.HandleFunc("/waitlist", func(w http.ResponseWriter, r *http.Request) {
+		Waitlist(w, r, &app.Context)
+	})
+	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+		Register(w, r, &app.Context)
+	})
+	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
+		Success(w, r, &app.Context)
+	})
+	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
+		StripeHook(w, r, &app.Context)
+	})
+
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+	err := AddFaviconRoutes(r)
+
+	if err != nil {
+		return r, err
+	}
+
+	return r, nil
+}
 
 func ShirtOptions() []types.OptionItem {
 	return []types.OptionItem{
@@ -591,4 +630,28 @@ func getHomeData(n *types.Notion) (pageData, error) {
 		IntroTitle:  static.IntroTitle,
 		Base58Pitch: static.Base58Pitch,
 	}, err
+}
+
+/* these two functions make all the assets in /favicons as accessible */
+func getFaviconHandler(name string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, fmt.Sprintf("static/favicons/%s", name))
+	}
+}
+
+func AddFaviconRoutes(r *mux.Router) error {
+	files, err := ioutil.ReadDir("static/favicons/")
+	if err != nil {
+		return err
+	}
+
+	/* If asked for a favicon, we'll serve it up */
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		r.HandleFunc(fmt.Sprintf("/%s", file.Name()), getFaviconHandler(file.Name())).Methods("GET")
+	}
+
+	return nil
 }

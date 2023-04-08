@@ -9,7 +9,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/alexedwards/scs/v2"
-	"github.com/gorilla/mux"
 	"github.com/kodylow/base58-website/internal/config"
 	"github.com/kodylow/base58-website/internal/handlers"
 	"github.com/kodylow/base58-website/internal/types"
@@ -40,13 +39,18 @@ func main() {
 	env := loadConfig()
 
 	// Start the server
+	routes, err := handlers.Routes(&app)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	srv := &http.Server{
 		Addr:    env.Port,
-		Handler: Routes(),
+		Handler: routes,
 	}
 
 	fmt.Printf("Starting application on port %s\n", env.Port)
-	err := run(env)
+	err = run(env)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -79,36 +83,4 @@ func run(env *types.EnvConfig) error {
 		Notion: notion,
 	}
 	return nil
-}
-
-// Routes sets up the routes for the application
-func Routes() http.Handler {
-	// Create a file server to serve static files from the "static" directory
-	fs := http.FileServer(http.Dir("static"))
-
-	r := mux.NewRouter()
-
-	// Set up the routes, we'll have one page per course
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handlers.Home(w, r, &app.Context)
-	}).Methods("GET")
-	r.HandleFunc("/classes", func(w http.ResponseWriter, r *http.Request) {
-		handlers.Courses(w, r, &app.Context)
-	})
-	r.HandleFunc("/waitlist", func(w http.ResponseWriter, r *http.Request) {
-		handlers.Waitlist(w, r, &app.Context)
-	})
-	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
-		handlers.Register(w, r, &app.Context)
-	})
-	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
-		handlers.Success(w, r, &app.Context)
-	})
-	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
-		handlers.StripeHook(w, r, &app.Context)
-	})
-
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
-
-	return r
 }
