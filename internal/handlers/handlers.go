@@ -7,9 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +24,11 @@ import (
 	stripe "github.com/stripe/stripe-go/v74"
 	"github.com/stripe/stripe-go/v74/paymentintent"
 )
+
+func BuildTemplateCache() {
+	/* TODO: fill this out after the UI is ~done! */
+	return
+}
 
 // Routes sets up the routes for the application
 func Routes(ctx *config.AppContext) (http.Handler, error) {
@@ -146,12 +149,14 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	case http.MethodGet:
 		course, session, err := getters.GetSessionInfo(ctx.Notion, sessionID)
 		if err != nil {
-			log.Fatal(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
+			ctx.Err.Printf("/register failed to fetch sessions %s\n", err.Error())
 			return
 		}
 		f, err := ioutil.ReadFile("templates/forms/inputs.tmpl")
 		if err != nil {
-			log.Fatal(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
+			ctx.Err.Printf("/register failed to fetch sessions %s\n", err.Error())
 			return
 		}
 		tpl := template.Must(template.New("").Funcs(
@@ -172,7 +177,8 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 		f, err = ioutil.ReadFile("templates/register.tmpl")
 		if err != nil {
-			log.Fatal(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
+			ctx.Err.Printf("/register template load failed %s\n", err.Error())
 			return
 		}
 		funcMap := fb.FuncMap()
@@ -196,7 +202,8 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 				Cost:        session.Cost,
 			}})
 		if err != nil {
-			log.Fatal(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
+			ctx.Err.Printf("/register templ exec failed %s\n", err.Error())
 		}
 		return
 	case http.MethodPost:
@@ -212,14 +219,16 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	var form types.ClassRegistration
 	err := dec.Decode(&form, r.PostForm)
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
+		ctx.Err.Printf("/register unable to decode class registrattion %s\n", err.Error())
 		return
 	}
 
 	/* Check that the Idempotency token is valid */
 	if !checkToken(form.Idempotency, ctx.Env.SecretBytes(),
 		form.SessionUUID, form.Timestamp, form.Cost) {
-		log.Fatal(w, fmt.Errorf("Invalid session token"), http.StatusBadRequest)
+		http.Error(w, "Invalid session token", http.StatusBadRequest)
+		ctx.Err.Printf("/register not a good session token \n")
 		return
 	}
 
@@ -230,7 +239,8 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	id, err := getters.SaveRegistration(ctx.Notion, &form)
 	// TODO: what happens if there's a duplicate/idempotent token?
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Oops, we weren't able to save", http.StatusInternalServerError)
+		ctx.Err.Printf("/register Unable to save registration %s\n", err.Error())
 		return
 	}
 
@@ -250,7 +260,8 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		FiatCheckoutStart(w, r, ctx, checkout)
 		return
 	default:
-		log.Fatal(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "Page not found", http.StatusNotFound)
+		ctx.Err.Printf("/register unable to find checkout method %s\n", form.CheckoutVia)
 		return
 	}
 
@@ -267,7 +278,8 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionID)
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unable to fetch session info", http.StatusInternalServerError)
+		ctx.Err.Printf("/register get session info failed  %s\n", err.Error())
 		return
 	}
 
@@ -275,7 +287,8 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	case http.MethodGet:
 		f, err := ioutil.ReadFile("templates/forms/inputs.tmpl")
 		if err != nil {
-			log.Fatal(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Unable to load page", http.StatusInternalServerError)
+			ctx.Err.Printf("/waitlist inputs.tmpl read failed %s\n", err.Error())
 			return
 		}
 		tpl := template.Must(template.New("").Funcs(
@@ -288,7 +301,8 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 		f, err = ioutil.ReadFile("templates/waitlist.tmpl")
 		if err != nil {
-			log.Fatal(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Unable to load page", http.StatusInternalServerError)
+			ctx.Err.Printf("/waitlist waitlist.tmpl read failed %s\n", err.Error())
 			return
 		}
 		funcMap := fb.FuncMap()
@@ -310,7 +324,8 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 				Timestamp:   strconv.FormatInt(now, 10),
 			}})
 		if err != nil {
-			log.Fatal(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Unable to load page", http.StatusInternalServerError)
+			ctx.Err.Printf("/waitlist tmpl exec failed %s\n", err.Error())
 		}
 		return
 	case http.MethodPost:
@@ -326,14 +341,16 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	var form types.WaitList
 	err = dec.Decode(&form, r.PostForm)
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Unable to decode inputs", http.StatusInternalServerError)
+		ctx.Err.Printf("/waitlist form decode failed %s\n", err.Error())
 		return
 	}
 
 	/* Check that the Idempotency token is valid */
 	/*
 		if !checkToken(form.Idempotency, ctx.Env.SecretBytes(), form.SessionUUID, form.Timestamp, uint64(0)) {
-			log.Fatal(w, fmt.Errorf("Invalid session token"), http.StatusBadRequest)
+			http.Error(w, "Invalid session token", http.StatusBadRequest)
+			ctx.Err.Printf("/waitlist invalid session token %s\n", form.Idempotency)
 			return
 		}
 	*/
@@ -343,14 +360,16 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Save to waitlist! */
 	err = getters.SaveWaitlist(ctx.Notion, &form)
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Unable to save waitlist", http.StatusInternalServerError)
+		ctx.Err.Printf("/waitlist save failed %s\n", err.Error())
 		return
 	}
 
 	/* Send a confirmation email! */
 	err = SendWaitlistConfirmed(ctx, form.Email, session)
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Unable to send waitlist email confirmation", http.StatusInternalServerError)
+		ctx.Err.Printf("/waitlist send confirmation failed %s\n", err.Error())
 		return
 	}
 
@@ -393,7 +412,8 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 	/* Now show the stripe checkout page! */
 	f, err := ioutil.ReadFile("templates/checkout.tmpl")
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/checkout tmpl failed to load %s\n", err.Error())
 		return
 	}
 	pageTpl := template.Must(template.New("").Parse(string(f)))
@@ -407,7 +427,8 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		// TODO: other checkout info??
 	})
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/checkout tmpl execute failed %s\n", err.Error())
 	}
 }
 
@@ -427,20 +448,23 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionID)
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/success get session info failed %s\n", err.Error())
 		return
 	}
 
 	f, err := ioutil.ReadFile("templates/success.tmpl")
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/success template read failed %s\n", err.Error())
 		return
 	}
 	t, err := template.New("success").Funcs(template.FuncMap{
 		"LastIdx": LastIdx,
 	}).Parse(string(f))
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/success 'success' template read failed %s\n", err.Error())
 		return
 	}
 
@@ -449,7 +473,8 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		Session: session,
 	})
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/success execute template failed %s\n", err.Error())
 	}
 }
 
@@ -458,15 +483,15 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
 	payload, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading request body: %v\n", err)
-		w.WriteHeader(http.StatusServiceUnavailable)
+		http.Error(w, "Unable to load page, please try again later", http.StatusServiceUnavailable)
+		ctx.Err.Printf("/stripe-hook failed body read %s\n", err.Error())
 		return
 	}
 	event := stripe.Event{}
 
 	if err := json.Unmarshal(payload, &event); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to parse webhook body json: %v\n", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, "Unable to process, please try again later", http.StatusBadRequest)
+		ctx.Err.Printf("/stripe-hook body json unmarshal %s\n", err.Error())
 		return
 	}
 
@@ -475,8 +500,8 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 		var payment stripe.PaymentIntent
 		err := json.Unmarshal(event.Data.Raw, &payment)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\n", err)
-			w.WriteHeader(http.StatusBadRequest)
+			http.Error(w, "Unable to process, please try again later", http.StatusBadRequest)
+			ctx.Err.Printf("/stripe-hook payment body json unmarshal %s\n", err.Error())
 			return
 		}
 		/* Get out payment data */
@@ -487,24 +512,24 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 		 * This marks this signup as confirmed */
 		sessionUUID, err := getters.UpdateRegistration(ctx.Notion, pageID, refID)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to update signup %s: %v\n", pageID, err)
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, "Unable to process, please try again later", http.StatusBadRequest)
+			ctx.Err.Printf("/stripe-hook unable to update signup %s %s\n", pageID, err.Error())
 			return
 		}
 
 		/* Decrement available class count */
 		err = getters.CountClassRegistration(ctx.Notion, sessionUUID)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to decrement signup %s: %v\n", pageID, err)
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, "Unable to process, please try again later", http.StatusInternalServerError)
+			ctx.Err.Printf("/stripe-hook decrement signup count failed %s %s\n", pageID, err.Error())
 			return
 		}
 
 		// TODO: send email with receipt!!
 
-		fmt.Println("great success!")
+		ctx.Infos.Println("great success!")
 	default:
-		fmt.Fprintf(os.Stderr, "Unhandled event type: %s\n", event.Type)
+		ctx.Err.Printf("/stripe-hook unhandled event type %s\n", event.Type)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -514,21 +539,24 @@ func Home(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	// Parse the template file
 	tmpl, err := template.ParseFiles("templates/index.tmpl")
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/index parse files template failed %s\n", err.Error())
 		return
 	}
 
 	// Define the data to be rendered in the template
 	data, err := getHomeData(ctx.Notion)
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/index home data fetch failed %s\n", err.Error())
 		return
 	}
 
 	// Render the template with the data
 	err = tmpl.Execute(w, data)
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/index home exec template failed %s\n", err.Error())
 		return
 	}
 }
@@ -551,7 +579,8 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	k := r.URL.Query().Get("k")
 	courses, err := getters.ListCourses(ctx.Notion)
 	if err != nil {
-		log.Fatal(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/courses list courses attempt failed %s\n", err.Error())
 		return
 	}
 
@@ -560,14 +589,16 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			/* FIXME: put course page data into notion? */
 			f, err := ioutil.ReadFile("templates/course.tmpl")
 			if err != nil {
-				log.Fatal(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Unable to load page", http.StatusInternalServerError)
+				ctx.Err.Printf("/courses tmpl read failed %s\n", err.Error())
 				return
 			}
 			t, err := template.New("course").Funcs(template.FuncMap{
 				"LastIdx": LastIdx,
 			}).Parse(string(f))
 			if err != nil {
-				log.Fatal(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Unable to load page", http.StatusInternalServerError)
+				ctx.Err.Printf("/courses tmpl 'course' read failed %s\n", err.Error())
 				return
 			}
 
@@ -585,7 +616,8 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			}
 			sessions, err := getters.GetCourseSessions(ctx.Notion, bundled)
 			if err != nil {
-				log.Fatal(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Unable to load page", http.StatusInternalServerError)
+				ctx.Err.Printf("/courses course sessions fetch failed %s\n", err.Error())
 				return
 			}
 
@@ -594,7 +626,8 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 				Sessions: sessions,
 			})
 			if err != nil {
-				log.Fatal(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Unable to load page", http.StatusInternalServerError)
+				ctx.Err.Printf("/courses exec templ failed %s\n", err.Error())
 				return
 			}
 
@@ -603,14 +636,12 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	/* We didn't find it */
-	log.Fatal(w, fmt.Errorf("Unable to find course %s", k),
-		http.StatusNotFound)
+	http.Error(w, "Unable to find course", http.StatusNotFound)
+	ctx.Err.Printf("/course course not found %s\n", k)
 }
 
 // Styles serves the styles.css file
 func Styles(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Styles handler called")
-
 	// Serve the styles.css file from the "static" directory
 	w.Header().Add("Content-Type", "text/css")
 	http.ServeFile(w, r, "static/css/styles.css")
