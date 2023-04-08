@@ -9,14 +9,16 @@
 	- questions for lightning class
 
 - to build:
+	- integrate tailwind (make pretty!)
+
+	- logging!
 	- order sessions by first date
 	- don't show sessions w/in 12h of start (or after first) date
 	- turn on waitlist for oversold classes
-	- integrate tailwind (make pretty!)
-	- hide unneeded forms from signup
+
+	- hide unneeded form fields in signup
 	- disable submit button on stripe form
 	- errors/writebacks for bad requests
-	- where do logs go?
 	x waitlist page
 		- idempotency check
 	x checkout page (single item atm!)
@@ -81,28 +83,9 @@
 	- v2: static site everything?
 
 
-
-
-
-
-
 - bitcoin acceptance pipeline!
 	- make a service that does a callback when an address is 
 		- confirmed  (includes transaction)
 		- in mempool (includes transaction)
 		- reaches depth X (includes transaction)
 	- service ... sends an event?
-		
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -28,7 +28,7 @@ import (
 )
 
 // Routes sets up the routes for the application
-func Routes(app *config.AppConfig) (http.Handler, error) {
+func Routes(ctx *config.AppContext) (http.Handler, error) {
 	// Create a file server to serve static files from the "static" directory
 	fs := http.FileServer(http.Dir("static"))
 
@@ -36,22 +36,22 @@ func Routes(app *config.AppConfig) (http.Handler, error) {
 
 	// Set up the routes, we'll have one page per course
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		Home(w, r, &app.Context)
+		Home(w, r, ctx)
 	}).Methods("GET")
 	r.HandleFunc("/classes", func(w http.ResponseWriter, r *http.Request) {
-		Courses(w, r, &app.Context)
+		Courses(w, r, ctx)
 	})
 	r.HandleFunc("/waitlist", func(w http.ResponseWriter, r *http.Request) {
-		Waitlist(w, r, &app.Context)
+		Waitlist(w, r, ctx)
 	})
 	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
-		Register(w, r, &app.Context)
+		Register(w, r, ctx)
 	})
 	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
-		Success(w, r, &app.Context)
+		Success(w, r, ctx)
 	})
 	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
-		StripeHook(w, r, &app.Context)
+		StripeHook(w, r, ctx)
 	})
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
@@ -135,7 +135,7 @@ func checkToken(token string, sec []byte, sessionUUID string, timeStr string, co
 	return expToken == token
 }
 
-func Register(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
+func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	sessionID, ok := getSessionKey("s", r)
 	if !ok {
 		/* If there's no session-key, redirect to the front page */
@@ -258,7 +258,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 	return
 }
 
-func Waitlist(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
+func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	sessionID, ok := getSessionKey("s", r)
 	if !ok {
 		/* If there's no session-key, redirect to the front page */
@@ -367,7 +367,7 @@ type StripeCheckout struct {
 	SessionID    string
 }
 
-func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *types.AppContext, checkout *types.Checkout) {
+func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, checkout *types.Checkout) {
 	stripe.Key = ctx.Env.Stripe.Key
 
 	/* add cents for stripe! */
@@ -416,7 +416,7 @@ type SuccessData struct {
 	Session *types.CourseSession
 }
 
-func Success(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
+func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Show a success page! */
 	sessionID, ok := getSessionKey("s", r)
 	if !ok {
@@ -453,7 +453,7 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 	}
 }
 
-func StripeHook(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
+func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	const MaxBodyBytes = int64(65536)
 	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
 	payload, err := ioutil.ReadAll(r.Body)
@@ -510,7 +510,7 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func Home(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
+func Home(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	// Parse the template file
 	tmpl, err := template.ParseFiles("templates/index.tmpl")
 	if err != nil {
@@ -538,7 +538,7 @@ type CourseData struct {
 	Sessions []*types.CourseSession
 }
 
-func Courses(w http.ResponseWriter, r *http.Request, ctx *types.AppContext) {
+func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* If there's no class-key, redirect to the front page */
 	hasK := r.URL.Query().Has("k")
 	if !hasK {

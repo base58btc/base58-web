@@ -8,13 +8,14 @@ import (
 	"github.com/kodylow/base58-website/internal/types"
 )
 
-// AppConfig holds the application configuration settings
-type AppConfig struct {
+// AppContext holds the application settings + globals
+type AppContext struct {
 	InProduction  bool
-	InfoLog       *log.Logger
-	ErrorLog      *log.Logger
+	Infos         *log.Logger
+	Err           *log.Logger
 	Session       *scs.SessionManager
 	TemplateCache map[string]*template.Template
+	Notion *types.Notion
 
-	Context types.AppContext
+	Env *types.EnvConfig
 }

@@ -16,7 +16,7 @@ import (
 
 const configFile = "config.toml"
 
-var app config.AppConfig
+var app config.AppContext
 var session *scs.SessionManager
 
 func loadConfig() *types.EnvConfig {
@@ -32,8 +32,8 @@ func loadConfig() *types.EnvConfig {
 func main() {
 	// Initialize the application configuration
 	app.InProduction = false // change to true in prod
-	app.InfoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
-	app.ErrorLog = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+	app.Infos = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	app.Err = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
 	// Load configs from config.toml
 	env := loadConfig()
@@ -63,8 +63,9 @@ func main() {
 func run(env *types.EnvConfig) error {
 	// Initialize the application configuration
 	app.InProduction = false // change to true in production
-	app.InfoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
-	app.ErrorLog = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+	app.Infos = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	app.Err = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+	app.Env = env
 
 	// Initialize the session manager
 	session = scs.New()
@@ -75,12 +76,8 @@ func run(env *types.EnvConfig) error {
 
 	app.Session = session
 
-	notion := &types.Notion{Config: env.Notion}
-	notion.Setup()
+	app.Notion = &types.Notion{Config: env.Notion}
+	app.Notion.Setup()
 
-	app.Context = types.AppContext{
-		Env:    env,
-		Notion: notion,
-	}
 	return nil
 }
