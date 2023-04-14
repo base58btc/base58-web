@@ -12,14 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"github.com/joncalhoun/form"
 	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/types"
 	"github.com/kodylow/base58-website/internal/config"
-	"github.com/kodylow/base58-website/static"
 	"io/ioutil"
-	"github.com/gorilla/mux"
 
 	stripe "github.com/stripe/stripe-go/v74"
 	"github.com/stripe/stripe-go/v74/paymentintent"
@@ -41,7 +40,7 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		Home(w, r, ctx)
 	}).Methods("GET")
-	r.HandleFunc("/classes", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/classes/{class}", func(w http.ResponseWriter, r *http.Request) {
 		Courses(w, r, ctx)
 	})
 	r.HandleFunc("/waitlist", func(w http.ResponseWriter, r *http.Request) {
@@ -537,7 +536,7 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 
 func Home(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	// Parse the template file
-	tmpl, err := template.ParseFiles("templates/index.tmpl")
+	tmpl, err := template.ParseFiles("templates/index.tmpl", "templates/course_desc.tmpl")
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/index parse files template failed %s\n", err.Error())
@@ -553,7 +552,7 @@ func Home(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	// Render the template with the data
-	err = tmpl.Execute(w, data)
+	err = tmpl.ExecuteTemplate(w, "index.tmpl", data)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/index home exec template failed %s\n", err.Error())
@@ -568,15 +567,16 @@ type CourseData struct {
 
 func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* If there's no class-key, redirect to the front page */
-	hasK := r.URL.Query().Has("k")
-	if !hasK {
+	params := mux.Vars(r)
+	clss := params["class"]
+
+	if clss == "" {
 		/* redirect to "/". A lot of hard coded links exist pointing
 		 * at "/classes", so we redirect! */
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, "/#courses", http.StatusSeeOther)
 		return
 	}
 
-	k := r.URL.Query().Get("k")
 	courses, err := getters.ListCourses(ctx.Notion)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -585,7 +585,7 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	for _, course := range courses {
-		if k == course.TmplName {
+		if clss == course.TmplName {
 			/* FIXME: put course page data into notion? */
 			f, err := ioutil.ReadFile("templates/course.tmpl")
 			if err != nil {
@@ -604,7 +604,7 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 			/* FIXME: generalize? */
 			var bundled []*types.Course
-			if k == "tx-deep-dive" {
+			if clss  == "tx-deep-dive" {
 				bundled = append(bundled, course)
 				for _, c := range courses {
 					if strings.HasPrefix(c.TmplName, course.TmplName) {
@@ -637,12 +637,10 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 	/* We didn't find it */
 	http.Error(w, "Unable to find course", http.StatusNotFound)
-	ctx.Err.Printf("/course course not found %s\n", k)
+	ctx.Err.Printf("/course course not found %s\n", clss)
 }
 
-// Styles serves the styles.css file
 func Styles(w http.ResponseWriter, r *http.Request) {
-	// Serve the styles.css file from the "static" directory
 	w.Header().Add("Content-Type", "text/css")
 	http.ServeFile(w, r, "static/css/styles.css")
 }
@@ -650,17 +648,32 @@ func Styles(w http.ResponseWriter, r *http.Request) {
 // PageData is a struct that holds the data for a page
 type pageData struct {
 	Courses     []*types.Course
-	IntroTitle  string
-	Base58Pitch string
+	Current     []*types.Course
+	Coming      []*types.Course
+	Copyright   int
 }
 
 func getHomeData(n *types.Notion) (pageData, error) {
 	courses, err := getters.ListCourses(n)
+
+	if err != nil {
+		return pageData{}, err
+	}
+
+	var current, coming []*types.Course
+	for _, course := range courses {
+		if course.ComingSoon {
+			coming = append(coming, course)
+		} else {
+			current = append(current, course)
+		}
+	}
 	return pageData{
 		Courses:     courses,
-		IntroTitle:  static.IntroTitle,
-		Base58Pitch: static.Base58Pitch,
-	}, err
+		Current:     current,
+		Coming:      coming,
+		Copyright:   time.Now().Year(),
+	}, nil
 }
 
 /* these two functions make all the assets in /favicons as accessible */

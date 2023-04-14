@@ -6,29 +6,124 @@
 			what do they do when they finish the replit?
 	
 	- questions for taproot class
+		These questions help us figure out how prepared you are for this class, as well as helping us get a good understanding of general dev knowledge around bitcoin primitives. Demonstrated ability to understand technical topics is a requirement for this class, as taproot is quite technical.
+
+		- what type of script is this?
+			- multisig
+			- p2pkh
+			- p2wsh
+			- p2pk
+
+		- what's the difference between a redeemscript and a witness script?
+			- redeem scripts redeem bitcoin, witness scripts witness bitcoin
+			- redeemscripts appear in the scriptPubKey; witness scripts in the scriptSig
+			- redeemscripts appear in the scriptSig; witness scripts in the witness data
+			- redeemscripts are p2pkh scripts; witness scripts are p2wpkh scripts
+		- what two new fields were added for segwit transactions?
+			- scriptPubKey + scriptSig
+			- marker/flag + witnesses
+			- segwit bytes + weight units
+
+		- what is the pubkey for the private key at 838389019939482991834?
+			- 03c5eb54da5a1d595c83234bef7824def49f3a241df7f07c56962ffc6a7604138d
+			- 02ea2487321d3c7c412fb0150601007278e6fb1f78c1f6fb6978dcd41164dc6854
+			- 037f6d6844a1487e39a3f495f55ba576dd83bbebbe011b21647f7e4de946e1ae88
+			- 02692c5616ca690a86ea37e8e669cc2e36c75e71fed96f26f120c45faddf80d4f2
+		- bitcoin signatures have two values, r + s. what is `r` commonly called?
+			- a nonce
+			- the result
+			- random
+			- sig-r
+		- Starting at leaf C, what path would you take upward to reach the root?
+			
+				root
+				/  \
+			       A   B
+			      /   / \
+			     G   D   E
+				/ \   \
+			       F  C    H
+
+			- FDEB
+			- CDB
+			- CGA
+			- HEB
+
+		- how many years of dev exp do you have?
+			- zero
+			- 1 - 3y
+			- 3 - 5y
+			- 5+y
+		- what's your github? 
+		- i work somewhere with non-public commits: y/N
+
 	- questions for lightning class
+		These questions help us figure out how prepared you are for this class, as well as helping us get a good understanding of general dev knowledge around bitcoin primitives. Demonstrated ability to understand technical topics is a requirement for this class, as taproot is quite technical.
+
+		- what is the pubkey for the private key at 83399870199029482991834?
+			- 038666907cabf9cb2521f4a6c1b5e3e6f601a799d8b5a32be30580e24e52c641c2
+			- 037fe0fce6c068d57081bf16f491c090007ca9cc3b18c9e1d60275ed924b7ba6a6
+			- 02ab0c287e81bb1c78fad8a14802b70a429025c51e3b6323cc4fc7e21a78157a40
+			- 03168eca45558808327685d3622590542db24fc97971682d159524e9bb36f40f0d
+		- Compute the SHA256 of the preimage 'base58 lightning class'
+			- 26a9baf4d0f23862df88dec2f1779be0fbdea5e9b3474e262706f932f8e3d348
+			- 4388bd78d0b47bdbb32aa7683776289d4b5f3b7cf6bebd934f1d2033e08fb2c3
+			- d55497a09de8c68575196c947a4ce01dfd1019702ca502ff07ea353577a2ea5f
+			- a5ac16c2e9c55cc875a04b60d6ec223403c6d1f51bacb2fc17de3288beff9291
+
+		- for a 2 of 2 multisig script, how many signatures do you need to move the funds?
+			- 0
+			- 1
+			- 2
+		- how many years of dev exp do you have?
+			- zero
+			- 1 - 3y
+			- 3 - 5y
+			- 5+y
+		- what's your github? 
+		- i work somewhere with non-public commits: y/N
+
 
 - to build:
 	- integrate tailwind (make pretty!)
+	- update "send email" to use the emailer
 
-	- logging!
 	- order sessions by first date
 	- don't show sessions w/in 12h of start (or after first) date
 	- turn on waitlist for oversold classes
-
 	- hide unneeded form fields in signup
 	- disable submit button on stripe form
-	- errors/writebacks for bad requests
 	x waitlist page
-		- idempotency check
+		- idempotency check?
 	x checkout page (single item atm!)
 		- idempotency check
 		- send email when checked out
 	- checkout with bitcoin
-		- pay to address
+		- integrate opennode's checkout, for btcpp launch!
 	- emails
 		- write emails in notion, as pages?
-	- watching the mempool, waiting for a pay-to address
+
+
+
+- ship w/ nix
+	- https://github.com/NixOS/nixpkgs/pull/57080/files#diff-6f133905935141621e64527de48c170d1905dadcedaf9cd1aba2640c49b7a8df
+	- https://golangexample.com/an-on-site-demonstration-of-packaging-go-applications-with-nix/
+	- https://serokell.io/blog/practical-nix-flakes
+	- https://nixos.wiki/wiki/Nixpkgs/Create_and_debug_packages
+
+
+- to think about:
+	- recurring subscriptions for access to all replit content?
+	- blog
+	- v2: nostr pubkeys
+		- send nostr notice
+	- v2: bolt12
+	- v2: specific pages for confs?
+	- v2: popup for newsletter signup?
+	- v2: cart
+	- v2: cookies? https://www.calhoun.io/securing-cookies-in-go/
+	- v2: session marker (store cart state in browser cookies)
+	- v2: custom btc backend; watching the mempool, waiting for a pay-to address
 		- when do we degrade/stop watching for an address? (btcpay's timeout)
 		- is there a lightweight way to continually scan for a bunch of addresses?
 			- yes, if we get blocks to scan on a background process?
@@ -49,8 +144,6 @@
 		 status: { confirmed: true/false}
 		}
 		]
-	- nostr pubkey
-		- send nostr notice
 	- next address (from descriptor) 
 		- new address for every *session* update
 	x BIP21 + BOLT11 payment options 
@@ -63,24 +156,6 @@
 		- pipe response to checkout (if still around)
 		- mark as paid in notion
 		- email purchase receipt
-
-- ship w/ nix
-	- https://github.com/NixOS/nixpkgs/pull/57080/files#diff-6f133905935141621e64527de48c170d1905dadcedaf9cd1aba2640c49b7a8df
-	- https://golangexample.com/an-on-site-demonstration-of-packaging-go-applications-with-nix/
-	- https://serokell.io/blog/practical-nix-flakes
-	- https://nixos.wiki/wiki/Nixpkgs/Create_and_debug_packages
-
-
-- to think about:
-	- recurring subscriptions for access to all replit content?
-	- blog
-	- v2: bolt12
-	- v2: specific pages for confs?
-	- v2: popup for newsletter signup?
-	- v2: cart
-	- v2: cookies? https://www.calhoun.io/securing-cookies-in-go/
-	- v2: session marker (store cart state in browser cookies)
-	- v2: static site everything?
 
 
 - bitcoin acceptance pipeline!
