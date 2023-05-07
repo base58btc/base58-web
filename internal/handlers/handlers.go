@@ -24,39 +24,134 @@ import (
 	"github.com/stripe/stripe-go/v74/paymentintent"
 )
 
-func BuildTemplateCache() {
-	/* TODO: fill this out after the UI is ~done! */
-	return
+/* if not in prod, we rebild this every request (expensive, but fast) */
+func BuildTemplateCache(ctx *config.AppContext) error {
+
+	index, err := template.ParseFiles("templates/index.tmpl", "templates/course_desc.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["index.tmpl"] = index
+
+
+	inputs, err := template.New("checkout_form").Funcs(template.FuncMap{
+		"fn_options": func(id string) []types.OptionItem {
+			if id == "shirt" {
+				return ShirtOptions()
+			}
+			if id == "checkout" {
+				// FIXME: how to do this dynamically?
+				return MakeCheckoutOpts(100)
+			}
+			return []types.OptionItem{}
+		},
+	}).ParseFiles("templates/forms/inputs.tmpl")
+	if err != nil {
+		return err
+	}
+	fb := form.Builder{
+		InputTemplate: inputs,
+	}
+
+	funcMap := fb.FuncMap()
+	funcMap["LastIdx"] = LastIdx
+	funcMap["FiatPrice"] = FiatPrice
+	funcMap["BtcPrice"] = BtcPrice
+
+	register, err := template.New("register.tmpl").Funcs(funcMap).ParseFiles("templates/register.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["register.tmpl"] = register
+
+	inputs, err = template.New("waitlist_form").Funcs(template.FuncMap{
+		"fn_options": func(id string) []types.OptionItem {
+			return []types.OptionItem{}
+		},
+	}).ParseFiles("templates/forms/inputs.tmpl")
+	if err != nil {
+		return err
+	}
+	fb = form.Builder{
+		InputTemplate: inputs,
+	}
+
+	funcMap = fb.FuncMap()
+	funcMap["LastIdx"] = LastIdx
+	funcMap["FiatPrice"] = FiatPrice
+	funcMap["BtcPrice"] = BtcPrice
+	waitlist, err := template.New("waitlist.tmpl").Funcs(funcMap).ParseFiles("templates/waitlist.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["waitlist.tmpl"] = waitlist
+
+	checkout, err := template.ParseFiles("templates/checkout.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["checkout.tmpl"] = checkout
+
+	success, err := template.New("success").Funcs(template.FuncMap{
+		"LastIdx": LastIdx,
+	}).ParseFiles("templates/success.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["success.tmpl"] = success
+
+	success, err = template.New("success").Funcs(template.FuncMap{
+		"LastIdx": LastIdx,
+	}).ParseFiles("templates/success.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["success.tmpl"] = success
+	return nil
 }
 
-// Routes sets up the routes for the application
+func maybeRebuildCache(ctx *config.AppContext) error {
+	if !ctx.ReloadCache() {
+		return nil
+	}
+
+	return BuildTemplateCache(ctx)
+}
+
 func Routes(ctx *config.AppContext) (http.Handler, error) {
-	// Create a file server to serve static files from the "static" directory
-	fs := http.FileServer(http.Dir("static"))
+	ctx.TemplateCache = make(map[string]*template.Template)
 
 	r := mux.NewRouter()
 
-	// Set up the routes, we'll have one page per course
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		maybeRebuildCache(ctx)
 		Home(w, r, ctx)
 	}).Methods("GET")
 	r.HandleFunc("/classes/{class}", func(w http.ResponseWriter, r *http.Request) {
+		maybeRebuildCache(ctx)
 		Courses(w, r, ctx)
 	})
 	r.HandleFunc("/waitlist", func(w http.ResponseWriter, r *http.Request) {
+		maybeRebuildCache(ctx)
 		Waitlist(w, r, ctx)
 	})
 	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+		maybeRebuildCache(ctx)
 		Register(w, r, ctx)
 	})
 	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
+		maybeRebuildCache(ctx)
 		Success(w, r, ctx)
 	})
 	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
 		StripeHook(w, r, ctx)
-	})
+	}).Methods("POST")
 
+	/* serve files from the "static" directory */
+	fs := http.FileServer(http.Dir("static"))
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+
+	/* special favicon handling */
 	err := AddFaviconRoutes(r)
 
 	if err != nil {
@@ -100,12 +195,14 @@ type RegistrationData struct {
 	Course  *types.Course
 	Session *types.CourseSession
 	Form    types.ClassRegistration
+	Page    Page
 }
 
 type WaitlistData struct {
 	Course  *types.Course
 	Session *types.CourseSession
 	Form    types.WaitList
+	Page    Page
 }
 
 func getSessionKey(p string, r *http.Request) (string, bool) {
@@ -152,39 +249,9 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			ctx.Err.Printf("/register failed to fetch sessions %s\n", err.Error())
 			return
 		}
-		f, err := ioutil.ReadFile("templates/forms/inputs.tmpl")
-		if err != nil {
-			http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
-			ctx.Err.Printf("/register failed to fetch sessions %s\n", err.Error())
-			return
-		}
-		tpl := template.Must(template.New("").Funcs(
-			template.FuncMap{
-				"fn_options": func(id string) []types.OptionItem {
-					if id == "shirt" {
-						return ShirtOptions()
-					}
-					if id == "checkout" {
-						return MakeCheckoutOpts(session.Cost)
-					}
-					return []types.OptionItem{}
-				},
-			}).Parse(string(f)))
-		fb := form.Builder{
-			InputTemplate: tpl,
-		}
 
-		f, err = ioutil.ReadFile("templates/register.tmpl")
-		if err != nil {
-			http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
-			ctx.Err.Printf("/register template load failed %s\n", err.Error())
-			return
-		}
-		funcMap := fb.FuncMap()
-		funcMap["LastIdx"] = LastIdx
-		funcMap["FiatPrice"] = FiatPrice
-		funcMap["BtcPrice"] = BtcPrice
-		pageTpl := template.Must(template.New("").Funcs(funcMap).Parse(string(f)))
+		// FIXME: how to update/inject func map for an existing template? 
+		pageTpl := ctx.TemplateCache["register.tmpl"]
 
 		/* token! */
 		now := time.Now().UTC().UnixNano()
@@ -194,6 +261,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		err = pageTpl.Execute(w, RegistrationData{
 			Course:  course,
 			Session: session,
+			Page:        getPage("Course Registration"),
 			Form: types.ClassRegistration{
 				Idempotency: idemToken,
 				Timestamp:   strconv.FormatInt(now, 10),
@@ -284,39 +352,16 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 	switch r.Method {
 	case http.MethodGet:
-		f, err := ioutil.ReadFile("templates/forms/inputs.tmpl")
-		if err != nil {
-			http.Error(w, "Unable to load page", http.StatusInternalServerError)
-			ctx.Err.Printf("/waitlist inputs.tmpl read failed %s\n", err.Error())
-			return
-		}
-		tpl := template.Must(template.New("").Funcs(
-			template.FuncMap{
-				"fn_options": func(id string) []types.OptionItem {
-					return []types.OptionItem{}
-				},
-			}).Parse(string(f)))
-		fb := form.Builder{InputTemplate: tpl}
-
-		f, err = ioutil.ReadFile("templates/waitlist.tmpl")
-		if err != nil {
-			http.Error(w, "Unable to load page", http.StatusInternalServerError)
-			ctx.Err.Printf("/waitlist waitlist.tmpl read failed %s\n", err.Error())
-			return
-		}
-		funcMap := fb.FuncMap()
-		funcMap["LastIdx"] = LastIdx
-		funcMap["FiatPrice"] = FiatPrice
-		funcMap["BtcPrice"] = BtcPrice
 
 		/* token! */
 		now := time.Now().UTC().UnixNano()
 		//idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, uint64(0))
-		pageTpl := template.Must(template.New("").Funcs(funcMap).Parse(string(f)))
+		pageTpl := ctx.TemplateCache["waitlist.tmpl"]
 		w.Header().Set("Content-Type", "text/html")
 		err = pageTpl.Execute(w, WaitlistData{
 			Course:  course,
 			Session: session,
+			Page: getPage("Course Waitlist"),
 			Form: types.WaitList{
 				Idempotency: "waitlist",
 				SessionUUID: session.ID,
@@ -383,6 +428,7 @@ type StripeCheckout struct {
 	PubKey       string
 	Email        string
 	SessionID    string
+	Page         Page
 }
 
 func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, checkout *types.Checkout) {
@@ -408,21 +454,15 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 
 	pi, _ := paymentintent.New(params)
 
-	/* Now show the stripe checkout page! */
-	f, err := ioutil.ReadFile("templates/checkout.tmpl")
-	if err != nil {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("/checkout tmpl failed to load %s\n", err.Error())
-		return
-	}
-	pageTpl := template.Must(template.New("").Parse(string(f)))
+	pageTpl := ctx.TemplateCache["checkout.tmpl"]
 
 	w.Header().Set("Content-Type", "text/html")
-	err = pageTpl.Execute(w, &StripeCheckout{
+	err := pageTpl.Execute(w, &StripeCheckout{
 		ClientSecret: pi.ClientSecret,
 		PubKey:       ctx.Env.Stripe.Pubkey,
 		Email:        checkout.Email,
 		SessionID:    checkout.SessionID,
+		Page:         getPage("Checkout"),
 		// TODO: other checkout info??
 	})
 	if err != nil {
@@ -434,6 +474,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 type SuccessData struct {
 	Course  *types.Course
 	Session *types.CourseSession
+	Page    Page
 }
 
 func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -452,24 +493,11 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
-	f, err := ioutil.ReadFile("templates/success.tmpl")
-	if err != nil {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("/success template read failed %s\n", err.Error())
-		return
-	}
-	t, err := template.New("success").Funcs(template.FuncMap{
-		"LastIdx": LastIdx,
-	}).Parse(string(f))
-	if err != nil {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("/success 'success' template read failed %s\n", err.Error())
-		return
-	}
-
-	err = t.Execute(w, &SuccessData{
+	tmpl := ctx.TemplateCache["success.tmpl"]
+	err = tmpl.Execute(w, &SuccessData{
 		Course:  course,
 		Session: session,
+		Page:    getPage(""),
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -535,15 +563,6 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 }
 
 func Home(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-	// Parse the template file
-	tmpl, err := template.ParseFiles("templates/index.tmpl", "templates/course_desc.tmpl")
-	if err != nil {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("/index parse files template failed %s\n", err.Error())
-		return
-	}
-
-	// Define the data to be rendered in the template
 	data, err := getHomeData(ctx.Notion)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -552,6 +571,7 @@ func Home(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	// Render the template with the data
+	tmpl := ctx.TemplateCache["index.tmpl"]
 	err = tmpl.ExecuteTemplate(w, "index.tmpl", data)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -563,6 +583,7 @@ func Home(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 type CourseData struct {
 	Course   *types.Course
 	Sessions []*types.CourseSession
+	Page     Page
 }
 
 func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -624,6 +645,7 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			err = t.Execute(w, CourseData{
 				Course:   course,
 				Sessions: sessions,
+				Page:     getPage(course.PublicName),
 			})
 			if err != nil {
 				http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -646,11 +668,26 @@ func Styles(w http.ResponseWriter, r *http.Request) {
 }
 
 // PageData is a struct that holds the data for a page
+type Page struct {
+	Title string
+	Copyright   int
+}
+
 type pageData struct {
+	Page        Page
 	Courses     []*types.Course
 	Current     []*types.Course
 	Coming      []*types.Course
-	Copyright   int
+}
+
+func getPage(title string) Page {
+	if title == "" {
+		title = "Base58"
+	}
+	return Page {
+		Title: title,
+		Copyright:   time.Now().Year(),
+	}
 }
 
 func getHomeData(n *types.Notion) (pageData, error) {
@@ -669,10 +706,10 @@ func getHomeData(n *types.Notion) (pageData, error) {
 		}
 	}
 	return pageData{
+		Page:        getPage(""),
 		Courses:     courses,
 		Current:     current,
 		Coming:      coming,
-		Copyright:   time.Now().Year(),
 	}, nil
 }
 

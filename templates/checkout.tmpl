@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Checkout</title>
+    {{ block "head" .Page }} {{ end }}
     <script src="https://js.stripe.com/v3/"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
   </head>
   <body>
    <h1>Let's finish your registration!</h1>
@@ -17,6 +16,7 @@
 
 	  <button id="card-button">Submit Payment</button>
 	</form>
+  {{ block "footer" .Page }} {{ end }}
   </body>
 <script>
 var stripe = Stripe('{{ .PubKey }}');

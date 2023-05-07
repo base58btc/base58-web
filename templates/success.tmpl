@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Base58</title>
-    <link rel="stylesheet" href="/static/css/styles.css" />
+    {{ block "head" .Page }} {{ end }}
   </head>
   <body>
     <section>
@@ -17,10 +16,14 @@
 		{{ index .Session.Date 0 }}
 	  {{ end }} {{ .Session.TimeDesc }}</p>
     <p> Where: {{ .Session.Location }}</p>
+    <!-- fixme: show a map tile of location, if is an irl class -->
     <p> Taught By: {{ .Session.Instructor }} </td>
-	<p> We'll see you in class soon. </p>
+	<p>We'll see you in class soon. </p>
+	<p>You should get a registration email from <span class="font-semibold">hello@base58.school</span> shortly; please check your email's spam inbox if you don't receive it.</p>
 	<p>Before then, feel free to take a run at our Replit exercises</p>
-	<p>Follow us on Twitter or join our Discord</p>
+	<p>Follow us on <a href="//twitter.com/base58btc">Twitter</a> 
+	or join us on <a href="//">Discord</a></p>
     </section>
+  {{ block "footer" .Page }} {{ end }}
   </body>
 </html>

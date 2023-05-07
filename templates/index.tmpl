@@ -1,74 +1,11 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Base58</title>
-    <link rel="stylesheet" href="/static/css/styles.css" />
+  {{ block "head" .Page }} {{ end }}
   </head>
   <body class="">
 <div class="bg-white">
-  <header class="absolute inset-x-0 top-0 z-50">
-    <nav class="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8" aria-label="Global">
-      <div class="flex lg:flex-1">
-        <a href="#" class="-m-1.5 p-1.5">
-          <span class="sr-only">Base58</span>
-	  <img src="/static/img/chains_26d3-fe0f.png" class="inline h-8 w-auto" alt="chains"/>
-	 <img src="/static/img/unlocked_1f513.png" class="inline w-auto h-8" alt="unlocked"/>
-        </a>
-      </div>
-      <div class="flex lg:hidden">
-        <button type="button" class="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700">
-          <span class="sr-only">Open main menu</span>
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-          </svg>
-        </button>
-      </div>
-      <div class="hidden lg:flex lg:gap-x-12">
-        <a href="#courses" class="text-sm font-semibold leading-6 text-gray-900">Courses</a>
-
-        <a href="#testimonials" class="text-sm font-semibold leading-6 text-gray-900">Testimonials</a>
-
-        <a href="#faq" class="text-sm font-semibold leading-6 text-gray-900">FAQ</a>
-
-        <a href="#team" class="text-sm font-semibold leading-6 text-gray-900">About Us</a>
-      </div>
-    </nav>
-    <!-- Mobile menu, show/hide based on menu open state. -->
-    <div class="hidden lg:hidden" role="dialog" aria-modal="true">
-      <!-- Background backdrop, show/hide based on slide-over state. -->
-      <div class="fixed inset-0 z-50"></div>
-      <div class="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
-        <div class="flex items-center justify-between">
-          <a href="#" class="-m-1.5 p-1.5">
-            <span class="sr-only">Base58</span>
-	    <img src="/static/img/chains_26d3-fe0f.png" class="inline h-8 w-auto" alt="chains"/>
-	    <img src="/static/img/unlocked_1f513.png" class="inline w-auto h-8" alt="unlocked"/>
-          </a>
-          <button type="button" class="-m-2.5 rounded-md p-2.5 text-gray-700">
-            <span class="sr-only">Close menu</span>
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div class="mt-6 flow-root">
-          <div class="-my-6 divide-y divide-gray-500/10">
-            <div class="space-y-2 py-6">
-              <a href="#courses" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">Courses</a>
-
-              <a href="#testimonials" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">Testimonials</a>
-
-              <a href="#faq" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">FAQ</a>
-
-              <a href="#team" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">About Us</a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </header>
+    {{ block "nav" . }} {{ end }}
   <main>
     <div class="relative isolate">
       <svg class="absolute inset-x-0 top-0 -z-10 h-[64rem] w-full stroke-yellow-300 [mask-image:radial-gradient(32rem_32rem_at_center,white,transparent)]" aria-hidden="true">
@@ -155,8 +92,10 @@
             </a>
         </div>
     </section>
-    <section id="courses" class="bg-gray-200 w-full" >
-      <div class="mx-auto max-w-7xl py-32 px-6 lg:px-8">
+    <section id="courses" class="bg-gray-200 flex flex-col mb-20 w-full">
+	<div class="relative isolate overflow-hidden py-20 sm:py-32">
+	  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+	    <div class="mx-auto max-w-2xl lg:max-w-none lg:mx-0">
         <h2 class="text-4xl sm:text-6xl w-full sm:w-2xl m-auto tracking-tight font-bold text-left pb-8">
          Explore Our Courses
         </h2>
@@ -237,8 +176,11 @@
         </div>
         {{ end }}
     </div>
+    </div>
+    </div>
   </section>
-  <section id="online"> 
+  <!-- no online section -->
+  <section id="online" class="hidden"> 
       <div class="w-full self-start flex flex-col sm:flex-row">
           <a target="_blank" href="https://www.udemy.com/course/base58-bitcoin-transactions-one/?referralCode=4405769CAB73A12745F4"
                 class="
@@ -271,76 +213,144 @@
                 <img src="/static/img/replit.png" class="w-32" />
             </a>
         </div>
-    </section>
-    <section id="testimonials" class="flex flex-col justify-center items-center my-20 mx-10">
-        <h3 class="text-3xl w-full sm:w-2xl m-auto font-bold text-left">
+    </section>  
+    <section id="testimonials" class="bg-white py-24 sm:py-32">
+  	<div class="mx-auto max-w-7xl px-6 lg:px-8">
+        <h3 class="mx-auto max-w-2xl lg:max-w-none lg:mx-0 text-3xl w-full sm:w-2xl m-auto font-bold text-left font-semibold">
             Testimonials
         </h3>
-
-        <div class="flex flex-wrap gap-3 mx-auto flex-col justify-center
-            md:flex-row sm:flex-nowrap my-10">
-            <div class="p-5 basis-1/3 block rounded-lg
-                border-2 rounded-md shadow-sm border-orange-500
-                flex flex-col justify-between
-            ">
-                <p>
+     <div class="mx-auto grid max-w-2xl grid-cols-1 lg:mx-0 lg:max-w-none lg:grid-cols-2">
+      <div class="flex flex-col pb-10 sm:pb-16 lg:pb-0 lg:pr-8 xl:pr-20 sm:pt-16 lg:pt-0">
+        <figure class="mt-10 flex flex-auto flex-col justify-between">
+          <blockquote class="text-lg leading-8 text-gray-900">
+		<p>
                     "As a junior developer it's a daunting task jumping into Bitcoin development for the first time,
                     I've tried on my own and failed multiple times in the past. Base58 gave me a new opportunity to dive
                     in again guided by a real expert in the industry along side a class of likeminded students. This has
                     been invaluable for my understanding of the Bitcoin protocol and has given me examples and
                     actionable next steps for developing my skills and starting to build on Bitcoin for real. Thank you
                     Base58!"
-                </p>
-                <div>
-                    <h3 class="mt-5 font-heading font-bold text-lg text-gray-900">
-                        PlebDev
-                    </h3>
-                    <p class="text-sm text-gray-600">
-                        Front End Engineer @Fold
-                    </p>
-                </div>
+		</p>
+          </blockquote>
+          <figcaption class="mt-10 flex items-center gap-x-6">
+            <img class="h-14 w-14 rounded-full bg-gray-50" src="/static/img/anon_dev.png" alt="">
+            <div class="text-base">
+              <div class="font-semibold text-gray-900">PlebDev</div>
+              <div class="mt-1 text-gray-500">Front End Engineer @ Fold</div>
             </div>
-            <div class="p-5 basis-1/3 block rounded-lg
-                border-2 rounded-md shadow-sm border-orange-500
-                flex flex-col justify-between
-            ">
-                <p>
+          </figcaption>
+        </figure>
+      </div>
+      <div class="pb-10 sm:pb-16 lg:pb-0 flex flex-col border-t border-gray-900/10 sm:pt-16 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0 xl:pl-20">
+        <figure class="mt-10 flex flex-auto flex-col justify-between">
+          <blockquote class="text-lg leading-8 text-gray-900">
+		<p>
                     "Phenomenal course. Came into it with limited technical knowledge of bitcoin. They make it super
                     accessible (no dev experience needed, interactive and fun) and I'm now sooo much more comfortable
                     with the technical side of the bitcoin fundamentals. In fact, some of the things I learnt helped me
                     while interviewing at bitcoin companies! If you're interested in bitcoin and want to learn about how
                     it works - highly recommend taking this course!"
-                </p>
-                <div>
-                    <h3 class="mt-5 font-heading font-bold text-lg text-gray-900">
-                        Shadowy Super Buidler
-                    </h3>
-                    <p class="text-sm text-gray-600">
-                        Sr. Software Engineer @Swan Bitcoin
-                    </p>
-                </div>
+		</p>
+          </blockquote>
+          <figcaption class="mt-10 flex items-center gap-x-6">
+            <img class="h-14 w-14 rounded-full bg-gray-50" src="/static/img/tickertape_dev.png" alt="">
+            <div class="text-base">
+              <div class="font-semibold text-gray-900">Super Coder</div>
+              <div class="mt-1 text-gray-500">Sr. Software Engineer @ Swan Bitcoin</div>
+
             </div>
-            <div class="p-5 basis-1/3 block rounded-lg
-                border-2 rounded-md shadow-sm border-orange-500
-                flex flex-col justify-between
-            ">
-                <p>
+          </figcaption>
+        </figure>
+      </div>
+      <div class="flex flex-col pb-10 sm:pb-16 lg:pb-0 lg:pr-8 xl:pr-20 sm:pt-16 lg:pt-16">
+        <figure class="mt-10 flex flex-auto flex-col justify-between">
+          <blockquote class="text-lg leading-8 text-gray-900">
+		<p>
                     "I thought I knew how transactions worked in bitcoin up until I took the class. It is a deep, byte
                     by byte dive into the different types of transactions, understandable for non-coding people. Just
                     have an open mindset, let yourself be taught the most basic bitcoin-cli and python commands, and you
                     are good to go. I was afraid it would be too technical, and don't get me wrong, it does get into the
                     roots of how the transaction protocols work, but nifty managed to keep it simple and clear enough
                     for someone with a basic bitcoin knowledge to follow."
-                </p>
-                <div>
-                    <h3 class="mt-5 font-heading font-bold text-lg text-gray-900">
-                        Based Anon
-                    </h3>
-                </div>
+		</p>
+          </blockquote>
+          <figcaption class="mt-10 flex items-center gap-x-6">
+            <img class="h-14 w-14 rounded-full bg-gray-50" src="/static/img/ghost.png" alt="">
+            <div class="text-base">
+              <div class="font-semibold text-gray-900">Based Anon</div>
             </div>
-        </div>
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</div>
+
     </section>
-    <section id="faq" class="flex flex-col my-20 mx-10">
+    <section id="upcoming_confs">
+    </section>
+    <section id="btcpp">
+	<div class="relative isolate overflow-hidden bg-gray-900 py-24 sm:py-32">
+	  <svg viewBox="0 0 1097 845" aria-hidden="true" class="hidden transform-gpu blur-3xl sm:absolute sm:-top-10 sm:right-1/2 sm:-z-10 sm:mr-10 sm:block sm:w-[68.5625rem]">
+	    <path fill="url(#10724532-9d81-43d2-bb94-866e98dd6e42)" fill-opacity=".2" d="M301.174 646.641 193.541 844.786 0 546.172l301.174 100.469 193.845-356.855c1.241 164.891 42.802 431.935 199.124 180.978 195.402-313.696 143.295-588.18 284.729-419.266 113.148 135.13 124.068 367.989 115.378 467.527L811.753 372.553l20.102 451.119-530.681-177.031Z" />
+	    <defs>
+	      <linearGradient id="10724532-9d81-43d2-bb94-866e98dd6e42" x1="1097.04" x2="-141.165" y1=".22" y2="363.075" gradientUnits="userSpaceOnUse">
+		<stop stop-color="#776FFF" />
+		<stop offset="1" stop-color="#FF4694" />
+	      </linearGradient>
+	    </defs>
+	  </svg>
+	  <svg viewBox="0 0 1097 845" aria-hidden="true" class="absolute left-1/2 -top-52 -z-10 w-[68.5625rem] -translate-x-1/2 transform-gpu blur-3xl sm:top-[-28rem] sm:ml-16 sm:translate-x-0 sm:transform-gpu">
+	    <path fill="url(#8ddc7edb-8983-4cd7-bccb-79ad21097d70)" fill-opacity=".2" d="M301.174 646.641 193.541 844.786 0 546.172l301.174 100.469 193.845-356.855c1.241 164.891 42.802 431.935 199.124 180.978 195.402-313.696 143.295-588.18 284.729-419.266 113.148 135.13 124.068 367.989 115.378 467.527L811.753 372.553l20.102 451.119-530.681-177.031Z" />
+	    <defs>
+	      <linearGradient id="8ddc7edb-8983-4cd7-bccb-79ad21097d70" x1="1097.04" x2="-141.165" y1=".22" y2="363.075" gradientUnits="userSpaceOnUse">
+		<stop stop-color="#776FFF" />
+		<stop offset="1" stop-color="#FF4694" />
+	      </linearGradient>
+	    </defs>
+	  </svg>
+	  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+	    <div class="mx-auto max-w-2xl lg:mx-0">
+	      <h2 class="text-4xl font-bold tracking-tight text-white sm:text-6xl font-bitcoin">bitcoin++</h2>
+	      <p class="mt-6 text-lg leading-8 text-gray-300">Started in Austin in June 2022, <span class="font-bitcoin">bitcoin++</span> is a global developer-focused conference series. We place a heavy emphasis on long form lectures and workshops, with smaller more-focused audiences who are excited to get deeper into the cutting edge of bitcoin tech.</p>
+	 <p class="mt-6 text-lg leading-8 text-gray-300">Meet other developers, compete for hackathon prizes, and get plugged into the wider Base58 community.</p>
+	<p class="mt-6 text-lg leading-8 text-gray-300">For more information on upcoming conferences and what's next in the series check out our website <a href="https://btcpp.dev" target="_blank" class="underline underline-offset-4 font-semibold">btcpp.dev</a></p>
+	</p>
+	    </div>
+	    <div class="mx-auto mt-10 max-w-2xl lg:mx-0 lg:max-w-none">
+	      <div class="grid grid-cols-1 gap-y-6 gap-x-8 text-base font-semibold leading-7 text-white sm:grid-cols-2 md:flex lg:gap-x-10">
+		<a href="https://www.youtube.com/watch?v=kCON4wuecOw&list=PLHhfnB1Uefkor98E-ikci_sUtUKKYYSDA" target="_blank">Videos from our last conference<span aria-hidden="true">&rarr;</span></a>
+		<a href="https://twitter.com/base58btc" target="_blank">Follow bitcoin++ on Twitter<span aria-hidden="true">&rarr;</span></a>
+	      </div>
+	      <dl class="mt-16 grid grid-cols-1 gap-8 sm:mt-20 sm:grid-cols-2 lg:grid-cols-4">
+		<div class="flex flex-col-reverse">
+		  <dt class="text-base leading-7 text-gray-300">Days of Talks + Learning</dt>
+		  <dd class="text-2xl font-bold leading-9 tracking-tight text-white">3</dd>
+		</div>
+
+		<div class="flex flex-col-reverse">
+		  <dt class="text-base leading-7 text-gray-300">Speakers and Workshop Sessions</dt>
+		  <dd class="text-2xl font-bold leading-9 tracking-tight text-white">36</dd>
+		</div>
+
+		<div class="flex flex-col-reverse">
+		  <dt class="text-base leading-7 text-gray-300">Anticipated Attendees</dt>
+		  <dd class="text-2xl font-bold leading-9 tracking-tight text-white">200+</dd>
+		</div>
+
+		<div class="flex flex-col-reverse">
+		  <dt class="text-base leading-7 text-gray-300">Hackathon Prizes</dt>
+		  <dd class="text-2xl font-bold leading-9 tracking-tight text-white">$5,000+</dd>
+		</div>
+	      </dl>
+	    </div>
+	  </div>
+	</div>
+    </section>
+    <section id="faq" class="flex flex-col my-20">
+	<div class="relative isolate overflow-hidden py-24 sm:py-32">
+	  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+	    <div class="mx-auto max-w-2xl lg:mx-0">
         <h3 class="text-3xl font-bold text-left m-0">
             Frequently Asked Questions
         </h3>
@@ -372,24 +382,26 @@
                 </p>
             </li>
         </ul>
-        <p class="text-zinc-500 font-medium">
-            Question not answered? Get in touch with us via email <a href="mailto:hello@base58.info" class="underline">hello@base58.info</a> or via <a href="https://twitter.com/base58btc" target="_blank" class="underline">Twitter</a> or <a href="https://iris.to/npub1vmpf90hq56wzyxht6teg3llpa74rzcepw9suj5unxl3tph24zd4qgtxhm7" target="_blank">Nostr</a>.
+        <p class="text-zinc-500">
+            Question not answered? Get in touch with us via email <a href="mailto:hello@base58.info" class="underline">hello@base58.info</a> or via <a href="https://twitter.com/base58btc" target="_blank" class="underline">Twitter</a> or <a href="https://iris.to/npub1vmpf90hq56wzyxht6teg3llpa74rzcepw9suj5unxl3tph24zd4qgtxhm7" target="_blank" class="underline">Nostr</a>.
         </p>
 
+	</div>
+	</div>
+	</div>
     </section>
-    <section id="team" class="flex flex-col justify-center items-center my-20 mx-10">
-        <h3 class="text-3xl w-full sm:w-[12ch] m-auto font-bold text-center">
-            Who We Are
+    <section id="faq" class="flex flex-col mb-20" style="background: #ffedd5">
+	<div class="relative isolate overflow-hidden py-20 sm:py-32">
+	  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+	    <div class="mx-auto max-w-2xl lg:max-w-none lg:mx-0">
+        <h3 class="text-3xl w-full sm:w-[12ch] font-bold">
+            About Us
         </h3>
-
-        <h2 class="text-sm text-orange-500 bg-orange-50 p-2 text-center rounded-full">
-            We are here to help you learn Bitcoin.
-        </h2>
-        <p class="text-lg text-stone-600 font-medium my-5 my-5">
-            Bitcoin developers are the cathedral builders of this day and age, building the Cathedral of Satoshi one block at a time. Base58 is building the next generation of developers whose contributions will outlive them.
+        <p class="text-lg text-stone-600 my-5 my-5">
+	 Meet the team building the next generation of developers whose contributions will outlive them.
         </p>
 
-        <div class="flex flex-wrap md:flex-nowrap gap-3">
+        <div class="grid grid-cols-1 lg:grid-cols-2 lg:mx-0 lg:max-w-none gap-3">
             <div class="
                     flex flex-col justify-between items-center
                     p-5 rounded-lg
@@ -397,21 +409,20 @@
                     ">
                 <div class="flex flex-col items-center">
                     <img src="/static/img/nifty.webp" class="mx-auto mb-6 rounded-full" />
-                    <h1 class="mb-2 text-2xl md:text-3xl leading-tight font-semibold
-                    w-min">
-                        @niftynei
+                    <h1 class="mb-2 text-2xl md:text-3xl leading-tight font-semibold">
+                        niftynei
                     </h1>
                     <span class="inline-block mb-6 text-lg font-medium text-orange-500">
                         Founder
                     </span>
                     <p class="mb-8 text-zinc-500 font-medium">
-                        @niftynei is a world-renowned bitcoin and lightning expert. A lightning protocol developer at
+                        Lisa Neigut, aka niftynei, is a world-renowned bitcoin and lightning expert. A lightning protocol developer at
                         Blockstream for Core Lightning by day, she leads Base58 bitcoin protocol classes at night. nifty is
-                        currently working on a book about transacting with bitcoin for No Starch Press.
+                        currently on sabbatical from Blockstream, working on a book about transacting with bitcoin for No Starch Press and building out curriculum for Base58.
                     </p>
                 </div>
                 <div class="flex gap-3 justify-center items-center">
-                    <a href="mailto:lisa@base58.info" class="w-5">
+                    <a href="mailto:lisa@base58.school" class="w-5">
                         <img src="/static/img/icons/email.svg">
                     </a>
                     <a target="_blank" href="https://twitter.com/niftynei" class="w-5">
@@ -426,9 +437,8 @@
                 ">
                 <div class="flex flex-col items-center">
                     <img src="/static/img/kody.webp" class="mx-auto mb-6 rounded-full" />
-                    <h1 class="mb-2 text-2xl md:text-3xl leading-tight font-semibold
-                    w-min">
-                        @kodylow
+                    <h1 class="mb-2 text-2xl md:text-3xl leading-tight font-semibold">
+                        Kody Low
                     </h1>
                     <span class="inline-block mb-6 text-lg font-medium text-orange-500">
                         Instructor
@@ -450,26 +460,11 @@
                     </a>
                 </div>
             </div>
-        </div>
+	</div>
+	</div>
+	</div>
+	</div>
     </section>
-    <footer class="flex flex-col sm:flex-row justify-between my-20 mx-10">
-        <h3 class="flex text-zinc-400 font-medium">
-            © {{ .Copyright }} Base58⛓️🔓. All rights reserved.
-        </h3>
-        <div class="flex gap-2 items-center justify-center">
-            <a target="_blank" href="https://discord.gg/T4EjCWJn7q" class="flex">
-                <img src="/static/img/icons/discord.svg" class="w-5 grayscale">
-            </a>
-            <a target="_blank" href="https://www.youtube.com/channel/UCosoJ9ReUBqMIuD4g4IOtyw" class="flex">
-                <img src="/static/img/icons/yt.png" class="w-5 invert">
-            </a>
-            <a target="_blank" href="https://twitter.com/base58btc" class="flex">
-                <img src="/static/img/icons/twitter.svg">
-            </a>
-            <a target="_blank" href="https://github.com/base58btc" class="flex">
-                <img src="/static/img/icons/gh.svg">
-            </a>
-        </div>
-    </footer>
+  {{ block "footer" .Page }} {{ end }}
   </body>
 </html>

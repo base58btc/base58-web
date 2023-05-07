@@ -84,7 +84,27 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 	return session
 }
 
+/* Fake list of courses */
+func fakeCourselist() []*types.Course {
+	return []*types.Course {
+		&types.Course{
+			ID: "12345",
+			TmplName: "fake1",
+			PublicName: "TempCourse",
+			Availability: []types.CourseAvail { types.Replit, types.InPerson },
+			ShortDesc: "This is a temporary class bullet",
+			ComingSoon: false,
+			Level: types.Devs,
+			AppRequired: false,
+			Visible: true,
+		},
+	}
+}
+
 func ListCourses(n *types.Notion) ([]*types.Course, error) {
+	/* For now, just return the fake courses */
+	//return fakeCourselist(), nil
+
 	/* FIXME: pagination */
 	pages, _, _, _ := n.Client.QueryDatabase(context.Background(),
 		n.Config.CoursesDb, notion.QueryDatabaseParam{})

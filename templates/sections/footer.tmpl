@@ -1,0 +1,21 @@
+{{ define "footer" }}
+    <footer class="flex flex-col sm:flex-row justify-between my-20 mx-10">
+        <h3 class="flex text-gray font-arial">
+            © {{ .Copyright }} Base58⛓️🔓. All rights reserved.
+        </h3>
+        <div class="flex gap-2 items-center justify-center">
+            <a target="_blank" href="https://discord.gg/T4EjCWJn7q" class="flex">
+                <img src="/static/img/icons/discord.svg" class="w-5 grayscale">
+            </a>
+            <a target="_blank" href="https://www.youtube.com/channel/UCosoJ9ReUBqMIuD4g4IOtyw" class="flex">
+                <img src="/static/img/icons/yt.png" class="w-5 invert">
+            </a>
+            <a target="_blank" href="https://twitter.com/base58btc" class="flex">
+                <img src="/static/img/icons/twitter.svg">
+            </a>
+            <a target="_blank" href="https://github.com/base58btc" class="flex">
+                <img src="/static/img/icons/gh.svg">
+            </a>
+        </div>
+    </footer>
+{{ end }}

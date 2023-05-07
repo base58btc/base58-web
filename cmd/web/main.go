@@ -31,7 +31,7 @@ func loadConfig() *types.EnvConfig {
 
 func main() {
 	// Initialize the application configuration
-	app.InProduction = false // change to true in prod
+	app.IsProd = false // change to true in prod
 	app.Infos = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	app.Err = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
@@ -62,7 +62,8 @@ func main() {
 
 func run(env *types.EnvConfig) error {
 	// Initialize the application configuration
-	app.InProduction = false // change to true in production
+	app.IsProd = false // change to true in production
+	app.Redraw = true  // reload the draw cache by default
 	app.Infos = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	app.Err = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 	app.Env = env
@@ -72,7 +73,7 @@ func run(env *types.EnvConfig) error {
 	session.Lifetime = 72 * time.Hour
 	session.Cookie.Persist = true
 	session.Cookie.SameSite = http.SameSiteLaxMode
-	session.Cookie.Secure = app.InProduction
+	session.Cookie.Secure = app.IsProd
 
 	app.Session = session
 

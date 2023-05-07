@@ -32,6 +32,7 @@ type (
 		AppRequired bool
 		Level       CourseLevel
 		Visible     bool
+		PreReqs     string
 	}
 
 	CourseSession struct {

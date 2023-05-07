@@ -1,52 +1,104 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>{{ .Course.PublicName }}</title>
+    {{ block "head" .Page }} {{ end }}
   </head>
-  <body>
-   <h1>{{ .Course.PublicName }}</h1>
-    <p>{{ .Course.ShortDesc }}</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Session</th>
-          <th>Price</th>
-          <th>Location</th>
-          <th>Duration</th>
-          <th>Dates</th>
-          <th>Times</th>
-	  <th>Instructor</th>
-	  <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {{
-          range.Sessions
-        }}
-        <tr>
-          <td>{{.CourseName }}</td>
-          <td>${{ .Cost }}</td>
-          <td>{{ .Location }}</td>
-          <td>
-	  {{ $lastidx := LastIdx (len .Date) }}
-	  {{ if gt $lastidx 0 }}
-		{{ index .Date 0 }} - {{ index .Date $lastidx }}
-	  {{ else }}
-		{{ index .Date 0 }}
+  <body class="bg-white">
+   {{ block "nav" . }} {{ end }}
+   <main>
+   <div class="relative isolate">
+        <section id="top-line" class="flex flex-col justify-center items-center pb-24 w-full">
+          <div class="mx-auto max-w-7xl py-32 px-6 lg:px-8">
+           <h1 class="text-4xl sm:text-6xl w-full sm:w-2xl m-auto tracking-tight font-bold text-left pb-8">
+           {{ .Course.PublicName }}</h1>
+            <p>{{ .Course.ShortDesc }}</p>
+	    <!-- fixme: add longer desc? -->
+
+	    <!-- add a visual reminder of the course difficulty -->
+	    {{ if eq .Course.Level "devs" }}
+	    {{ end }}
+	    {{ if eq .Course.Level "everyone" }}
+	    {{ end }}
+	    {{ if eq .Course.Level "entry-dev" }}
+	    {{ end }}
+	    {{ if eq .Course.Level "exp-devs" }}
+	    {{ end }}
+ 	  </div>
+        </section>
+	<!-- add in a pre-requisites section! -->
+	<section id="pre-reqs">
+          <h3 class="relative my-8 text-4xl font-semibold leading-8 text-gray-700 sm:max-w-md lg:max-w-none">
+	  Pre-Requisites</h3>
+          <h4 class="relative my-8 text-2xl leading-8 text-gray-700 sm:max-w-md lg:max-w-none">
+	  Here's what we think you should know before showing up for class</h4>
+	  <p>FIXME: course pre-reqs go here... {{ .Course.PreReqs }}</p>
+	</section>	
+	<section id="online">
+          <h3 class="relative my-8 text-4xl font-semibold leading-8 text-gray-700 sm:max-w-md lg:max-w-none">
+	  Self-Paced Online Options</h3>
+          <h4 class="relative my-8 text-2xl leading-8 text-gray-700 sm:max-w-md lg:max-w-none">
+	  For the self-motivated learner, we've got self-paced online classes</h4>
+	  <!-- if this course is available on Replit/Udemy, show link? -->
+	  {{ range.Course.Availability }}
+            {{ if eq . "replit" }}
+	    <!-- FIXME: add a link/button for class ons replit? -->
+	    <p> THIS CLASS IS AVAILBLE ON REPLIT </p>
+	    {{ end }}
+            {{ if eq . "udemy" }}
+	    <p> CHECK OUT OUR CLASS ON UDEMY </p>
+	    <!-- FIXME: add a link/button for class on udemy? -->
 	  {{ end }}
-          </td>
-          <td>{{ .TimeDesc }}</td>
-          <td>{{ .Instructor }}</td>
-	  {{ if gt .SeatsAvail 0 }}
-          <td><a href="/register?s={{ .ClassRef }}" >Register</a></td>
-	  {{ else }}
-          <td><a href="/waitlist?s={{ .ClassRef }}" />Join Waitlist</td>
-	  {{ end }}
-        </tr>
-        {{
-          end
-        }}
-      </tbody>
-    </table>
+	  {{ end }}		
+	</section>	
+	<section id="in-person">
+          <h3 class="relative my-8 text-4xl font-semibold leading-8 text-gray-700 sm:max-w-md lg:max-w-none">
+	  Remote + In-Person Classes</h3>
+          <h4 class="relative my-8 text-2xl leading-8 text-gray-700 sm:max-w-md lg:max-w-none">
+	  Want an actual live instructor, or the opportunity to be embedded in a classroom environment? Our in-person and online live-instructor and TA-assisted options are probably what you want.</h4>
+         <table>
+	 <!-- fixme: ability to filter? -->
+          <thead>
+            <tr>
+              <th>Session</th>
+              <th>Price</th>
+              <th>Location</th>
+              <th>Duration</th>
+              <th>Dates</th>
+              <th>Times</th>
+	      <th>Instructor</th>
+	      <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{
+              range.Sessions
+            }}
+            <tr>
+              <td>{{.CourseName }}</td>
+              <td>${{ .Cost }}</td>
+              <td>{{ .Location }}</td>
+              <td>
+	      {{ $lastidx := LastIdx (len .Date) }}
+	      {{ if gt $lastidx 0 }}
+		    {{ index .Date 0 }} - {{ index .Date $lastidx }}
+	      {{ else }}
+		    {{ index .Date 0 }}
+	      {{ end }}
+              </td>
+              <td>{{ .TimeDesc }}</td>
+              <td>{{ .Instructor }}</td>
+	      {{ if gt .SeatsAvail 0 }}
+	      <!-- fixme: make these into buttons? -->
+              <td><a href="/register?s={{ .ClassRef }}" >Register</a></td>
+	      {{ else }}
+              <td><a href="/waitlist?s={{ .ClassRef }}" />Join Waitlist</td>
+	      {{ end }}
+            </tr>
+            {{ end }}
+          </tbody>
+        </table>
+      </section>
+  </main>
+  {{ block "footer" .Page }} {{ end }}
   </body>
 </html>

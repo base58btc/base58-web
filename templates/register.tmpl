@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Course Registration</title>
+  {{ block "head" .Page }} {{ end }}
   </head>
   <body>
    <h1>{{ .Course.PublicName }}</h1>
@@ -24,5 +24,6 @@
 		Signup + Pay
 	</button>
 	</form>
+  {{ block "footer" .Page }} {{ end }}
   </body>
 </html>

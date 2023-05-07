@@ -2,4 +2,6 @@ base58-website
 config.toml
 stripe
 
+target
+
 *.swp
