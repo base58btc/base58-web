@@ -9,6 +9,16 @@ import (
 	"strings"
 )
 
+func fileGetURL(file *notion.File) string {
+	if file.Internal != nil {
+		return file.Internal.URL
+	}
+	if file.External != nil {
+		return file.External.URL
+	}
+	return ""
+}
+
 func parseAvail(avail []*notion.SelectOption) []types.CourseAvail {
 	var avails []types.CourseAvail
 
@@ -56,11 +66,24 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Co
 		PublicName:   parseRichText("PublicName", props),
 		Availability: parseAvail(props["Availability"].MultiSelect),
 		ShortDesc:    parseRichText("ShortDesc", props),
+		LongDesc:     parseRichText("LongDesc", props),
+		PreReqs:      parseRichText("PreReqs", props),
 		ComingSoon:   props["Coming Soon"].Checkbox,
 		AppRequired:  props["Application Required"].Checkbox,
 		Level:        parseLevel(props["Difficulty"].Select),
 		Visible:      props["Visible"].Checkbox,
+		ReplitURL:    props["ReplitURL"].URL,
+		UdemyURL:     props["UdemyURL"].URL,
 	}
+
+	if len(props["HeaderImg"].Files) > 0 {
+		file := props["HeaderImg"].Files[0]
+		course.PromoURL = fileGetURL(file)
+	} else {
+		/* default image */
+		course.PromoURL = "/static/img/at_computer.jpg"
+	}
+
 	return course
 }
 
@@ -77,10 +100,20 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 		Location:   parseRichText("Location", props),
 		Instructor: parseRichText("Instructor", props),
 		Date:       strings.Split(parseRichText("Dates", props), ","),
+		AddlDetails: parseRichText("AddlDetails", props),
 	}
 	if props["Signup Code"].Select != nil {
 		session.SignupCode = props["Signup Code"].Select.Name
 	}
+
+	if len(props["AdImg"].Files) > 0 {
+		file := props["AdImg"].Files[0]
+		session.PromoURL = fileGetURL(file)
+	} else {
+		/* default image */
+		session.PromoURL = "/static/img/base58_vertical.png"
+	}
+
 	return session
 }
 

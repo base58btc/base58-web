@@ -85,10 +85,19 @@
 
 
 - to build:
-	- integrate tailwind (make pretty!)
+	x integrate tailwind (make pretty!)
+	- style pages
+	  x index
+	  x course
+		- markdown formatted info for longer desc
+		- optional video embed?
+	  - register
+	  - waitlist
+	  - checkout
+	  - success
+
 	- update "send email" to use the emailer
 
-	- order sessions by first date
 	- don't show sessions w/in 12h of start (or after first) date
 	- turn on waitlist for oversold classes
 	- hide unneeded form fields in signup
@@ -99,7 +108,7 @@
 		- idempotency check
 		- send email when checked out
 	- checkout with bitcoin
-		- integrate opennode's checkout, for btcpp launch!
+		- integrate opennode's checkout, for launch!
 	- emails
 		- write emails in notion, as pages?
 

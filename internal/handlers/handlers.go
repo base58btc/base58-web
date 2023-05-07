@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +34,16 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	}
 	ctx.TemplateCache["index.tmpl"] = index
 
+	courses, err := template.New("course").Funcs(template.FuncMap{
+		"LastIdx": LastIdx,
+		"FiatPrice": FiatPrice,
+		"BtcPrice": BtcPrice,
+		"AvailOnline": AvailOnline,
+	}).ParseFiles("templates/course.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["course.tmpl"] = courses
 
 	inputs, err := template.New("checkout_form").Funcs(template.FuncMap{
 		"fn_options": func(id string) []types.OptionItem {
@@ -183,6 +194,15 @@ func BtcPrice(val uint64) uint64 {
 	return uint64(float64(val) * .85)
 }
 
+func AvailOnline(avail []types.CourseAvail) bool {
+	for _, a := range(avail) {
+		if a.SelfPacedOnline() {
+			return true
+		}
+	}
+	return false
+}
+
 func FiatPrice(val uint64) uint64 {
 	return val
 }
@@ -258,7 +278,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, session.Cost)
 
 		w.Header().Set("Content-Type", "text/html")
-		err = pageTpl.Execute(w, RegistrationData{
+		err = pageTpl.ExecuteTemplate(w, "register.tmpl", RegistrationData{
 			Course:  course,
 			Session: session,
 			Page:        getPage("Course Registration"),
@@ -268,6 +288,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 				SessionUUID: session.ID,
 				Cost:        session.Cost,
 			}})
+
 		if err != nil {
 			http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
 			ctx.Err.Printf("/register templ exec failed %s\n", err.Error())
@@ -358,7 +379,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		//idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, uint64(0))
 		pageTpl := ctx.TemplateCache["waitlist.tmpl"]
 		w.Header().Set("Content-Type", "text/html")
-		err = pageTpl.Execute(w, WaitlistData{
+		err = pageTpl.ExecuteTemplate(w, "waitlist.tmpl", WaitlistData{
 			Course:  course,
 			Session: session,
 			Page: getPage("Course Waitlist"),
@@ -457,7 +478,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 	pageTpl := ctx.TemplateCache["checkout.tmpl"]
 
 	w.Header().Set("Content-Type", "text/html")
-	err := pageTpl.Execute(w, &StripeCheckout{
+	err := pageTpl.ExecuteTemplate(w, "checkout.tmpl", &StripeCheckout{
 		ClientSecret: pi.ClientSecret,
 		PubKey:       ctx.Env.Stripe.Pubkey,
 		Email:        checkout.Email,
@@ -494,7 +515,7 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	tmpl := ctx.TemplateCache["success.tmpl"]
-	err = tmpl.Execute(w, &SuccessData{
+	err = tmpl.ExecuteTemplate(w, "success.tmpl", &SuccessData{
 		Course:  course,
 		Session: session,
 		Page:    getPage(""),
@@ -586,6 +607,31 @@ type CourseData struct {
 	Page     Page
 }
 
+type sessionList []*types.CourseSession
+
+func (s sessionList) Len() int {
+	return len(s)
+}
+
+func (s sessionList) Less(i, j int) bool {
+	if len(s[i].Date) == 0 {
+		return true
+	}
+	if len(s[j].Date) == 0 {
+		return false
+	}
+
+	/* Sort by time first */
+	si := s[i].Dates()[0]
+	sj := s[j].Dates()[0]
+
+	return si.Before(sj)
+}
+
+func (s sessionList) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
 func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* If there's no class-key, redirect to the front page */
 	params := mux.Vars(r)
@@ -607,22 +653,6 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 	for _, course := range courses {
 		if clss == course.TmplName {
-			/* FIXME: put course page data into notion? */
-			f, err := ioutil.ReadFile("templates/course.tmpl")
-			if err != nil {
-				http.Error(w, "Unable to load page", http.StatusInternalServerError)
-				ctx.Err.Printf("/courses tmpl read failed %s\n", err.Error())
-				return
-			}
-			t, err := template.New("course").Funcs(template.FuncMap{
-				"LastIdx": LastIdx,
-			}).Parse(string(f))
-			if err != nil {
-				http.Error(w, "Unable to load page", http.StatusInternalServerError)
-				ctx.Err.Printf("/courses tmpl 'course' read failed %s\n", err.Error())
-				return
-			}
-
 			/* FIXME: generalize? */
 			var bundled []*types.Course
 			if clss  == "tx-deep-dive" {
@@ -635,14 +665,20 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			} else {
 				bundled = []*types.Course{course}
 			}
-			sessions, err := getters.GetCourseSessions(ctx.Notion, bundled)
+			var sessions sessionList
+			sessions, err = getters.GetCourseSessions(ctx.Notion, bundled)
+
 			if err != nil {
 				http.Error(w, "Unable to load page", http.StatusInternalServerError)
 				ctx.Err.Printf("/courses course sessions fetch failed %s\n", err.Error())
 				return
 			}
 
-			err = t.Execute(w, CourseData{
+			/* Sort sessions by date, soonest first */
+			sort.Sort(sessions)
+
+			t := ctx.TemplateCache["course.tmpl"]
+			err = t.ExecuteTemplate(w, "course.tmpl", CourseData{
 				Course:   course,
 				Sessions: sessions,
 				Page:     getPage(course.PublicName),

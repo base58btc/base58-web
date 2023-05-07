@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/hex"
 	"strings"
+	"time"
 )
 
 type (
@@ -27,12 +28,16 @@ type (
 		PublicName   string
 		Availability []CourseAvail
 		ShortDesc    string
+		LongDesc     string
+		PreReqs      string
+		PromoURL     string
 		ComingSoon   bool
 		// FIXME: link to application?
 		AppRequired bool
 		Level       CourseLevel
 		Visible     bool
-		PreReqs     string
+		ReplitURL   string
+		UdemyURL    string
 	}
 
 	CourseSession struct {
@@ -49,6 +54,8 @@ type (
 		TimeDesc   string
 		Location   string
 		Instructor string
+		PromoURL   string
+		AddlDetails string
 	}
 
 	ClassRegistration struct {
@@ -91,6 +98,11 @@ const (
 	Online   CourseAvail = "online"
 	Udemy    CourseAvail = "udemy"
 )
+
+func (c CourseAvail) SelfPacedOnline() bool {
+	return c == Replit || c == Udemy
+}
+
 const (
 	Devs     CourseLevel = "devs"
 	Everyone CourseLevel = "everyone"
@@ -109,6 +121,17 @@ const (
 	Bitcoin CheckoutOpt = "bitcoin"
 	Fiat    CheckoutOpt = "usd"
 )
+
+func (c CourseSession) Dates() []time.Time {
+	dateStr := "01/02/2006"
+	ret := make([]time.Time, 0)
+	for _, entry := range(c.Date) {
+		d, _ := time.Parse(dateStr, entry)
+		ret = append(ret, d)
+	}
+
+	return ret
+}
 
 func (s CheckoutOpt) String() string {
 	return string(s)
