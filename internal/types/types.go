@@ -123,7 +123,7 @@ const (
 )
 
 func (c CourseSession) Dates() []time.Time {
-	dateStr := "01/02/2006"
+	dateStr := "1/2/2006"
 	ret := make([]time.Time, 0)
 	for _, entry := range(c.Date) {
 		d, _ := time.Parse(dateStr, entry)

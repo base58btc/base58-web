@@ -45,37 +45,18 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	}
 	ctx.TemplateCache["course.tmpl"] = courses
 
-	inputs, err := template.New("checkout_form").Funcs(template.FuncMap{
-		"fn_options": func(id string) []types.OptionItem {
-			if id == "shirt" {
-				return ShirtOptions()
-			}
-			if id == "checkout" {
-				// FIXME: how to do this dynamically?
-				return MakeCheckoutOpts(100)
-			}
-			return []types.OptionItem{}
-		},
-	}).ParseFiles("templates/forms/inputs.tmpl")
-	if err != nil {
-		return err
-	}
-	fb := form.Builder{
-		InputTemplate: inputs,
-	}
-
-	funcMap := fb.FuncMap()
-	funcMap["LastIdx"] = LastIdx
-	funcMap["FiatPrice"] = FiatPrice
-	funcMap["BtcPrice"] = BtcPrice
-
-	register, err := template.New("register.tmpl").Funcs(funcMap).ParseFiles("templates/register.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
+	register, err := template.New("register.tmpl").Funcs(template.FuncMap{
+		"ShirtOpts": ShirtOptions,
+		"LastIdx": LastIdx,
+		"FiatPrice": FiatPrice,
+		"BtcPrice": BtcPrice,
+	}).ParseFiles("templates/register.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
 	if err != nil {
 		return err
 	}
 	ctx.TemplateCache["register.tmpl"] = register
 
-	inputs, err = template.New("waitlist_form").Funcs(template.FuncMap{
+	inputs, err := template.New("waitlist_form").Funcs(template.FuncMap{
 		"fn_options": func(id string) []types.OptionItem {
 			return []types.OptionItem{}
 		},
@@ -83,15 +64,15 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	if err != nil {
 		return err
 	}
-	fb = form.Builder{
+	waitFb := form.Builder{
 		InputTemplate: inputs,
 	}
 
-	funcMap = fb.FuncMap()
+	funcMap := waitFb.FuncMap()
 	funcMap["LastIdx"] = LastIdx
 	funcMap["FiatPrice"] = FiatPrice
 	funcMap["BtcPrice"] = BtcPrice
-	waitlist, err := template.New("waitlist.tmpl").Funcs(funcMap).ParseFiles("templates/waitlist.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
+	waitlist, err := template.New("waitlist.tmpl").Funcs(funcMap).ParseFiles("templates/waitlist.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl", "templates/forms/inputs.tmpl")
 	if err != nil {
 		return err
 	}
@@ -278,7 +259,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, session.Cost)
 
 		w.Header().Set("Content-Type", "text/html")
-		err = pageTpl.ExecuteTemplate(w, "register.tmpl", RegistrationData{
+		err = pageTpl.Execute(w, RegistrationData{
 			Course:  course,
 			Session: session,
 			Page:        getPage("Course Registration"),
@@ -379,7 +360,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		//idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, uint64(0))
 		pageTpl := ctx.TemplateCache["waitlist.tmpl"]
 		w.Header().Set("Content-Type", "text/html")
-		err = pageTpl.ExecuteTemplate(w, "waitlist.tmpl", WaitlistData{
+		err = pageTpl.Execute(w, WaitlistData{
 			Course:  course,
 			Session: session,
 			Page: getPage("Course Waitlist"),
@@ -614,6 +595,7 @@ func (s sessionList) Len() int {
 }
 
 func (s sessionList) Less(i, j int) bool {
+
 	if len(s[i].Date) == 0 {
 		return true
 	}
@@ -622,10 +604,7 @@ func (s sessionList) Less(i, j int) bool {
 	}
 
 	/* Sort by time first */
-	si := s[i].Dates()[0]
-	sj := s[j].Dates()[0]
-
-	return si.Before(sj)
+	return s[i].Dates()[0].Before(s[j].Dates()[0])
 }
 
 func (s sessionList) Swap(i, j int) {
