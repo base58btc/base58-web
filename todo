@@ -92,7 +92,9 @@
 		- markdown formatted info for longer desc
 		- optional video embed?
 	  x register
+		- number of seats selector
 	  x checkout
+		- show amount + seat count
 	  x success
 	  - waitlist
 	- checkout with bitcoin

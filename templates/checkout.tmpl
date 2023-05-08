@@ -17,8 +17,19 @@
 		   <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl mb-10">
 		    {{ .CourseName }}
 		   </h2>
+                   <p class="mt-6 text-lg leading-8 text-gray-300">
+		   {{ if eq .Count 1}}
+    		   Registering for <span class="font-semibold">{{ .Count }}</span> seat
+		   {{ else }}
+    		   Registering for <span class="font-semibold">{{ .Count }}</span> seats
+		   {{ end }}
+		   </p>
+                   <p class="mt-2 text-lg leading-8 text-gray-300 font-semibold">
+			Total:
+			<span class="text-green-600">${{ .Total }}</span>
+		   </p>
 		   <form id="payment-form" data-secret="{{ .ClientSecret }}"
-			class="max-w-7xl">
+			class="max-w-7xl mt-6">
 		     <div id="card-element">
 		      <!-- Elements will create input elements here -->
 		    </div>
@@ -98,6 +109,7 @@ form.addEventListener('submit', function(ev) {
 		let displayError = document.getElementById('card-errors');
 		displayError.textContent = result.error.message;
 	      } else {
+		console.log(result.paymentIntent);
 		if (result.paymentIntent.status === 'succeeded') {
 		  window.location.href = "/success?s={{ .SessionID }}"
 	      }

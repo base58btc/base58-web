@@ -36,8 +36,8 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 
 	courses, err := template.New("course").Funcs(template.FuncMap{
 		"LastIdx": LastIdx,
-		"FiatPrice": FiatPrice,
-		"BtcPrice": BtcPrice,
+		"FiatPrice": types.FiatPrice,
+		"BtcPrice": types.BtcPrice,
 		"AvailOnline": AvailOnline,
 	}).ParseFiles("templates/course.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
 	if err != nil {
@@ -47,9 +47,10 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 
 	register, err := template.New("register.tmpl").Funcs(template.FuncMap{
 		"ShirtOpts": ShirtOptions,
+		"TixCount": TixCount,
 		"LastIdx": LastIdx,
-		"FiatPrice": FiatPrice,
-		"BtcPrice": BtcPrice,
+		"FiatPrice": types.FiatPrice,
+		"BtcPrice": types.BtcPrice,
 	}).ParseFiles("templates/register.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
 	if err != nil {
 		return err
@@ -76,8 +77,8 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 
 	funcMap := waitFb.FuncMap()
 	funcMap["LastIdx"] = LastIdx
-	funcMap["FiatPrice"] = FiatPrice
-	funcMap["BtcPrice"] = BtcPrice
+	funcMap["FiatPrice"] = types.FiatPrice
+	funcMap["BtcPrice"] = types.BtcPrice
 	waitlist, err := template.New("waitlist.tmpl").Funcs(funcMap).ParseFiles("templates/waitlist.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl", "templates/forms/inputs.tmpl")
 	if err != nil {
 		return err
@@ -133,6 +134,9 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 		maybeRebuildCache(ctx)
 		Success(w, r, ctx)
 	})
+	r.HandleFunc("/fake-success", func(w http.ResponseWriter, r *http.Request) {
+		FakeSuccess(w, r, ctx)
+	})
 	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
 		StripeHook(w, r, ctx)
 	}).Methods("POST")
@@ -151,6 +155,18 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	return r, nil
 }
 
+func TixCount(availSeats uint) []types.OptionItem {
+	var items []types.OptionItem
+	for i := uint(1); i <= availSeats; i++ {
+		opt := types.OptionItem{
+			Key: strconv.FormatUint(uint64(i), 10),
+			Value: strconv.FormatUint(uint64(i), 10),
+		}
+		items = append(items, opt)
+	}
+	return items
+}
+
 func ShirtOptions() []types.OptionItem {
 	return []types.OptionItem{
 		{Key: string(types.Small), Value: "Small"},
@@ -164,13 +180,9 @@ func ShirtOptions() []types.OptionItem {
 func MakeCheckoutOpts(amount uint64) []types.OptionItem {
 	// FIXME: convert USD to btc amount??
 	return []types.OptionItem{
-		{Key: string(types.Bitcoin), Value: fmt.Sprintf("USD $%d", BtcPrice(amount))},
-		{Key: string(types.Fiat), Value: fmt.Sprintf("USD $%d", FiatPrice(amount))},
+		{Key: string(types.Bitcoin), Value: fmt.Sprintf("USD $%d", types.BtcPrice(amount))},
+		{Key: string(types.Fiat), Value: fmt.Sprintf("USD $%d", types.FiatPrice(amount))},
 	}
-}
-
-func BtcPrice(val uint64) uint64 {
-	return uint64(float64(val) * .85)
 }
 
 func AvailOnline(avail []types.CourseAvail) bool {
@@ -180,10 +192,6 @@ func AvailOnline(avail []types.CourseAvail) bool {
 		}
 	}
 	return false
-}
-
-func FiatPrice(val uint64) uint64 {
-	return val
 }
 
 func LastIdx(size int) int {
@@ -300,20 +308,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
-	// FIXME: keep track of token usage//timeout?
-
-	/* Save to signups! Note: won't be considered final
-	 * until there's a payment ref attached */
-	id, err := getters.SaveRegistration(ctx.Notion, &form)
-	// TODO: what happens if there's a duplicate/idempotent token?
-	if err != nil {
-		http.Error(w, "Oops, we weren't able to save", http.StatusInternalServerError)
-		ctx.Err.Printf("/register Unable to save registration %s\n", err.Error())
-		return
-	}
-
 	checkout := &types.Checkout{
-		RegisterID:  id,
 		Price:       form.Cost,
 		Type:        form.CheckoutVia,
 		Idempotency: form.Idempotency,
@@ -321,7 +316,22 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		Email:       form.Email,
 		PromoURL:    form.PromoURL,
 		CourseName:  form.CourseName,
+		Count:       uint64(form.Count),
 	}
+
+	// FIXME: keep track of token usage//timeout?
+
+	/* Save to signups! Note: won't be considered final
+	 * until there's a payment ref attached */
+	checkout.RegisterID, err = getters.SaveRegistration(ctx.Notion, &form, checkout)
+
+	// TODO: what happens if there's a duplicate/idempotent token?
+	if err != nil {
+		http.Error(w, "Oops, we weren't able to save", http.StatusInternalServerError)
+		ctx.Err.Printf("/register Unable to save registration %s\n", err.Error())
+		return
+	}
+
 
 	/* Ok, now we go to checkout! */
 	switch form.CheckoutVia {
@@ -433,18 +443,21 @@ type StripeCheckout struct {
 	SessionID    string
 	PromoURL     string
 	CourseName   string
+	Count        uint64
+	Total        uint64
 	Page         Page
 }
 
 func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, checkout *types.Checkout) {
 	stripe.Key = ctx.Env.Stripe.Key
 
-	/* add cents for stripe! */
-	price := int64(FiatPrice(checkout.Price) * 100)
+	/* convert to cents for stripe! */
+	price := checkout.ComputeTotal(types.Fiat)
+	priceAsCents := int64(price * 100)
 
 	/* First we register a payment intent */
 	params := &stripe.PaymentIntentParams{
-		Amount:   stripe.Int64(price),
+		Amount:   stripe.Int64(priceAsCents),
 		Currency: stripe.String(string(stripe.CurrencyUSD)),
 		AutomaticPaymentMethods: &stripe.PaymentIntentAutomaticPaymentMethodsParams{
 			Enabled: stripe.Bool(true),
@@ -458,6 +471,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		params.AddMetadata("integration_check", "accept_a_payment")
 	}
 
+	ctx.Infos.Printf("refid: %s", checkout.RegisterID)
 	pi, _ := paymentintent.New(params)
 
 	tmpl, err := template.ParseFiles("templates/checkout.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
@@ -472,6 +486,8 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		Page:         getPage(ctx, "Checkout"),
 		PromoURL:     checkout.PromoURL,
 		CourseName:   checkout.CourseName,
+		Total:        price,
+		Count:        checkout.Count,
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -483,6 +499,23 @@ type SuccessData struct {
 	Course  *types.Course
 	Session *types.CourseSession
 	Page    Page
+}
+
+
+func FakeSuccess(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	refID := r.Header.Get("payid")
+	pageID := r.Header.Get("refid")
+
+	sessionUUID, seats, err := getters.FinalizeRegistration(ctx.Notion, pageID, refID)
+
+	if err != nil {
+		http.Error(w, "unable to finalize", http.StatusInternalServerError)
+		ctx.Err.Printf("/fake-success failed", err.Error())
+		return
+	}
+
+	_ = getters.CountClassRegistration(ctx.Notion, sessionUUID, seats)
+	ctx.Infos.Printf("finalized! %s", sessionUUID)
 }
 
 func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -548,9 +581,7 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 		pageID := payment.Metadata["registration_id"]
 		refID := payment.ID
 
-		/* Add RefId to class signups table.
-		 * This marks this signup as confirmed */
-		sessionUUID, err := getters.UpdateRegistration(ctx.Notion, pageID, refID)
+		sessionUUID, seats, err := getters.FinalizeRegistration(ctx.Notion, pageID, refID)
 		if err != nil {
 			http.Error(w, "Unable to process, please try again later", http.StatusBadRequest)
 			ctx.Err.Printf("/stripe-hook unable to update signup %s %s\n", pageID, err.Error())
@@ -558,7 +589,7 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 		}
 
 		/* Decrement available class count */
-		err = getters.CountClassRegistration(ctx.Notion, sessionUUID)
+		err = getters.CountClassRegistration(ctx.Notion, sessionUUID, seats)
 		if err != nil {
 			http.Error(w, "Unable to process, please try again later", http.StatusInternalServerError)
 			ctx.Err.Printf("/stripe-hook decrement signup count failed %s %s\n", pageID, err.Error())

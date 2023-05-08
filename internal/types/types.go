@@ -69,6 +69,7 @@ type (
 		Timestamp   string
 		SessionUUID string
 		Cost        uint64
+		Count       uint
 		PromoURL    string
 		CourseName  string
 	}
@@ -94,6 +95,7 @@ type (
 		Idempotency string
 		PromoURL    string
 		CourseName  string
+		Count       uint64
 	}
 )
 
@@ -217,3 +219,22 @@ func (e *EnvConfig) SecretBytes() []byte {
 	data, _ := hex.DecodeString(e.Secret)
 	return data
 }
+
+func FiatPrice(val uint64) uint64 {
+	return val
+}
+
+func BtcPrice(val uint64) uint64 {
+	return uint64(float64(val) * .85)
+}
+
+/* Returns the dollar value (USD) of a checkout */
+func (c *Checkout) ComputeTotal(opt CheckoutOpt) uint64 {
+	if opt == Bitcoin {
+		return BtcPrice(c.Price) * c.Count
+	}
+
+	return FiatPrice(c.Price) * c.Count
+}
+
+

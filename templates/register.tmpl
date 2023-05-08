@@ -71,11 +71,21 @@
 		</label>
 
 		<select class="rounded-md" name="Shirt">
-			{{ $p := . }}{{ range $option := ShirtOpts }}
+			{{ range $option := ShirtOpts }}
 			<option value="{{$option.Key}}" {{ if eq "med" $option.Key}} selected{{end}}>{{$option.Value}}</option>
 			{{end}}
 		</select>
 		{{ end }}
+
+		<label class="text-gray-300 mt-4 mb-2">
+		  How many seats?
+		</label>
+
+	        <select class="rounded-md" name="Count">
+			{{ range $option := (TixCount .Session.SeatsAvail) }}
+			<option value="{{$option.Key}}" {{ if eq "1" $option.Key}} selected{{end}}>{{$option.Value}}</option>
+			{{end}}
+		</select>
 		
 		<input class="rounded-md" type="hidden" name="Idempotency" value="{{ .Form.Idempotency }}" required>
 		<input class="rounded-md" type="hidden" name="Timestamp" value="{{ .Form.Timestamp }}" required>

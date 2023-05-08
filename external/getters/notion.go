@@ -2,6 +2,9 @@ package getters
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"github.com/kodylow/base58-website/internal/types"
 	"github.com/sorcererxw/go-notion"
@@ -220,10 +223,27 @@ func GetCourseSessions(n *types.Notion, courses []*types.Course) ([]*types.Cours
 	return sessions, nil
 }
 
-func SaveRegistration(n *types.Notion, r *types.ClassRegistration) (string, error) {
-	parent := notion.NewDatabaseParent(n.Config.SignupsDb)
+func UniqueID(contact string, ref string, counter int32) string {
+	/* sha256 of ref || contact|| count (4, le) */
+	h := sha256.New()
+	h.Write([]byte(ref))
+	h.Write([]byte(contact))
+
+	b := make([]byte, 4)
+	binary.LittleEndian.PutUint32(b, uint32(counter))
+	h.Write(b)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func SaveRegistration(n *types.Notion, r *types.ClassRegistration, c *types.Checkout) (string, error) {
+	parent := notion.NewDatabaseParent(n.Config.CartsDB)
 	props := map[string]*notion.PropertyValue{
-		"Email": notion.NewTitlePropertyValue(
+		"Idempotent": notion.NewTitlePropertyValue(
+			[]*notion.RichText{
+				{Type: notion.RichTextText,
+					Text: &notion.Text{Content: r.Idempotency}},
+			}...),
+		"Contact": notion.NewRichTextPropertyValue(
 			[]*notion.RichText{
 				{Type: notion.RichTextText,
 					Text: &notion.Text{Content: r.Email}},
@@ -231,19 +251,21 @@ func SaveRegistration(n *types.Notion, r *types.ClassRegistration) (string, erro
 		"session": notion.NewRelationPropertyValue(
 			[]*notion.ObjectReference{{ID: r.SessionUUID}}...,
 		),
-		"Idempotent": notion.NewRichTextPropertyValue(
-			[]*notion.RichText{
-				{Type: notion.RichTextText,
-					Text: &notion.Text{Content: r.Idempotency}},
-			}...),
-	}
+		"Amount": &notion.PropertyValue{
+			Type:   notion.PropertyNumber,
+			Number: float64(c.ComputeTotal(r.CheckoutVia)),
+		},
+		"Currency": &notion.PropertyValue{
+			Type: notion.PropertySelect,
+			Select: &notion.SelectOption{
+				Name: "USD",
+			},
+		},
+		"Seats": &notion.PropertyValue{
+			Type:   notion.PropertyNumber,
+			Number: float64(r.Count),
+		},
 
-	if r.ReplitUser != "" {
-		props["Replit"] = notion.NewRichTextPropertyValue(
-			[]*notion.RichText{
-				{Type: notion.RichTextText,
-					Text: &notion.Text{Content: r.ReplitUser}},
-			}...)
 	}
 
 	if r.Shirt != nil {
@@ -269,7 +291,26 @@ func SaveRegistration(n *types.Notion, r *types.ClassRegistration) (string, erro
 	return page.ID, err
 }
 
-func UpdateRegistration(n *types.Notion, pageID string, refID string) (string, error) {
+func FinalizeRegistration(n *types.Notion, pageID string, refID string) (string, uint, error) {
+	/* Check that not already added */
+	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
+		n.Config.CartsDB, notion.QueryDatabaseParam{
+			Filter: &notion.Filter{
+				Property: "PaymentRef",
+				Text: &notion.TextFilterCondition{
+					Equals: refID,
+				},
+			},
+		})
+	if err != nil {
+		return "", 0, err
+	}
+
+	if len(pages) > 0 {
+		return "", 0, fmt.Errorf("Already finalized %s", refID)
+	}
+
+	/* Update the page to have the payment ref */
 	page, err := n.Client.UpdatePageProperties(context.Background(), pageID,
 		map[string]*notion.PropertyValue{
 			"PaymentRef": notion.NewRichTextPropertyValue(
@@ -279,14 +320,70 @@ func UpdateRegistration(n *types.Notion, pageID string, refID string) (string, e
 				}...),
 		})
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
+	/* Add seats for each of registrations */
 	sessionUUID := page.Properties["session"].Relation[0].ID
-	return sessionUUID, nil
+	cartUUID := page.ID
+	email := parseRichText("Contact", page.Properties)
+	mailingAddr := parseRichText("Mailing Address", page.Properties)
+	parent := notion.NewDatabaseParent(n.Config.SignupsDb)
+	seatCount := uint(page.Properties["Seats"].Number)
+	var tShirt string
+	if page.Properties["T-Shirt Size"].Select != nil {
+		tShirt = page.Properties["T-Shirt Size"].Select.Name
+	} else {
+		tShirt = ""
+	}
+	for i := 0; i < int(seatCount); i++ {
+		refID := UniqueID(email, cartUUID, int32(i))
+		props := map[string]*notion.PropertyValue{
+			"Contact": notion.NewTitlePropertyValue(
+				[]*notion.RichText{
+					{Type: notion.RichTextText,
+						Text: &notion.Text{Content: email}},
+				}...),
+			"RefID": notion.NewRichTextPropertyValue(
+				[]*notion.RichText{
+					{Type: notion.RichTextText,
+						Text: &notion.Text{Content: refID}},
+				}...),
+			"session": notion.NewRelationPropertyValue(
+				[]*notion.ObjectReference{{ID: sessionUUID}}...,
+			),
+			"CartRef": notion.NewRelationPropertyValue(
+				[]*notion.ObjectReference{{ID: cartUUID}}...,
+			),
+		}
+
+		if mailingAddr != "" {
+			props["Mailing Address"] = notion.NewRichTextPropertyValue(
+				[]*notion.RichText{
+					{Type: notion.RichTextText,
+						Text: &notion.Text{Content: mailingAddr}},
+				}...)
+		}
+
+		if tShirt != "" {
+			props["T-Shirt Size"] = &notion.PropertyValue{
+				Type: notion.PropertySelect,
+				Select: &notion.SelectOption{
+					Name: tShirt,
+				},
+			}
+		}
+
+		_, err := n.Client.CreatePage(context.Background(), parent, props)
+		if err != nil {
+			return "", uint(i + 1), err
+		}
+	}
+
+	return sessionUUID, seatCount, nil
 }
 
-func CountClassRegistration(n *types.Notion, sessionUUID string) error {
+func CountClassRegistration(n *types.Notion, sessionUUID string, seats uint) error {
 	page, err := n.Client.RetrievePage(context.Background(), sessionUUID)
 	if err != nil {
 		return err
@@ -295,12 +392,12 @@ func CountClassRegistration(n *types.Notion, sessionUUID string) error {
 	session := parseSession(page.ID, page.Properties)
 
 	/* Nothing to do, we oversold. Oops */
-	if session.SeatsAvail < 1 {
+	if session.SeatsAvail < seats {
 		fmt.Fprintf(os.Stderr, "Oops we oversold this class %s\n", session.ClassRef)
 		return nil
 	}
 
-	seatsNowAvail := session.SeatsAvail - 1
+	seatsNowAvail := session.SeatsAvail - seats
 	_, err = n.Client.UpdatePageProperties(context.Background(), sessionUUID,
 		map[string]*notion.PropertyValue{
 			"SeatsAvail": notion.NewNumberPropertyValue(float64(seatsNowAvail)),
