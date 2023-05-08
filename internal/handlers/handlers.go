@@ -23,6 +23,7 @@ import (
 
 	stripe "github.com/stripe/stripe-go/v74"
 	"github.com/stripe/stripe-go/v74/paymentintent"
+	"github.com/stripe/stripe-go/v74/webhook"
 )
 
 /* if not in prod, we rebild this every request (expensive, but fast) */
@@ -560,11 +561,12 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 		ctx.Err.Printf("/stripe-hook failed body read %s\n", err.Error())
 		return
 	}
-	event := stripe.Event{}
 
-	if err := json.Unmarshal(payload, &event); err != nil {
-		http.Error(w, "Unable to process, please try again later", http.StatusBadRequest)
-		ctx.Err.Printf("/stripe-hook body json unmarshal %s\n", err.Error())
+	event, err := webhook.ConstructEvent(payload, r.Header.Get("Stripe-Signature"), ctx.Env.Stripe.EndpointSec)
+
+	if err != nil {
+		ctx.Err.Println("Error verifying webhook sig", err)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 

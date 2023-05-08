@@ -8,6 +8,7 @@ type (
 	StripeConfig struct {
 		Key    string
 		Pubkey string
+		EndpointSec string
 	}
 )
 
