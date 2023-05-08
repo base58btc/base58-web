@@ -2,6 +2,7 @@ package config
 
 import (
 	"html/template"
+	"fmt"
 	"log"
 
 	"github.com/alexedwards/scs/v2"
@@ -24,3 +25,17 @@ type AppContext struct {
 func (ctx *AppContext) ReloadCache() bool {
 	return !ctx.IsProd && ctx.Redraw
 }
+
+func (ctx *AppContext) SitePath() string {
+	var prefix, port string
+	if ctx.IsProd {
+		prefix = "https://"
+		port = ""
+	} else {
+		prefix = "http://"
+		port = ":" + ctx.Env.Port
+	}
+
+	return fmt.Sprintf("%s%s%s", prefix, ctx.Env.Domain, port)
+}
+

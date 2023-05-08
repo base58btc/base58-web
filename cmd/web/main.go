@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -39,13 +40,14 @@ func main() {
 	env := loadConfig()
 
 	// Start the server
+	app.TemplateCache = make(map[string]*template.Template)
 	routes, err := handlers.Routes(&app)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	srv := &http.Server{
-		Addr:    env.Port,
+		Addr:    fmt.Sprintf(":%s", env.Port),
 		Handler: routes,
 	}
 

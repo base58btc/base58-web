@@ -11,6 +11,7 @@ type (
 	/* Configs for the app! */
 	EnvConfig struct {
 		Port     string
+		Domain   string
 		Secret   string
 		Notion   NotionConfig
 		Stripe   StripeConfig
@@ -59,15 +60,17 @@ type (
 	}
 
 	ClassRegistration struct {
-		Email       string     `form:"label=Email;type=email;placeholder=hello@example.com"`
-		MailingAddr *string    `form:"label=Mailing Address;placeholder=555 Magneto Way, Oxford, UK 282822"`
-		Shirt       *ShirtSize `form:"label=Shirt size, unisex;type=select;id=shirt;placeholder=med"`
+		Email       string
+		MailingAddr *string
+		Shirt       *ShirtSize
 		ReplitUser  string
-		CheckoutVia CheckoutOpt `form:"label=Checkout Via;type=select;id=checkout;"`
-		Idempotency string      `form:"label=nil;type=hidden"`
-		Timestamp   string      `form:"label=nil;type=hidden"`
-		SessionUUID string      `form:"label=nil;type=hidden"`
-		Cost        uint64      `form:"label=nil;type=hidden"`
+		CheckoutVia CheckoutOpt
+		Idempotency string
+		Timestamp   string
+		SessionUUID string
+		Cost        uint64
+		PromoURL    string
+		CourseName  string
 	}
 
 	WaitList struct {
@@ -89,6 +92,8 @@ type (
 		Price       uint64
 		Type        CheckoutOpt
 		Idempotency string
+		PromoURL    string
+		CourseName  string
 	}
 )
 
@@ -118,8 +123,8 @@ const (
 )
 
 const (
-	Bitcoin CheckoutOpt = "bitcoin"
-	Fiat    CheckoutOpt = "usd"
+	Bitcoin CheckoutOpt = "btc"
+	Fiat    CheckoutOpt = "fiat"
 )
 
 func (c CourseSession) Dates() []time.Time {

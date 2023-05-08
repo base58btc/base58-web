@@ -91,42 +91,31 @@
 	  x course
 		- markdown formatted info for longer desc
 		- optional video embed?
-	  - register
+	  x register
+	  x checkout
+	  x success
 	  - waitlist
-	  - checkout
-	  - success
+	- checkout with bitcoin
+		- integrate opennode's checkout, for launch!
 
-	- update "send email" to use the emailer
+	- emails
+		- use the emailer
+		- signup confirmation email
+		- write emails in notion, as pages?
 
 	- don't show sessions w/in 12h of start (or after first) date
 	- turn on waitlist for oversold classes
-	- hide unneeded form fields in signup
 	- disable submit button on stripe form
 	x waitlist page
 		- idempotency check?
 	x checkout page (single item atm!)
 		- idempotency check
-		- send email when checked out
-	- checkout with bitcoin
-		- integrate opennode's checkout, for launch!
-	- emails
-		- write emails in notion, as pages?
-
-
-
-- ship w/ nix
-	- https://github.com/NixOS/nixpkgs/pull/57080/files#diff-6f133905935141621e64527de48c170d1905dadcedaf9cd1aba2640c49b7a8df
-	- https://golangexample.com/an-on-site-demonstration-of-packaging-go-applications-with-nix/
-	- https://serokell.io/blog/practical-nix-flakes
-	- https://nixos.wiki/wiki/Nixpkgs/Create_and_debug_packages
 
 
 - to think about:
-	- recurring subscriptions for access to all replit content?
 	- blog
 	- v2: nostr pubkeys
 		- send nostr notice
-	- v2: bolt12
 	- v2: specific pages for confs?
 	- v2: popup for newsletter signup?
 	- v2: cart
@@ -155,6 +144,7 @@
 		]
 	- next address (from descriptor) 
 		- new address for every *session* update
+	- v2: bolt12
 	x BIP21 + BOLT11 payment options 
 		x bip21 // LN invoice
 		- click to copy  
@@ -165,6 +155,14 @@
 		- pipe response to checkout (if still around)
 		- mark as paid in notion
 		- email purchase receipt
+	- recurring subscriptions for access to all replit content?
+	- ship w/ nix
+		- https://github.com/NixOS/nixpkgs/pull/57080/files#diff-6f133905935141621e64527de48c170d1905dadcedaf9cd1aba2640c49b7a8df
+		- https://golangexample.com/an-on-site-demonstration-of-packaging-go-applications-with-nix/
+		- https://serokell.io/blog/practical-nix-flakes
+		- https://nixos.wiki/wiki/Nixpkgs/Create_and_debug_packages
+
+
 
 
 - bitcoin acceptance pipeline!

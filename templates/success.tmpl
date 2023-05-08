@@ -4,26 +4,62 @@
     {{ block "head" .Page }} {{ end }}
   </head>
   <body>
+   {{ block "nav" . }} {{ end }}
+   <main class="py-24 sm:py-32">
     <section>
-      <h1><a href="/">Base58⛓️🔓</a></h1>
-      <h1>You're going</h1>
-      <h2>{{ .Course.PublicName }}</h2>
-    <p> When: 
-	  {{ $lastidx := LastIdx (len .Session.Date) }}
-	  {{ if gt $lastidx 0 }}
-		{{ index .Session.Date 0 }} - {{ index .Session.Date $lastidx }}
-	  {{ else }}
-		{{ index .Session.Date 0 }}
-	  {{ end }} {{ .Session.TimeDesc }}</p>
-    <p> Where: {{ .Session.Location }}</p>
-    <!-- fixme: show a map tile of location, if is an irl class -->
-    <p> Taught By: {{ .Session.Instructor }} </td>
-	<p>We'll see you in class soon. </p>
-	<p>You should get a registration email from <span class="font-semibold">hello@base58.school</span> shortly; please check your email's spam inbox if you don't receive it.</p>
-	<p>Before then, feel free to take a run at our Replit exercises</p>
-	<p>Follow us on <a href="//twitter.com/base58btc">Twitter</a> 
-	or join us on <a href="//">Discord</a></p>
+      <div class="relative isolate">
+        <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+          <div class="bg-gray-900 ring-1 ring-white/10 sm:rounded-3xl">
+	      <div class="mx-auto flex max-w-2xl flex-col gap-16 bg-white/5 px-6 py-16 ring-1 ring-white/10 sm:rounded-3xl sm:p-8 lg:mx-0 lg:max-w-none lg:flex-row lg:items-top lg:py-20 xl:gap-x-20 xl:px-20">
+		<img class="h-32 aspect-video sm:aspect-inherit sm:h-96 w-full flex-none rounded-2xl object-cover shadow-xl lg:aspect-square lg:h-auto lg:max-w-sm" src="{{ .Course.PromoURL }}" alt="">
+		<div class="w-full flex-auto text-white">
+		  <p class="font-semibold leading-7 text-bitcoin">You're Going</p>
+		   <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl mb-10">
+		    {{ .Course.PublicName }}
+		   </h2>
+		  <ul role="list" class="mt-10 grid grid-cols-1 gap-x-8 gap-y-3 text-base leading-7 text-white">
+		    <li class="flex gap-x-3">
+		      <svg class="h-7 w-5 flex-none" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+			<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+		      </svg>
+		      <span class="font-semibold">When</span> 
+		  {{ $lastidx := LastIdx (len .Session.Date) }}
+		  {{ if gt $lastidx 0 }}
+			{{ index .Session.Date 0 }} - {{ index .Session.Date $lastidx }}
+		  {{ else }}
+			{{ index .Session.Date 0 }}
+		  {{ end }} @ {{ .Session.TimeDesc }}
+		    </li>
+		    <li class="flex gap-x-3">
+		      <svg class="h-7 w-5 flex-none" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+			<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+		      </svg>
+		      <span class="font-semibold">Where</span> 
+			{{ .Session.Location }}
+		    </li>
+		    <li class="flex gap-x-3">
+		      <svg class="h-7 w-5 flex-none" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+			<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+		      </svg>
+		      <span class="font-semibold">Taught By</span> 
+			{{ .Session.Instructor }}
+		    </li>
+		  </ul>
+	<p class="mt-8 font-semibold">We'll see you in class soon. </p>
+	<p class="mt-8">You should get a registration email from <span class="font-semibold">hello@base58.school</span> shortly; please check your email's spam inbox if you don't receive it.</p>
+	<p class="mt-8">Before then, feel free to take a run at our 
+		<a target="_blank" href="https://replit.com/@base58" class="underline">Replit</a> exercises</p>
+	<p class="mt-8">Keep up with us on <a class="underline" href="//twitter.com/base58btc" target="_blank">Twitter</a> 
+	or join the conversation already on <a target="_blank" class="underline" href="https://discord.gg/T4EjCWJn7q">Discord</a></p>
+	<p class="my-8">Need to sign up for another class?</p>
+	<a href="/#courses" class="mt-6 bg-bitcoin hover:bg-btcgold text-white font-bold py-2 px-4 rounded">Back to Courses</a>
+       </div>
+       </div>
+       </div>
+       </div>
+       </div>
     </section>
+  </main>
   {{ block "footer" .Page }} {{ end }}
   </body>
 </html>

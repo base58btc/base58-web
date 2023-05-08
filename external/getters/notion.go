@@ -236,11 +236,14 @@ func SaveRegistration(n *types.Notion, r *types.ClassRegistration) (string, erro
 				{Type: notion.RichTextText,
 					Text: &notion.Text{Content: r.Idempotency}},
 			}...),
-		"Replit": notion.NewRichTextPropertyValue(
+	}
+
+	if r.ReplitUser != "" {
+		props["Replit"] = notion.NewRichTextPropertyValue(
 			[]*notion.RichText{
 				{Type: notion.RichTextText,
 					Text: &notion.Text{Content: r.ReplitUser}},
-			}...),
+			}...)
 	}
 
 	if r.Shirt != nil {

@@ -5,32 +5,56 @@
     <script src="https://js.stripe.com/v3/"></script>
   </head>
   <body>
-   <h1>Let's finish your registration!</h1>
-	<form id="payment-form" data-secret="{{ .ClientSecret }}">
-	  <div id="card-element">
-	    <!-- Elements will create input elements here -->
+   {{ block "nav" . }} {{ end }}
+   <main class="py-24 sm:py-32">
+      <div class="relative isolate">
+        <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+          <div class="bg-gray-900 ring-1 ring-white/10 sm:rounded-3xl">
+	      <div class="mx-auto flex max-w-2xl flex-col gap-16 bg-white/5 px-6 py-16 ring-1 ring-white/10 sm:rounded-3xl sm:p-8 lg:mx-0 lg:max-w-none lg:flex-row lg:items-top lg:py-20 xl:gap-x-20 xl:px-20">
+		<img class="h-32 aspect-video sm:aspect-inherit sm:h-96 w-full flex-none rounded-2xl object-cover shadow-xl lg:aspect-square lg:h-auto lg:max-w-sm" src="{{ .PromoURL }}" alt="">
+		<div class="w-full flex-auto">
+		  <p class="font-semibold leading-7 text-bitcoin">Secure your spot</p>
+		   <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl mb-10">
+		    {{ .CourseName }}
+		   </h2>
+		   <form id="payment-form" data-secret="{{ .ClientSecret }}"
+			class="max-w-7xl">
+		     <div id="card-element">
+		      <!-- Elements will create input elements here -->
+		    </div>
+
+		      <!-- We'll put the error messages in this element -->
+		      <div id="card-errors" role="alert"></div>
+		      <div class="w-full items-center">
+		         <button id="card-button" class="mt-6 bg-bitcoin hover:bg-btcgold text-white font-bold py-2 px-4 rounded" type="submit" >Submit Payment</button>
+		      </div>
+		    </form>
+	         </div>
+	       </div>
+	     </div>
 	  </div>
-
-	  <!-- We'll put the error messages in this element -->
-	  <div id="card-errors" role="alert"></div>
-
-	  <button id="card-button">Submit Payment</button>
-	</form>
+        </div>
+   </main>
   {{ block "footer" .Page }} {{ end }}
   </body>
 <script>
 var stripe = Stripe('{{ .PubKey }}');
-var elements = stripe.elements();
 
 /* Set up Stripe.js and Elements to use in checkout form */
-var elements = stripe.elements();
-var style = {
-  base: {
-    color: "#32325d",
-  }
+const appearance = {
+  theme: 'night'
 };
+const clientSecret = '{{ .ClientSecret }}';
+const elements = stripe.elements({clientSecret, appearance});
 
-var card = elements.create("card", { style: style });
+var card = elements.create("payment", { 
+	layout: {
+		'type': 'accordion',
+		defaultCollapsed: false,
+		radios: true,
+		spacedAccordionItems: false,
+        }
+});
 card.mount("#card-element");
 
 card.on('change', ({error}) => {
@@ -48,27 +72,39 @@ var form = document.getElementById('payment-form');
 
 form.addEventListener('submit', function(ev) {
   ev.preventDefault();
-  stripe.confirmCardPayment(form.dataset.secret, {
-    payment_method: {
-      card: card,
-      billing_details: {
-        email: {{ .Email }},
-      }
+
+  if (!stripe) {
+	// Stripe.js hasn't loaded yet.
+	return;
+  }
+
+  elements.submit().then(function(res) {
+    if (res.error) {
+      let displayError = document.getElementById('card-errors');
+      displayError.textContent = res.error.message;
+      return;
     }
-  }).then(function(result) {
-    if (result.error) {
-      // Show error to your customer (for example, insufficient funds)
-      console.log(result.error.message);
-    } else {
-      if (result.paymentIntent.status === 'succeeded') {
-	window.location.href = "/success?s={{ .SessionID }}"
-        // There's a risk of the customer closing the window before callback
-        // execution. Set up a webhook or plugin to listen for the
-        // payment_intent.succeeded event that handles any business critical
-        // post-payment actions.
-      }
-    }
+	  stripe.confirmPayment({
+	    elements,
+	    clientSecret,
+	    confirmParams: {
+	      return_url: '{{ .Page.Domain }}/success?s={{ .SessionID }}',
+	    }, 
+            redirect: 'if_required',
+	  }).then(function(result) {
+	      if (result.error) {
+		// Show error to your customer (for example, insufficient funds)
+		console.log(result.error);
+		let displayError = document.getElementById('card-errors');
+		displayError.textContent = result.error.message;
+	      } else {
+		if (result.paymentIntent.status === 'succeeded') {
+		  window.location.href = "/success?s={{ .SessionID }}"
+	      }
+	    }
+	  });
   });
+
 });
 </script>
 </html>

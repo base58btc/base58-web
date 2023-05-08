@@ -15,7 +15,7 @@
 		  <p class="font-semibold leading-7 text-bitcoin">Registration For Base58's</p>
 		  <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
 		  {{ .Course.PublicName }}</h2>
-                 <p class="mt-6 text-lg leading-8 text-gray-300">
+                  <p class="mt-6 text-lg leading-8 text-gray-300">
     		   {{ .Course.ShortDesc }}
 		 </p>
                  <p class="mt-6 text-lg leading-8 text-gray-300 font-semibold">
@@ -81,10 +81,12 @@
 		<input class="rounded-md" type="hidden" name="Timestamp" value="{{ .Form.Timestamp }}" required>
 		<input class="rounded-md" type="hidden" name="SessionUUID" value="{{ .Form.SessionUUID }}" required>
 		<input class="rounded-md" type="hidden" name="Cost" value="{{ .Form.Cost }}" required>
+		<input class="rounded-md" type="hidden" name="PromoURL" value="{{ .Form.PromoURL }}" required>
+		<input class="rounded-md" type="hidden" name="CourseName" value="{{ .Form.CourseName }}" required>
 
 		<div class="grid grid-cols-2 gap-6 mt-8 justify-center place-items-stretch">
 		<label for="checkout-fiat">
-			<input type="radio" name="CheckoutVia" value="Fiat" id="checkout-fiat" class="hidden peer"/>
+			<input type="radio" name="CheckoutVia" value="fiat" id="checkout-fiat" class="hidden peer"/>
 		     <div class="text-white ring-2 ring-green-600 
 				 peer-checked:bg-green-600
 				 flex flex-cols items-center justify-content
@@ -94,7 +96,7 @@
 		</label>
 		<label for="checkout-btc">
 			<input type="radio" name="CheckoutVia" 
-				value="BTC" id="checkout-btc" 
+				value="btc" id="checkout-btc" 
 				class="hidden peer" checked/>
 		     <div class="text-white ring-2 ring-bitcoin 
 				 peer-checked:bg-bitcoin

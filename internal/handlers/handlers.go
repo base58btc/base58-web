@@ -56,6 +56,12 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	}
 	ctx.TemplateCache["register.tmpl"] = register
 
+	checkout, err := template.ParseFiles("templates/checkout.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["checkout.tmpl"] = checkout
+
 	inputs, err := template.New("waitlist_form").Funcs(template.FuncMap{
 		"fn_options": func(id string) []types.OptionItem {
 			return []types.OptionItem{}
@@ -77,12 +83,6 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 		return err
 	}
 	ctx.TemplateCache["waitlist.tmpl"] = waitlist
-
-	checkout, err := template.ParseFiles("templates/checkout.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		return err
-	}
-	ctx.TemplateCache["checkout.tmpl"] = checkout
 
 	success, err := template.New("success").Funcs(template.FuncMap{
 		"LastIdx": LastIdx,
@@ -111,8 +111,6 @@ func maybeRebuildCache(ctx *config.AppContext) error {
 }
 
 func Routes(ctx *config.AppContext) (http.Handler, error) {
-	ctx.TemplateCache = make(map[string]*template.Template)
-
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -251,7 +249,6 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			return
 		}
 
-		// FIXME: how to update/inject func map for an existing template? 
 		pageTpl := ctx.TemplateCache["register.tmpl"]
 
 		/* token! */
@@ -262,12 +259,14 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		err = pageTpl.Execute(w, RegistrationData{
 			Course:  course,
 			Session: session,
-			Page:        getPage("Course Registration"),
+			Page:        getPage(ctx, "Course Registration"),
 			Form: types.ClassRegistration{
 				Idempotency: idemToken,
 				Timestamp:   strconv.FormatInt(now, 10),
 				SessionUUID: session.ID,
 				Cost:        session.Cost,
+				PromoURL:    course.PromoURL,
+				CourseName:  course.PublicName,
 			}})
 
 		if err != nil {
@@ -320,6 +319,8 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		Idempotency: form.Idempotency,
 		SessionID:   sessionID,
 		Email:       form.Email,
+		PromoURL:    form.PromoURL,
+		CourseName:  form.CourseName,
 	}
 
 	/* Ok, now we go to checkout! */
@@ -363,7 +364,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		err = pageTpl.Execute(w, WaitlistData{
 			Course:  course,
 			Session: session,
-			Page: getPage("Course Waitlist"),
+			Page: getPage(ctx, "Course Waitlist"),
 			Form: types.WaitList{
 				Idempotency: "waitlist",
 				SessionUUID: session.ID,
@@ -430,6 +431,8 @@ type StripeCheckout struct {
 	PubKey       string
 	Email        string
 	SessionID    string
+	PromoURL     string
+	CourseName   string
 	Page         Page
 }
 
@@ -438,6 +441,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 
 	/* add cents for stripe! */
 	price := int64(FiatPrice(checkout.Price) * 100)
+
 	/* First we register a payment intent */
 	params := &stripe.PaymentIntentParams{
 		Amount:   stripe.Int64(price),
@@ -456,16 +460,18 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 
 	pi, _ := paymentintent.New(params)
 
-	pageTpl := ctx.TemplateCache["checkout.tmpl"]
-
-	w.Header().Set("Content-Type", "text/html")
-	err := pageTpl.ExecuteTemplate(w, "checkout.tmpl", &StripeCheckout{
+	tmpl, err := template.ParseFiles("templates/checkout.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	if err != nil {
+		panic("oh no")
+	}
+	err = tmpl.ExecuteTemplate(w, "checkout.tmpl", &StripeCheckout{
 		ClientSecret: pi.ClientSecret,
 		PubKey:       ctx.Env.Stripe.Pubkey,
 		Email:        checkout.Email,
 		SessionID:    checkout.SessionID,
-		Page:         getPage("Checkout"),
-		// TODO: other checkout info??
+		Page:         getPage(ctx, "Checkout"),
+		PromoURL:     checkout.PromoURL,
+		CourseName:   checkout.CourseName,
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -495,11 +501,16 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
-	tmpl := ctx.TemplateCache["success.tmpl"]
-	err = tmpl.ExecuteTemplate(w, "success.tmpl", &SuccessData{
+	success, err := template.New("success").Funcs(template.FuncMap{
+		"LastIdx": LastIdx,
+	}).ParseFiles("templates/success.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	if err != nil {
+		panic(err)
+	}
+	err = success.ExecuteTemplate(w, "success.tmpl", &SuccessData{
 		Course:  course,
 		Session: session,
-		Page:    getPage(""),
+		Page:    getPage(ctx, ""),
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -565,7 +576,7 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 }
 
 func Home(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-	data, err := getHomeData(ctx.Notion)
+	data, err := getHomeData(ctx, ctx.Notion)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/index home data fetch failed %s\n", err.Error())
@@ -660,7 +671,7 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			err = t.ExecuteTemplate(w, "course.tmpl", CourseData{
 				Course:   course,
 				Sessions: sessions,
-				Page:     getPage(course.PublicName),
+				Page:     getPage(ctx, course.PublicName),
 			})
 			if err != nil {
 				http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -684,8 +695,9 @@ func Styles(w http.ResponseWriter, r *http.Request) {
 
 // PageData is a struct that holds the data for a page
 type Page struct {
-	Title string
+	Title       string
 	Copyright   int
+	Domain      string
 }
 
 type pageData struct {
@@ -695,17 +707,18 @@ type pageData struct {
 	Coming      []*types.Course
 }
 
-func getPage(title string) Page {
+func getPage(ctx *config.AppContext, title string) Page {
 	if title == "" {
 		title = "Base58"
 	}
 	return Page {
 		Title: title,
 		Copyright:   time.Now().Year(),
+		Domain: ctx.SitePath(),
 	}
 }
 
-func getHomeData(n *types.Notion) (pageData, error) {
+func getHomeData(ctx *config.AppContext, n *types.Notion) (pageData, error) {
 	courses, err := getters.ListCourses(n)
 
 	if err != nil {
@@ -721,7 +734,7 @@ func getHomeData(n *types.Notion) (pageData, error) {
 		}
 	}
 	return pageData{
-		Page:        getPage(""),
+		Page:        getPage(ctx, ""),
 		Courses:     courses,
 		Current:     current,
 		Coming:      coming,
