@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -12,9 +13,11 @@ type (
 	EnvConfig struct {
 		Port     string
 		Domain   string
+		External string
 		Secret   string
 		Notion   NotionConfig
 		Stripe   StripeConfig
+		OpenNode OpenNodeConfig
 		SendGrid SendGridConfig
 	}
 
@@ -239,4 +242,15 @@ func (c *Checkout) ComputeTotal(opt CheckoutOpt) uint64 {
 	return FiatPrice(c.Price) * c.Count
 }
 
+/* Produces a human readable description */
+func (c *Checkout) MakeDesc() string {
+	var seatStr string
+	if c.Count == 1 {
+		seatStr = "seat"
+	} else {
+		seatStr = "seats"
+	}
+
+	return fmt.Sprintf("%d %s in Base58's %s class", c.Count, seatStr, c.CourseName)
+}
 

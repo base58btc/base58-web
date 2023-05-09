@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -129,6 +130,10 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	})
 	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
 		StripeHook(w, r, ctx)
+	}).Methods("POST")
+
+	r.HandleFunc("/opennode-hook", func(w http.ResponseWriter, r *http.Request) {
+		OpenNodeHook(w, r, ctx)
 	}).Methods("POST")
 
 	/* serve files from the "static" directory */
@@ -326,6 +331,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Ok, now we go to checkout! */
 	switch form.CheckoutVia {
 	case types.Bitcoin:
+		BtcCheckoutStart(w, r, ctx, checkout)
 	case types.Fiat:
 		FiatCheckoutStart(w, r, ctx, checkout)
 		return
@@ -511,6 +517,21 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 	}
 }
 
+func BtcCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, checkout *types.Checkout) {
+	payment, err := getters.InitOpenNodeCheckout(ctx, &ctx.Env.OpenNode, checkout)
+
+	if err != nil {
+		http.Error(w, "unable to init btc payment", http.StatusInternalServerError)
+		ctx.Err.Printf("opennode payment init failed", err.Error())
+		return
+	}
+
+	/* FIXME: v2: implement on-site btc checkout */
+	/* for now we go ahead and just redirect to opennode, see you latrrr */
+	ctx.Infos.Println(payment)
+	http.Redirect(w, r, payment.HostedCheckoutURL, http.StatusFound)
+}
+
 type SuccessData struct {
 	Course  *types.Course
 	Session *types.CourseSession
@@ -600,17 +621,15 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 
 		sessionUUID, seats, err := getters.FinalizeRegistration(ctx.Notion, pageID, refID)
 		if err != nil {
-			http.Error(w, "Unable to process, please try again later", http.StatusBadRequest)
 			ctx.Err.Printf("/stripe-hook unable to update signup %s %s\n", pageID, err.Error())
-			return
+			/* We keep going tho, payment went thru */
 		}
 
 		/* Decrement available class count */
 		err = getters.CountClassRegistration(ctx.Notion, sessionUUID, seats)
 		if err != nil {
-			http.Error(w, "Unable to process, please try again later", http.StatusInternalServerError)
 			ctx.Err.Printf("/stripe-hook decrement signup count failed %s %s\n", pageID, err.Error())
-			return
+			/* We keep going tho, payment went thru */
 		}
 
 		// TODO: send email with receipt!!
@@ -618,6 +637,74 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 		ctx.Infos.Println("great success!")
 	default:
 		ctx.Err.Printf("/stripe-hook unhandled event type %s\n", event.Type)
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func computeHash(key, id string) string {
+	mac := hmac.New(sha256.New, []byte(key))
+	mac.Write([]byte(id))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func validHash(key, id, msgMAC string) bool {
+	actual := computeHash(key, id)
+	return msgMAC == actual
+}
+
+type ChargeEvent struct {
+	ID string `schema:"id"`
+	Status string `schema:"status"`
+	OrderID string `schema:"order_id"`
+	HashedOrder string `schema:"hashed_order"`
+}
+
+var decoder = schema.NewDecoder()
+func OpenNodeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	err := r.ParseForm()
+	if err != nil {
+		ctx.Err.Printf("Error reading request body: %v\n", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var ev ChargeEvent
+	decoder.IgnoreUnknownKeys(true)
+	err = decoder.Decode(&ev, r.PostForm)
+	if err != nil {
+		ctx.Err.Printf("Unable to unmarshal: %v\n", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	/* Check the hashed order is ok */
+	if !validHash(ctx.Env.OpenNode.Key, ev.ID, ev.HashedOrder) {
+		ctx.Err.Printf("Invalid request from opennode %s %s", ev.ID, ev.HashedOrder)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	/* If it's paid, update and add seats */
+	if ev.Status == "paid" {
+		sessionUUID, seats, err := getters.FinalizeRegistration(ctx.Notion, ev.OrderID, ev.ID)
+		if err != nil {
+			/* Keep going tho, payment went thru! */
+			ctx.Err.Printf("/opennode-hook unable to update signup %s %s\n", ev.OrderID, err.Error())
+		}
+
+		/* Decrement available class count */
+		err = getters.CountClassRegistration(ctx.Notion, sessionUUID, seats)
+		if err != nil {
+			ctx.Err.Printf("/opennode-hook decrement signup count failed %s %s\n", ev.OrderID, err.Error())
+		}
+
+		// TODO: send email with receipt!!
+
+		ctx.Infos.Println("opennode great success!")
+	} else {
+		/* Everything else we log + ignore */
+		ctx.Infos.Printf("received opennode update %s %s %s", ev.Status, ev.ID, ev.OrderID)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -746,6 +833,7 @@ type Page struct {
 	Title       string
 	Copyright   int
 	Domain      string
+	Callbacks   string
 }
 
 type pageData struct {
@@ -763,6 +851,7 @@ func getPage(ctx *config.AppContext, title string) Page {
 		Title: title,
 		Copyright:   time.Now().Year(),
 		Domain: ctx.SitePath(),
+		Callbacks: ctx.CallbackPath(),
 	}
 }
 

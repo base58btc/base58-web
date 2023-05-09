@@ -86,32 +86,28 @@
 
 - to build:
 	x integrate tailwind (make pretty!)
-	- style pages
-	  x index
-	  x course
+	x index
+		- callout for upcoming confs
+		- callout for taproot class
+		- feature upcoming bitcoin++ events!
+	x course
 		- markdown formatted info for longer desc
 		- optional video embed?
-	  x register
-		- number of seats selector
-	  x checkout
-		- show amount + seat count
-	  x success
-	  - waitlist
-	- checkout with bitcoin
-		- integrate opennode's checkout, for launch!
+	x checkout page (single item atm!)
+		- idempotency check
 
+	- checkout with bitcoin
+		- integrate opennode's checkout
+	- confirm stripe callbacks work as intended
 	- emails
 		- use the emailer
 		- signup confirmation email
+		- waitlist confirmation email
 		- write emails in notion, as pages?
 
 	- don't show sessions w/in 12h of start (or after first) date
 	- turn on waitlist for oversold classes
 	- disable submit button on stripe form
-	x waitlist page
-		- idempotency check?
-	x checkout page (single item atm!)
-		- idempotency check
 
 
 - to think about:

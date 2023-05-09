@@ -39,3 +39,11 @@ func (ctx *AppContext) SitePath() string {
 	return fmt.Sprintf("%s%s%s", prefix, ctx.Env.Domain, port)
 }
 
+func (ctx *AppContext) CallbackPath() string {
+	if ctx.IsProd {
+		return ctx.SitePath()
+	}
+
+	return ctx.Env.External
+}
+
