@@ -75,10 +75,12 @@ type (
 	}
 
 	WaitList struct {
-		Email       string `form:"label=Email;type=email;placeholder=hello@example.com"`
-		Idempotency string `form:"label=nil;type=hidden"`
-		SessionUUID string `form:"label=nil;type=hidden"`
-		Timestamp   string `form:"label=nil;type=hidden"`
+		Email       string
+		Idempotency string
+		Timestamp   string
+		SessionUUID string
+		PromoURL    string
+		CourseName  string
 	}
 
 	OptionItem struct {

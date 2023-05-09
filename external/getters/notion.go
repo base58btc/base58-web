@@ -291,6 +291,24 @@ func SaveRegistration(n *types.Notion, r *types.ClassRegistration, c *types.Chec
 	return page.ID, err
 }
 
+func CheckIdemWaitlist(n *types.Notion, idemTok string) (bool, error) {
+	/* Check that not already added */
+	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
+		n.Config.WaitlistDb, notion.QueryDatabaseParam{
+			Filter: &notion.Filter{
+				Property: "Idempotent",
+				Text: &notion.TextFilterCondition{
+					Equals: idemTok,
+				},
+			},
+		})
+	if err != nil {
+		return false, err
+	}
+
+	return len(pages) > 0, nil
+}
+
 func FinalizeRegistration(n *types.Notion, pageID string, refID string) (string, uint, error) {
 	/* Check that not already added */
 	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
@@ -409,20 +427,20 @@ func SaveWaitlist(n *types.Notion, w *types.WaitList) error {
 	parent := notion.NewDatabaseParent(n.Config.WaitlistDb)
 	_, err := n.Client.CreatePage(context.Background(), parent,
 		map[string]*notion.PropertyValue{
-			"Email": notion.NewTitlePropertyValue(
+			"Contact": notion.NewTitlePropertyValue(
 				[]*notion.RichText{
 					{Type: notion.RichTextText,
 						Text: &notion.Text{Content: w.Email}},
 				}...),
 			"Session": notion.NewRelationPropertyValue(
 				[]*notion.ObjectReference{{ID: w.SessionUUID}}...,
-			),
-			"Idempotent": &notion.PropertyValue{
-				Type: notion.PropertySelect,
-				Select: &notion.SelectOption{
-					Name: w.Idempotency,
-				},
+				),
+			"Idempotent": notion.NewRichTextPropertyValue(
+				[]*notion.RichText{
+					{Type: notion.RichTextText,
+						Text: &notion.Text{Content: w.Idempotency}},
+				}...),
 			},
-		})
+		)
 	return err
 }

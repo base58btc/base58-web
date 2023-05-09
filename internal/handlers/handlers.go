@@ -15,7 +15,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
-	"github.com/joncalhoun/form"
 	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/types"
 	"github.com/kodylow/base58-website/internal/config"
@@ -64,23 +63,11 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	}
 	ctx.TemplateCache["checkout.tmpl"] = checkout
 
-	inputs, err := template.New("waitlist_form").Funcs(template.FuncMap{
-		"fn_options": func(id string) []types.OptionItem {
-			return []types.OptionItem{}
-		},
-	}).ParseFiles("templates/forms/inputs.tmpl")
-	if err != nil {
-		return err
-	}
-	waitFb := form.Builder{
-		InputTemplate: inputs,
-	}
-
-	funcMap := waitFb.FuncMap()
-	funcMap["LastIdx"] = LastIdx
-	funcMap["FiatPrice"] = types.FiatPrice
-	funcMap["BtcPrice"] = types.BtcPrice
-	waitlist, err := template.New("waitlist.tmpl").Funcs(funcMap).ParseFiles("templates/waitlist.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl", "templates/forms/inputs.tmpl")
+	waitlist, err := template.New("waitlist").Funcs(template.FuncMap{
+		"FiatPrice": types.FiatPrice,
+		"BtcPrice": types.BtcPrice,
+		"LastIdx": LastIdx,
+	}).ParseFiles("templates/waitlist.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
 	if err != nil {
 		return err
 	}
@@ -94,13 +81,15 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	}
 	ctx.TemplateCache["success.tmpl"] = success
 
-	success, err = template.New("success").Funcs(template.FuncMap{
-		"LastIdx": LastIdx,
-	}).ParseFiles("templates/success.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	waitlistS, err := template.New("waitlist_success").Funcs(template.FuncMap{
+		"FiatPrice": types.FiatPrice,
+		"BtcPrice": types.BtcPrice,
+	}).ParseFiles("templates/waitlist_success.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
 	if err != nil {
-		return err
+		panic(err)
 	}
-	ctx.TemplateCache["success.tmpl"] = success
+	ctx.TemplateCache["waitlist_success.tmpl"] = waitlistS
+
 	return nil
 }
 
@@ -369,17 +358,26 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 		/* token! */
 		now := time.Now().UTC().UnixNano()
-		//idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, uint64(0))
-		pageTpl := ctx.TemplateCache["waitlist.tmpl"]
-		w.Header().Set("Content-Type", "text/html")
-		err = pageTpl.Execute(w, WaitlistData{
+		idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, uint64(0))
+		//pageTpl := ctx.TemplateCache["waitlist.tmpl"]
+		waitlist, err := template.New("waitlist").Funcs(template.FuncMap{
+			"FiatPrice": types.FiatPrice,
+			"LastIdx": LastIdx,
+			"BtcPrice": types.BtcPrice,
+		}).ParseFiles("templates/waitlist.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
+		if err != nil {
+			panic(err)
+		}
+		err = waitlist.ExecuteTemplate(w, "waitlist.tmpl", WaitlistData{
 			Course:  course,
 			Session: session,
 			Page: getPage(ctx, "Course Waitlist"),
 			Form: types.WaitList{
-				Idempotency: "waitlist",
+				Idempotency: idemToken,
 				SessionUUID: session.ID,
 				Timestamp:   strconv.FormatInt(now, 10),
+				PromoURL:    course.PromoURL,
+				CourseName:  course.PublicName,
 			}})
 		if err != nil {
 			http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -405,36 +403,53 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	/* Check that the Idempotency token is valid */
-	/*
-		if !checkToken(form.Idempotency, ctx.Env.SecretBytes(), form.SessionUUID, form.Timestamp, uint64(0)) {
-			http.Error(w, "Invalid session token", http.StatusBadRequest)
-			ctx.Err.Printf("/waitlist invalid session token %s\n", form.Idempotency)
+	if !checkToken(form.Idempotency, ctx.Env.SecretBytes(), form.SessionUUID, form.Timestamp, uint64(0)) {
+		http.Error(w, "Invalid session token", http.StatusBadRequest)
+		ctx.Err.Printf("/waitlist invalid session token %s\n", form.Idempotency)
+		return
+	}
+
+	/* Check that not already saved to waitlist */
+	/* FIXME: also check contact info + session UUID? */
+	onlist, err := getters.CheckIdemWaitlist(ctx.Notion, form.Idempotency)
+	if err != nil {
+		http.Error(w, "Unable to check waitlist status", http.StatusInternalServerError)
+		ctx.Err.Printf("/waitlist idem chck failed %s\n", err.Error())
+		return
+	}
+
+	if !onlist {
+		/* Save to waitlist! */
+		err = getters.SaveWaitlist(ctx.Notion, &form)
+		if err != nil {
+			http.Error(w, "Unable to save waitlist", http.StatusInternalServerError)
+			ctx.Err.Printf("/waitlist save failed %s\n", err.Error())
 			return
 		}
-	*/
 
-	/* FIXME: Check that not already saved to waitlist */
-
-	/* Save to waitlist! */
-	err = getters.SaveWaitlist(ctx.Notion, &form)
-	if err != nil {
-		http.Error(w, "Unable to save waitlist", http.StatusInternalServerError)
-		ctx.Err.Printf("/waitlist save failed %s\n", err.Error())
-		return
+		/* Send a confirmation email! */
+		err = SendWaitlistConfirmed(ctx, form.Email, session)
+		if err != nil {
+			http.Error(w, "Unable to send waitlist email confirmation", http.StatusInternalServerError)
+			ctx.Err.Printf("/waitlist send confirmation failed %s\n", err.Error())
+			return
+		}
 	}
 
-	/* Send a confirmation email! */
-	err = SendWaitlistConfirmed(ctx, form.Email, session)
+	/* Show waitlist success */
+	waitTmpl, err := template.ParseFiles("templates/waitlist_success.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
 	if err != nil {
-		http.Error(w, "Unable to send waitlist email confirmation", http.StatusInternalServerError)
-		ctx.Err.Printf("/waitlist send confirmation failed %s\n", err.Error())
-		return
+		panic(err)
 	}
-
-	// TODO: show waitlist success?
-	w.Header().Set("Content-Type", "application/json")
-	b, _ := json.Marshal(form)
-	w.Write(b)
+	err = waitTmpl.ExecuteTemplate(w, "waitlist_success.tmpl", &SuccessData{
+		Course:  course,
+		Session: session,
+		Page:    getPage(ctx, ""),
+	})
+	if err != nil {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/success execute template failed %s\n", err.Error())
+	}
 }
 
 type StripeCheckout struct {
