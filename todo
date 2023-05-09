@@ -96,7 +96,6 @@
 	x checkout page (single item atm!)
 		- idempotency check
 
-	- confirm stripe callbacks work as intended
 	- emails
 		- use the emailer
 		- signup confirmation email

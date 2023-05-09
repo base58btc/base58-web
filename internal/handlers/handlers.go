@@ -485,7 +485,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		/* ReceiptEmail: checkout.Email, */
 	}
 
-	params.AddMetadata("registration_id", checkout.RegisterID)
+	params.AddMetadata("b58_registration_id", checkout.RegisterID)
 	if ctx.Env.Stripe.IsTest() {
 		params.AddMetadata("integration_check", "accept_a_payment")
 	}
@@ -596,8 +596,13 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 			return
 		}
 		/* Get out payment data */
-		pageID := payment.Metadata["registration_id"]
+		pageID := payment.Metadata["b58_registration_id"]
 		refID := payment.ID
+
+		if pageID == "" {
+			/* no registration id means not a base58 payment...*/
+			break
+		}
 
 		sessionUUID, seats, err := getters.FinalizeRegistration(ctx.Notion, pageID, refID)
 		if err != nil {
