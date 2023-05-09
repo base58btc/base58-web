@@ -96,8 +96,6 @@
 	x checkout page (single item atm!)
 		- idempotency check
 
-	- checkout with bitcoin
-		- integrate opennode's checkout
 	- confirm stripe callbacks work as intended
 	- emails
 		- use the emailer

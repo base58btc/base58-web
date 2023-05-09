@@ -125,9 +125,6 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 		maybeRebuildCache(ctx)
 		Success(w, r, ctx)
 	})
-	r.HandleFunc("/fake-success", func(w http.ResponseWriter, r *http.Request) {
-		FakeSuccess(w, r, ctx)
-	})
 	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
 		StripeHook(w, r, ctx)
 	}).Methods("POST")
@@ -536,23 +533,6 @@ type SuccessData struct {
 	Course  *types.Course
 	Session *types.CourseSession
 	Page    Page
-}
-
-
-func FakeSuccess(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-	refID := r.Header.Get("payid")
-	pageID := r.Header.Get("refid")
-
-	sessionUUID, seats, err := getters.FinalizeRegistration(ctx.Notion, pageID, refID)
-
-	if err != nil {
-		http.Error(w, "unable to finalize", http.StatusInternalServerError)
-		ctx.Err.Printf("/fake-success failed", err.Error())
-		return
-	}
-
-	_ = getters.CountClassRegistration(ctx.Notion, sessionUUID, seats)
-	ctx.Infos.Printf("finalized! %s", sessionUUID)
 }
 
 func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
