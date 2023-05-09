@@ -482,7 +482,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 			Enabled: stripe.Bool(true),
 		},
 		/* Sends customer a receipt from Stripe */
-		/* ReceiptEmail: checkout.Email, */
+		ReceiptEmail: &checkout.Email,
 	}
 
 	params.AddMetadata("b58_registration_id", checkout.RegisterID)
