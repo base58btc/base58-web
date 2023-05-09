@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/schema"
 	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/types"
+	"github.com/kodylow/base58-website/internal/emails"
 	"github.com/kodylow/base58-website/internal/config"
 	"io/ioutil"
 
@@ -124,6 +125,9 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
 		maybeRebuildCache(ctx)
 		Success(w, r, ctx)
+	})
+	r.HandleFunc("/check-email", func(w http.ResponseWriter, r *http.Request) {
+		CheckEmail(w, r, ctx)
 	})
 	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
 		StripeHook(w, r, ctx)
@@ -535,6 +539,24 @@ type SuccessData struct {
 	Page    Page
 }
 
+func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	sessionUUID := "apr23-tx-inperson"
+	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionUUID)
+	if err != nil {
+		ctx.Err.Printf("/check-email unable to get sessioninfo from notion %s", sessionUUID)
+		return
+	}
+
+	welcomeEmail, _, err := emails.Build(ctx, course.WelcomeEmail, course, session)
+	if err != nil {
+		ctx.Err.Printf("/check-email unable to build email", err)
+		return
+	}
+
+	ctx.Infos.Println(string(welcomeEmail))
+	w.Write(welcomeEmail)
+}
+
 func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Show a success page! */
 	sessionID, ok := getSessionKey("s", r)
@@ -617,7 +639,21 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 			/* We keep going tho, payment went thru */
 		}
 
-		// TODO: send email with receipt!!
+		/* Send email confirming class registration! */
+		// TODO: have it include purchase details // receipt info!
+		course, session, err := getters.GetSessionInfo(ctx.Notion, sessionUUID)
+		if err != nil {
+			ctx.Err.Printf("/stripe-hook unable to get sessioninfo from notion %s", sessionUUID)
+			break
+		}
+
+		_, _, err = emails.Build(ctx, course.WelcomeEmail, course, session)
+		if err != nil {
+			ctx.Err.Printf("/stripe-hook unable to build email", sessionUUID)
+			break
+		}
+
+		/* FIXME: if ticked event, send a ticket too! */
 
 		ctx.Infos.Println("great success!")
 	default:

@@ -77,6 +77,7 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Co
 		Visible:      props["Visible"].Checkbox,
 		ReplitURL:    props["ReplitURL"].URL,
 		UdemyURL:     props["UdemyURL"].URL,
+		WelcomeEmail:     props["WelcomeEmail"].URL,
 	}
 
 	if len(props["HeaderImg"].Files) > 0 {
@@ -104,6 +105,8 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 		Instructor: parseRichText("Instructor", props),
 		Date:       strings.Split(parseRichText("Dates", props), ","),
 		AddlDetails: parseRichText("AddlDetails", props),
+		ScheduleSpecifics: parseRichText("ScheduleSpecifics", props),
+		LocationSpecifics: parseRichText("LocationSpecifics", props),
 	}
 	if props["Signup Code"].Select != nil {
 		session.SignupCode = props["Signup Code"].Select.Name

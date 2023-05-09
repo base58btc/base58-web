@@ -38,7 +38,7 @@ func InitOpenNodeCheckout(ctx *config.AppContext, on *types.OpenNodeConfig, c *t
 	}
 
 	chargesURL := on.Endpoint + CHARGES_ENDPOINT
-	req, err := http.NewRequest("POST", chargesURL, bytes.NewBuffer(payload))
+	req, _ := http.NewRequest("POST", chargesURL, bytes.NewBuffer(payload))
 	req.Header.Add("Authorization", on.Key)
 	req.Header.Add("Content-Type", "application/json")
 

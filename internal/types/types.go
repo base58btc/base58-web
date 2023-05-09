@@ -42,6 +42,7 @@ type (
 		Visible     bool
 		ReplitURL   string
 		UdemyURL    string
+		WelcomeEmail string
 	}
 
 	CourseSession struct {
@@ -60,6 +61,8 @@ type (
 		Instructor string
 		PromoURL   string
 		AddlDetails string
+		LocationSpecifics string
+		ScheduleSpecifics string
 	}
 
 	ClassRegistration struct {
