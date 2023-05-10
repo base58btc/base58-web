@@ -83,6 +83,9 @@ var form = document.getElementById('payment-form');
 
 form.addEventListener('submit', function(ev) {
   ev.preventDefault();
+  /* Disable the button */
+  let submit = document.getElementById('card-button')
+  submit.disabled = true;
 
   if (!stripe) {
 	// Stripe.js hasn't loaded yet.
@@ -93,6 +96,7 @@ form.addEventListener('submit', function(ev) {
     if (res.error) {
       let displayError = document.getElementById('card-errors');
       displayError.textContent = res.error.message;
+      submit.disabled = false;
       return;
     }
 	  stripe.confirmPayment({
@@ -108,6 +112,7 @@ form.addEventListener('submit', function(ev) {
 		console.log(result.error);
 		let displayError = document.getElementById('card-errors');
 		displayError.textContent = result.error.message;
+                submit.disabled = false;
 	      } else {
 		console.log(result.paymentIntent);
 		if (result.paymentIntent.status === 'succeeded') {

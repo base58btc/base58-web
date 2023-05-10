@@ -113,7 +113,9 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	}
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		maybeRebuildCache(ctx)
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
 		Home(w, r, ctx)
 	}).Methods("GET")
 
@@ -121,23 +123,32 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/classes", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/#courses", http.StatusSeeOther)
 	})
+	/* This is a legacy from last website */
 	r.HandleFunc("/team", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/#team", http.StatusSeeOther)
 	})
 	r.HandleFunc("/classes/{class}", func(w http.ResponseWriter, r *http.Request) {
-		maybeRebuildCache(ctx)
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
 		Courses(w, r, ctx)
 	})
 	r.HandleFunc("/waitlist", func(w http.ResponseWriter, r *http.Request) {
-		maybeRebuildCache(ctx)
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
 		Waitlist(w, r, ctx)
 	})
 	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
-		maybeRebuildCache(ctx)
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
 		Register(w, r, ctx)
 	})
 	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
-		maybeRebuildCache(ctx)
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
 		Success(w, r, ctx)
 	})
 	r.HandleFunc("/check-email", func(w http.ResponseWriter, r *http.Request) {
@@ -379,14 +390,10 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		/* token! */
 		now := time.Now().UTC().UnixNano()
 		idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, uint64(0))
-		//pageTpl := ctx.TemplateCache["waitlist.tmpl"]
-		waitlist, err := template.New("waitlist").Funcs(template.FuncMap{
-			"FiatPrice": types.FiatPrice,
-			"LastIdx":   LastIdx,
-			"BtcPrice":  types.BtcPrice,
-		}).ParseFiles("templates/waitlist.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
-		if err != nil {
-			panic(err)
+		waitlist, ok := ctx.TemplateCache["waitlist.tmpl"]
+		if !ok {
+			http.Error(w, "Unable to load page", http.StatusInternalServerError)
+			ctx.Err.Printf("waitlist.tmpl not in cache %v", ctx.TemplateCache)
 		}
 		err = waitlist.ExecuteTemplate(w, "waitlist.tmpl", WaitlistData{
 			Course:  course,
@@ -457,11 +464,12 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	/* Show waitlist success */
-	waitTmpl, err := template.ParseFiles("templates/waitlist_success.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		panic(err)
+	tmpl, ok := ctx.TemplateCache["waitlist_success.tmpl"]
+	if !ok {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("waitlist_success.tmpl not in cache %v", ctx.TemplateCache)
 	}
-	err = waitTmpl.ExecuteTemplate(w, "waitlist_success.tmpl", &SuccessData{
+	err = tmpl.ExecuteTemplate(w, "waitlist_success.tmpl", &SuccessData{
 		Course:  course,
 		Session: session,
 		Page:    getPage(ctx, ""),
@@ -509,11 +517,12 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 
 	pi, _ := paymentintent.New(params)
 
-	tmpl, err := template.ParseFiles("templates/checkout.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		panic("oh no")
+	tmpl, ok := ctx.TemplateCache["checkout.tmpl"]
+	if !ok {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("checkout.tmpl not in cache %v", ctx.TemplateCache)
 	}
-	err = tmpl.ExecuteTemplate(w, "checkout.tmpl", &StripeCheckout{
+	err := tmpl.ExecuteTemplate(w, "checkout.tmpl", &StripeCheckout{
 		ClientSecret: pi.ClientSecret,
 		PubKey:       ctx.Env.Stripe.Pubkey,
 		Email:        checkout.Email,
@@ -599,11 +608,10 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
-	success, err := template.New("success").Funcs(template.FuncMap{
-		"LastIdx": LastIdx,
-	}).ParseFiles("templates/success.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		panic(err)
+	success, ok := ctx.TemplateCache["success.tmpl"]
+	if !ok {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("success.tmpl not in cache %v", ctx.TemplateCache)
 	}
 	err = success.ExecuteTemplate(w, "success.tmpl", &SuccessData{
 		Course:  course,

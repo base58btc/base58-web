@@ -98,21 +98,20 @@
 		- idempotency check
 
 	- emails
-		x signup confirmation email
 		- add a receipt PDF to confirmations
 
-	- why is the template cache not working?
-	- disable submit button on stripe form
 	- convert config.toml to envars
+
+	- ship website to:
+		-base58.school!
 
 	- decide what classes we're launching first
 	- add welcome email info to classes
 	- add class pre-reqs + long desc
+	- get preliminary views??
 
 	- ship website to:
-		-base58.school!
 		-base58.info!
-		-
 
 - next up:
 	- blog

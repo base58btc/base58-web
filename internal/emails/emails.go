@@ -85,7 +85,7 @@ func Build(ctx *config.AppContext, tmplURL string, course *types.Course, session
 	t, ok := ctx.TemplateCache[tmplURL]
 
 	if !ok {
-		ctx.Infos.Println("cache miss for %s", tmplURL)
+		ctx.Infos.Printf("cache miss for %s", tmplURL)
 		req, _ := http.NewRequest("GET", tmplURL, nil)
 		client := &http.Client{}
 		resp, err := client.Do(req)
