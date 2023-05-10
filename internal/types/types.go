@@ -40,12 +40,12 @@ type (
 		PromoURL     string
 		ComingSoon   bool
 		// FIXME: link to application?
-		AppRequired  bool
-		Level        CourseLevel
-		Visible      bool
-		ReplitURL    string
-		UdemyURL     string
-		WelcomeEmail string
+		AppRequired   bool
+		Level         CourseLevel
+		Visible       bool
+		ReplitURL     string
+		UdemyURL      string
+		WelcomeEmail  string
 		WaitlistEmail string
 	}
 

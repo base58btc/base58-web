@@ -17,3 +17,10 @@ Stripe has [great instructions](https://stripe.com/docs/payments/handling-paymen
 	./stripe trigger payment_intent.succeeded --add payment_intent:metadata['registration_id']=<reg_id>
 
 You can get a registration ID from Notion by going to the class signups and opening one of them as a Page. The Page ID (listed in the URL) is the `reg_id`.
+
+
+## How to format a golang project
+
+```
+	gofmt -s -w .
+```

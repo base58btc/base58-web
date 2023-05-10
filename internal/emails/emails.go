@@ -174,8 +174,8 @@ func SendWaitlistEmail(ctx *config.AppContext, idem string, email string, course
 
 	mail := &Mail{
 		JobKey: idem,
-		Email: email,
-		Title: fmt.Sprintf("You're on the list for Base58's %s", course.PublicName),
+		Email:  email,
+		Title:  fmt.Sprintf("You're on the list for Base58's %s", course.PublicName),
 		SendAt: time.Now(),
 	}
 

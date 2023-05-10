@@ -19,6 +19,7 @@ import (
 	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/config"
 	"github.com/kodylow/base58-website/internal/emails"
+	"github.com/kodylow/base58-website/internal/helpers"
 	"github.com/kodylow/base58-website/internal/types"
 	"io/ioutil"
 
@@ -106,6 +107,11 @@ func maybeRebuildCache(ctx *config.AppContext) error {
 func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r := mux.NewRouter()
 
+	err := BuildTemplateCache(ctx)
+	if err != nil {
+		return r, err
+	}
+
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		maybeRebuildCache(ctx)
 		Home(w, r, ctx)
@@ -142,7 +148,7 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 
 	/* special favicon handling */
-	err := AddFaviconRoutes(r)
+	err = AddFaviconRoutes(r)
 
 	if err != nil {
 		return r, err
@@ -826,6 +832,9 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 				ctx.Err.Printf("/courses course sessions fetch failed %s\n", err.Error())
 				return
 			}
+
+			/* Filter out anything in the past or happening in the next 1hr */
+			sessions = helpers.FilterSessions(sessions, time.Now())
 
 			/* Sort sessions by date, soonest first */
 			sort.Sort(sessions)

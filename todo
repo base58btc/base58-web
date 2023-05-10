@@ -86,8 +86,8 @@
 
 - to build:
 	x index
-		- callout for upcoming confs
-		- callout for taproot class
+		- call-out for upcoming confs
+		- call-out for taproot class
 		- feature upcoming bitcoin++ events!
 
 	x course
@@ -103,6 +103,11 @@
 
 	- don't show sessions w/in 12h of start (or after first) date
 	- disable submit button on stripe form
+	- why is the template cache not working?
+	- convert config.toml to envars
+
+	- decide what classes we're launching first
+	- add welcome email info to classes
 
 
 - next up:
