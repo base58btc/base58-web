@@ -2,11 +2,16 @@ package emails
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/kodylow/base58-website/internal/types"
 	"github.com/kodylow/base58-website/internal/config"
@@ -15,6 +20,8 @@ import (
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/ast"
 	"github.com/gomarkdown/markdown/parser"
+
+	mailer "github.com/base58btc/mailer/mail"
 )
 
 type EmailInfos struct {
@@ -135,4 +142,124 @@ func Build(ctx *config.AppContext, tmplURL string, course *types.Course, session
 	}
 
 	return email.Bytes(), buf.Bytes(), nil
+}
+
+
+func makeAuthStamp(secret string, timestamp string, r *http.Request) string {
+	h := sha256.New()
+	h.Write([]byte(secret))
+	h.Write([]byte(timestamp))
+	h.Write([]byte(r.URL.Path))
+	h.Write([]byte(r.Method))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+type Mail struct {
+	JobKey string
+	Email string
+	Title string
+	SendAt time.Time
+	HTMLBody []byte
+	TextBody []byte
+	Files []*EmailFile
+}
+
+type EmailFile struct {
+	PDF []byte
+	Name string
+}
+
+func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session *types.CourseSession, confirm *types.Confirmed) error {
+	mail := &Mail {
+		JobKey: confirm.Idempotency,
+		Email: confirm.Email,
+		Title: fmt.Sprintf("Your Registration for Base58's %s", confirm.CourseName),
+		SendAt: time.Now(),
+	}
+	var err error
+	mail.HTMLBody, mail.TextBody, err = Build(ctx, course.WelcomeEmail, course, session)
+	if err != nil {
+		return err
+	}
+
+	/* FIXME: if ticked event, send a ticket PDF too! x confirm.Count */
+	//refID := UniqueID(email, idem, int32(i))
+
+	/* FIXME: add a receipt PDF */
+
+	return ComposeAndSendMail(ctx, mail)
+}
+
+func ComposeAndSendMail(ctx *config.AppContext, mail *Mail) error {
+	var attaches mailer.AttachSet
+
+	attaches = make([]*mailer.Attachment, len(mail.Files))
+	for i, file := range mail.Files {
+		attaches[i] = &mailer.Attachment{
+			Content: file.PDF,
+			Type: "application/pdf",
+			Name: file.Name,
+		}
+	}
+
+	/* Build a mail to send */
+	mailReq := &mailer.MailRequest{
+		JobKey: mail.JobKey,
+		ToAddr: mail.Email,
+		FromAddr: "hello@base58.school",
+		FromName: "Base58⛓️ 🔓",
+		Title: mail.Title,
+		HTMLBody: string(mail.HTMLBody),
+		TextBody: string(mail.TextBody),
+		Attachments: attaches,
+		SendAt: float64(mail.SendAt.UTC().Unix()),
+		Domain: ctx.Env.MailDomain,
+	}
+
+	return SendMailRequest(ctx, mailReq)
+}
+
+func SendMailRequest(ctx *config.AppContext, mail *mailer.MailRequest) error {
+	/* Send as a PUT request w/ JSON body */
+	payload, err := json.Marshal(mail)
+	if err != nil {
+		return err
+	}
+
+	client := &http.Client{}
+
+	url := ctx.Env.MailEndpoint + "/job"
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(payload))
+	if err != nil {
+		return err
+	}
+
+	timestamp := strconv.Itoa(int(time.Now().UTC().Unix()))
+	secret := ctx.Env.MailerSecret
+	authStamp := makeAuthStamp(secret, timestamp, req)
+
+	req.Header.Set("Authorization", authStamp)
+	req.Header.Set("X-Base58-Timestamp", timestamp)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	var ret mailer.ReturnVal
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if err = json.Unmarshal(data, &ret); err != nil {
+		return err
+	}
+
+	if !ret.Success {
+		return fmt.Errorf("Unable to schedule mail: %s", ret.Message)
+	}
+	return nil
 }

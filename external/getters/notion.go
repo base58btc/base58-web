@@ -176,6 +176,24 @@ func ListCourses(n *types.Notion) ([]*types.Course, error) {
 	return courses, nil
 }
 
+func GetSessionInfoUUID(n *types.Notion, sessionUUID string) (*types.Course, *types.CourseSession, error) {
+	sessionPage, err := n.Client.RetrievePage(context.Background(), sessionUUID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	courseID := sessionPage.Properties["course"].Relation[0].ID
+	session := parseSession(sessionPage.ID, sessionPage.Properties)
+
+	page, err := n.Client.RetrievePage(context.Background(), courseID)
+	if err != nil {
+		return nil, nil, err
+	}
+	course := parseCourse(page.ID, page.Properties)
+	session.CourseName = course.PublicName
+	return course, session, nil
+}
+
 func GetSessionInfo(n *types.Notion, sessionID string) (*types.Course, *types.CourseSession, error) {
 	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
 		n.Config.SessionsDb, notion.QueryDatabaseParam{
@@ -330,7 +348,7 @@ func CheckIdemWaitlist(n *types.Notion, idemTok string) (bool, error) {
 	return len(pages) > 0, nil
 }
 
-func FinalizeRegistration(n *types.Notion, pageID string, refID string) (string, uint, error) {
+func FinalizeRegistration(n *types.Notion, pageID string, refID string) (string, *types.Confirmed, error) {
 	/* Check that not already added */
 	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
 		n.Config.CartsDB, notion.QueryDatabaseParam{
@@ -342,11 +360,11 @@ func FinalizeRegistration(n *types.Notion, pageID string, refID string) (string,
 			},
 		})
 	if err != nil {
-		return "", 0, err
+		return "", nil, err
 	}
 
 	if len(pages) > 0 {
-		return "", 0, fmt.Errorf("Already finalized %s", refID)
+		return "", nil, fmt.Errorf("Already finalized %s", refID)
 	}
 
 	/* Update the page to have the payment ref */
@@ -359,12 +377,13 @@ func FinalizeRegistration(n *types.Notion, pageID string, refID string) (string,
 				}...),
 		})
 	if err != nil {
-		return "", 0, err
+		return "", nil, err
 	}
 
 	/* Add seats for each of registrations */
 	sessionUUID := page.Properties["session"].Relation[0].ID
 	cartUUID := page.ID
+	idem := parseRichText("Idempotent", page.Properties)
 	email := parseRichText("Contact", page.Properties)
 	mailingAddr := parseRichText("Mailing Address", page.Properties)
 	parent := notion.NewDatabaseParent(n.Config.SignupsDb)
@@ -376,7 +395,7 @@ func FinalizeRegistration(n *types.Notion, pageID string, refID string) (string,
 		tShirt = ""
 	}
 	for i := 0; i < int(seatCount); i++ {
-		refID := UniqueID(email, cartUUID, int32(i))
+		refID := UniqueID(email, idem, int32(i))
 		props := map[string]*notion.PropertyValue{
 			"Contact": notion.NewTitlePropertyValue(
 				[]*notion.RichText{
@@ -415,11 +434,21 @@ func FinalizeRegistration(n *types.Notion, pageID string, refID string) (string,
 
 		_, err := n.Client.CreatePage(context.Background(), parent, props)
 		if err != nil {
-			return "", uint(i + 1), err
+			confirmed := &types.Confirmed{
+				Email: email,
+				Idempotency: idem,
+				Count: uint(i + 1),
+			}
+			return "", confirmed, err
 		}
 	}
 
-	return sessionUUID, seatCount, nil
+	confirmed := &types.Confirmed{
+		Email: email,
+		Idempotency: idem,
+		Count: seatCount,
+	}
+	return sessionUUID, confirmed, nil
 }
 
 func CountClassRegistration(n *types.Notion, sessionUUID string, seats uint) error {

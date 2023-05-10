@@ -15,6 +15,9 @@ type (
 		Domain   string
 		External string
 		Secret   string
+		MailerSecret string
+		MailDomain   string
+		MailEndpoint string
 		Notion   NotionConfig
 		Stripe   StripeConfig
 		OpenNode OpenNodeConfig
@@ -104,6 +107,14 @@ type (
 		PromoURL    string
 		CourseName  string
 		Count       uint64
+	}
+
+	Confirmed struct {
+		Idempotency string
+		Email       string
+		CourseName  string
+		ClassRef    string
+		Count       uint
 	}
 )
 

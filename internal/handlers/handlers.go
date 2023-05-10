@@ -494,7 +494,6 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		params.AddMetadata("integration_check", "accept_a_payment")
 	}
 
-	ctx.Infos.Printf("refid: %s", checkout.RegisterID)
 	pi, _ := paymentintent.New(params)
 
 	tmpl, err := template.ParseFiles("templates/checkout.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
@@ -547,12 +546,27 @@ func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 		return
 	}
 
-	welcomeEmail, _, err := emails.Build(ctx, course.WelcomeEmail, course, session)
+	welcomeEmail, welcomeText, err := emails.Build(ctx, course.WelcomeEmail, course, session)
 	if err != nil {
-		ctx.Err.Printf("/check-email unable to build email", err)
+		ctx.Err.Printf("/check-email unable to build email %v", err)
 		return
 	}
 
+	/* FIXME: make a receipt file */
+	mail := &emails.Mail{
+		JobKey : "testkey" + strconv.Itoa(int(time.Now().UTC().Unix())),
+		Email: "niftynei@gmail.com",
+		Title: fmt.Sprintf("Your Registration for Base58's %s", course.PublicName),
+		SendAt: time.Now(),
+		HTMLBody: welcomeEmail,
+		TextBody: welcomeText,
+	}
+
+	err = emails.ComposeAndSendMail(ctx, mail)
+	if err != nil {
+		ctx.Err.Printf("/check-email unable to send mail %s", err)
+		return
+	}
 	w.Write(welcomeEmail)
 }
 
@@ -587,6 +601,29 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/success execute template failed %s\n", err.Error())
 	}
+}
+
+func finalizeRegistration(ctx *config.AppContext, pageID, refID string) error {
+
+	/* Update cart with payment details */
+	sessionUUID, confirmed, err := getters.FinalizeRegistration(ctx.Notion, pageID, refID)
+	if err != nil {
+		return err
+	}
+
+	/* Decrement available class count */
+	err = getters.CountClassRegistration(ctx.Notion, sessionUUID, confirmed.Count)
+	if err != nil {
+		return err
+	}
+
+	/* Send email confirming class registration! */
+	course, session, err := getters.GetSessionInfoUUID(ctx.Notion, sessionUUID)
+	if err != nil {
+		return err
+	}
+
+	return emails.SendRegistrationEmail(ctx, course, session, confirmed)
 }
 
 func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -625,34 +662,13 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 			break
 		}
 
-		sessionUUID, seats, err := getters.FinalizeRegistration(ctx.Notion, pageID, refID)
+		err = finalizeRegistration(ctx, pageID, refID)
 		if err != nil {
-			ctx.Err.Printf("/stripe-hook unable to update signup %s %s\n", pageID, err.Error())
-			/* We keep going tho, payment went thru */
+			http.Error(w, "Unable to process, please try again later", http.StatusBadRequest)
+			ctx.Err.Printf("/stripe-hook unable to finalize signup %s %s\n", pageID, err.Error())
+			return
 		}
 
-		/* Decrement available class count */
-		err = getters.CountClassRegistration(ctx.Notion, sessionUUID, seats)
-		if err != nil {
-			ctx.Err.Printf("/stripe-hook decrement signup count failed %s %s\n", pageID, err.Error())
-			/* We keep going tho, payment went thru */
-		}
-
-		/* Send email confirming class registration! */
-		// TODO: have it include purchase details // receipt info!
-		course, session, err := getters.GetSessionInfo(ctx.Notion, sessionUUID)
-		if err != nil {
-			ctx.Err.Printf("/stripe-hook unable to get sessioninfo from notion %s", sessionUUID)
-			break
-		}
-
-		_, _, err = emails.Build(ctx, course.WelcomeEmail, course, session)
-		if err != nil {
-			ctx.Err.Printf("/stripe-hook unable to build email", sessionUUID)
-			break
-		}
-
-		/* FIXME: if ticked event, send a ticket too! */
 
 		ctx.Infos.Println("great success!")
 	default:
@@ -707,19 +723,12 @@ func OpenNodeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 
 	/* If it's paid, update and add seats */
 	if ev.Status == "paid" {
-		sessionUUID, seats, err := getters.FinalizeRegistration(ctx.Notion, ev.OrderID, ev.ID)
+		err = finalizeRegistration(ctx, ev.OrderID, ev.ID)
 		if err != nil {
-			/* Keep going tho, payment went thru! */
 			ctx.Err.Printf("/opennode-hook unable to update signup %s %s\n", ev.OrderID, err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
-
-		/* Decrement available class count */
-		err = getters.CountClassRegistration(ctx.Notion, sessionUUID, seats)
-		if err != nil {
-			ctx.Err.Printf("/opennode-hook decrement signup count failed %s %s\n", ev.OrderID, err.Error())
-		}
-
-		// TODO: send email with receipt!!
 
 		ctx.Infos.Println("opennode great success!")
 	} else {

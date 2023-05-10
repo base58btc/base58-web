@@ -85,7 +85,6 @@
 
 
 - to build:
-	x integrate tailwind (make pretty!)
 	x index
 		- callout for upcoming confs
 		- callout for taproot class
@@ -97,11 +96,8 @@
 		- idempotency check
 
 	- emails
-		x write emails in gists
-		- custom CSS for div types
-		- signup confirmation email
+		x signup confirmation email
 		- waitlist confirmation email
-		- use the emailer
 		- add a receipt PDF to confirmations
 		- add ticket(s) to ticketed events
 
