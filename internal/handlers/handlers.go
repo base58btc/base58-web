@@ -116,6 +116,14 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 		maybeRebuildCache(ctx)
 		Home(w, r, ctx)
 	}).Methods("GET")
+
+	/* This is a legacy from last website */
+	r.HandleFunc("/classes", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/#courses", http.StatusSeeOther)
+	})
+	r.HandleFunc("/team", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/#team", http.StatusSeeOther)
+	})
 	r.HandleFunc("/classes/{class}", func(w http.ResponseWriter, r *http.Request) {
 		maybeRebuildCache(ctx)
 		Courses(w, r, ctx)
