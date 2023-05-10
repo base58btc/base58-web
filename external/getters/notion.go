@@ -100,7 +100,16 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Co
 	return course
 }
 
+func trimstrings(in []string) []string {
+	out := make([]string, len(in))
+	for i, s := range in {
+		out[i] = strings.TrimSpace(s)
+	}
+	return out
+}
+
 func parseSession(pageID string, props map[string]notion.PropertyValue) *types.CourseSession {
+	dates := strings.Split(parseRichText("Dates", props), ",")
 	session := &types.CourseSession{
 		ID:         pageID,
 		ClassRef:   parseRichText("ClassRef", props),
@@ -112,7 +121,7 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 		TimeDesc:   parseRichText("Time", props),
 		Location:   parseRichText("Location", props),
 		Instructor: parseRichText("Instructor", props),
-		Date:       strings.Split(parseRichText("Dates", props), ","),
+		Date:       trimstrings(dates),
 		AddlDetails: parseRichText("AddlDetails", props),
 		ScheduleSpecifics: parseRichText("ScheduleSpecifics", props),
 		LocationSpecifics: parseRichText("LocationSpecifics", props),
