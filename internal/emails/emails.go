@@ -168,14 +168,33 @@ type EmailFile struct {
 	Name string
 }
 
+func SendWaitlistEmail(ctx *config.AppContext, idem string, email string, course *types.Course, session *types.CourseSession) error {
+
+	var err error
+
+	mail := &Mail{
+		JobKey: idem,
+		Email: email,
+		Title: fmt.Sprintf("You're on the list for Base58's %s", course.PublicName),
+		SendAt: time.Now(),
+	}
+
+	mail.HTMLBody, mail.TextBody, err = Build(ctx, course.WaitlistEmail, course, session)
+	if err != nil {
+		return err
+	}
+
+	return ComposeAndSendMail(ctx, mail)
+}
+
 func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session *types.CourseSession, confirm *types.Confirmed) error {
+	var err error
 	mail := &Mail{
 		JobKey: confirm.Idempotency,
 		Email:  confirm.Email,
 		Title:  fmt.Sprintf("Your Registration for Base58's %s", course.PublicName),
 		SendAt: time.Now(),
 	}
-	var err error
 	mail.HTMLBody, mail.TextBody, err = Build(ctx, course.WelcomeEmail, course, session)
 	if err != nil {
 		return err

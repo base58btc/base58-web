@@ -434,7 +434,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		}
 
 		/* Send a confirmation email! */
-		err = SendWaitlistConfirmed(ctx, form.Email, session)
+		err = emails.SendWaitlistEmail(ctx, form.Idempotency, form.Email, course, session)
 		if err != nil {
 			http.Error(w, "Unable to send waitlist email confirmation", http.StatusInternalServerError)
 			ctx.Err.Printf("/waitlist send confirmation failed %s\n", err.Error())

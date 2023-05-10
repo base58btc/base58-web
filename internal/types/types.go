@@ -46,6 +46,7 @@ type (
 		ReplitURL    string
 		UdemyURL     string
 		WelcomeEmail string
+		WaitlistEmail string
 	}
 
 	CourseSession struct {

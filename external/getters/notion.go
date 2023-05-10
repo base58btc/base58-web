@@ -87,6 +87,7 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Co
 		ReplitURL:    props["ReplitURL"].URL,
 		UdemyURL:     props["UdemyURL"].URL,
 		WelcomeEmail: props["WelcomeEmail"].URL,
+		WaitlistEmail: props["WaitlistEmail"].URL,
 	}
 
 	if len(props["HeaderImg"].Files) > 0 {
