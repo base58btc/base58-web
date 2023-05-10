@@ -16,7 +16,6 @@ require (
 
 require (
 	github.com/jmoiron/sqlx v1.3.5 // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/mailgun/mailgun-go/v4 v4.8.2 // indirect
 	github.com/mattn/go-sqlite3 v1.14.16 // indirect

@@ -86,7 +86,7 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Co
 		Visible:      props["Visible"].Checkbox,
 		ReplitURL:    props["ReplitURL"].URL,
 		UdemyURL:     props["UdemyURL"].URL,
-		WelcomeEmail:     props["WelcomeEmail"].URL,
+		WelcomeEmail: props["WelcomeEmail"].URL,
 	}
 
 	if len(props["HeaderImg"].Files) > 0 {
@@ -111,18 +111,18 @@ func trimstrings(in []string) []string {
 func parseSession(pageID string, props map[string]notion.PropertyValue) *types.CourseSession {
 	dates := strings.Split(parseRichText("Dates", props), ",")
 	session := &types.CourseSession{
-		ID:         pageID,
-		ClassRef:   parseRichText("ClassRef", props),
-		Cost:       uint64(props["Cost"].Number),
-		TShirt:     props["T-Shirt"].Checkbox,
-		Online:     props["Online"].Checkbox,
-		TotalSeats: uint(props["TotalSeats"].Number),
-		SeatsAvail: uint(props["SeatsAvail"].Number),
-		TimeDesc:   parseRichText("Time", props),
-		Location:   parseRichText("Location", props),
-		Instructor: parseRichText("Instructor", props),
-		Date:       trimstrings(dates),
-		AddlDetails: parseRichText("AddlDetails", props),
+		ID:                pageID,
+		ClassRef:          parseRichText("ClassRef", props),
+		Cost:              uint64(props["Cost"].Number),
+		TShirt:            props["T-Shirt"].Checkbox,
+		Online:            props["Online"].Checkbox,
+		TotalSeats:        uint(props["TotalSeats"].Number),
+		SeatsAvail:        uint(props["SeatsAvail"].Number),
+		TimeDesc:          parseRichText("Time", props),
+		Location:          parseRichText("Location", props),
+		Instructor:        parseRichText("Instructor", props),
+		Date:              trimstrings(dates),
+		AddlDetails:       parseRichText("AddlDetails", props),
 		ScheduleSpecifics: parseRichText("ScheduleSpecifics", props),
 		LocationSpecifics: parseRichText("LocationSpecifics", props),
 	}
@@ -143,17 +143,17 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 
 /* Fake list of courses */
 func fakeCourselist() []*types.Course {
-	return []*types.Course {
-		&types.Course{
-			ID: "12345",
-			TmplName: "fake1",
-			PublicName: "TempCourse",
-			Availability: []types.CourseAvail { types.Replit, types.InPerson },
-			ShortDesc: "This is a temporary class bullet",
-			ComingSoon: false,
-			Level: types.Devs,
-			AppRequired: false,
-			Visible: true,
+	return []*types.Course{
+		{
+			ID:           "12345",
+			TmplName:     "fake1",
+			PublicName:   "TempCourse",
+			Availability: []types.CourseAvail{types.Replit, types.InPerson},
+			ShortDesc:    "This is a temporary class bullet",
+			ComingSoon:   false,
+			Level:        types.Devs,
+			AppRequired:  false,
+			Visible:      true,
 		},
 	}
 }
@@ -290,21 +290,20 @@ func SaveRegistration(n *types.Notion, r *types.ClassRegistration, c *types.Chec
 		"session": notion.NewRelationPropertyValue(
 			[]*notion.ObjectReference{{ID: r.SessionUUID}}...,
 		),
-		"Amount": &notion.PropertyValue{
+		"Amount": {
 			Type:   notion.PropertyNumber,
 			Number: float64(c.ComputeTotal(r.CheckoutVia)),
 		},
-		"Currency": &notion.PropertyValue{
+		"Currency": {
 			Type: notion.PropertySelect,
 			Select: &notion.SelectOption{
 				Name: "USD",
 			},
 		},
-		"Seats": &notion.PropertyValue{
+		"Seats": {
 			Type:   notion.PropertyNumber,
 			Number: float64(r.Count),
 		},
-
 	}
 
 	if r.Shirt != nil {
@@ -435,18 +434,18 @@ func FinalizeRegistration(n *types.Notion, pageID string, refID string) (string,
 		_, err := n.Client.CreatePage(context.Background(), parent, props)
 		if err != nil {
 			confirmed := &types.Confirmed{
-				Email: email,
+				Email:       email,
 				Idempotency: idem,
-				Count: uint(i + 1),
+				Count:       uint(i + 1),
 			}
 			return "", confirmed, err
 		}
 	}
 
 	confirmed := &types.Confirmed{
-		Email: email,
+		Email:       email,
 		Idempotency: idem,
-		Count: seatCount,
+		Count:       seatCount,
 	}
 	return sessionUUID, confirmed, nil
 }
@@ -484,13 +483,13 @@ func SaveWaitlist(n *types.Notion, w *types.WaitList) error {
 				}...),
 			"Session": notion.NewRelationPropertyValue(
 				[]*notion.ObjectReference{{ID: w.SessionUUID}}...,
-				),
+			),
 			"Idempotent": notion.NewRichTextPropertyValue(
 				[]*notion.RichText{
 					{Type: notion.RichTextText,
 						Text: &notion.Text{Content: w.Idempotency}},
 				}...),
-			},
-		)
+		},
+	)
 	return err
 }

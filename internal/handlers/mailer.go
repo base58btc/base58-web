@@ -3,8 +3,8 @@ package handlers
 import (
 	"fmt"
 
-	"github.com/kodylow/base58-website/internal/types"
 	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/internal/types"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )

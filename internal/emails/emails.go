@@ -13,25 +13,25 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/kodylow/base58-website/internal/types"
 	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/internal/types"
 
 	"github.com/gomarkdown/markdown"
-	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/ast"
+	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
 
 	mailer "github.com/base58btc/mailer/mail"
 )
 
 type EmailInfos struct {
-	Course *types.Course
+	Course  *types.Course
 	Session *types.CourseSession
 }
 
 type EmailContent struct {
 	Content string
-	URI string
+	URI     string
 }
 
 func emailRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
@@ -63,7 +63,7 @@ func newEmailRenderer() *html.Renderer {
 	htmlFlags := html.CommonFlags | html.HrefTargetBlank
 	opts := html.RendererOptions{
 		RenderNodeHook: emailRenderHook,
-		Flags: htmlFlags,
+		Flags:          htmlFlags,
 	}
 	return html.NewRenderer(opts)
 }
@@ -109,7 +109,7 @@ func Build(ctx *config.AppContext, tmplURL string, course *types.Course, session
 	/* Swap in the tokens */
 	var buf bytes.Buffer
 	err := t.Execute(&buf, &EmailInfos{
-		Course: course,
+		Course:  course,
 		Session: session,
 	})
 	if err != nil {
@@ -134,7 +134,7 @@ func Build(ctx *config.AppContext, tmplURL string, course *types.Course, session
 	var email bytes.Buffer
 	err = et.ExecuteTemplate(&email, "tmp.tmpl", &EmailContent{
 		Content: string(htmlOut),
-		URI: ctx.CallbackPath(),
+		URI:     ctx.CallbackPath(),
 	})
 
 	if err != nil {
@@ -143,7 +143,6 @@ func Build(ctx *config.AppContext, tmplURL string, course *types.Course, session
 
 	return email.Bytes(), buf.Bytes(), nil
 }
-
 
 func makeAuthStamp(secret string, timestamp string, r *http.Request) string {
 	h := sha256.New()
@@ -155,25 +154,25 @@ func makeAuthStamp(secret string, timestamp string, r *http.Request) string {
 }
 
 type Mail struct {
-	JobKey string
-	Email string
-	Title string
-	SendAt time.Time
+	JobKey   string
+	Email    string
+	Title    string
+	SendAt   time.Time
 	HTMLBody []byte
 	TextBody []byte
-	Files []*EmailFile
+	Files    []*EmailFile
 }
 
 type EmailFile struct {
-	PDF []byte
+	PDF  []byte
 	Name string
 }
 
 func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session *types.CourseSession, confirm *types.Confirmed) error {
-	mail := &Mail {
+	mail := &Mail{
 		JobKey: confirm.Idempotency,
-		Email: confirm.Email,
-		Title: fmt.Sprintf("Your Registration for Base58's %s", confirm.CourseName),
+		Email:  confirm.Email,
+		Title:  fmt.Sprintf("Your Registration for Base58's %s", confirm.CourseName),
 		SendAt: time.Now(),
 	}
 	var err error
@@ -197,23 +196,23 @@ func ComposeAndSendMail(ctx *config.AppContext, mail *Mail) error {
 	for i, file := range mail.Files {
 		attaches[i] = &mailer.Attachment{
 			Content: file.PDF,
-			Type: "application/pdf",
-			Name: file.Name,
+			Type:    "application/pdf",
+			Name:    file.Name,
 		}
 	}
 
 	/* Build a mail to send */
 	mailReq := &mailer.MailRequest{
-		JobKey: mail.JobKey,
-		ToAddr: mail.Email,
-		FromAddr: "hello@base58.school",
-		FromName: "Base58⛓️ 🔓",
-		Title: mail.Title,
-		HTMLBody: string(mail.HTMLBody),
-		TextBody: string(mail.TextBody),
+		JobKey:      mail.JobKey,
+		ToAddr:      mail.Email,
+		FromAddr:    "hello@base58.school",
+		FromName:    "Base58⛓️ 🔓",
+		Title:       mail.Title,
+		HTMLBody:    string(mail.HTMLBody),
+		TextBody:    string(mail.TextBody),
 		Attachments: attaches,
-		SendAt: float64(mail.SendAt.UTC().Unix()),
-		Domain: ctx.Env.MailDomain,
+		SendAt:      float64(mail.SendAt.UTC().Unix()),
+		Domain:      ctx.Env.MailDomain,
 	}
 
 	return SendMailRequest(ctx, mailReq)

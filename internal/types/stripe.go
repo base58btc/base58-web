@@ -6,8 +6,8 @@ import (
 
 type (
 	StripeConfig struct {
-		Key    string
-		Pubkey string
+		Key         string
+		Pubkey      string
 		EndpointSec string
 	}
 )

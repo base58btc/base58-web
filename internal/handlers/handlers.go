@@ -17,9 +17,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"github.com/kodylow/base58-website/external/getters"
-	"github.com/kodylow/base58-website/internal/types"
-	"github.com/kodylow/base58-website/internal/emails"
 	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/internal/emails"
+	"github.com/kodylow/base58-website/internal/types"
 	"io/ioutil"
 
 	stripe "github.com/stripe/stripe-go/v74"
@@ -37,9 +37,9 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	ctx.TemplateCache["index.tmpl"] = index
 
 	courses, err := template.New("course").Funcs(template.FuncMap{
-		"LastIdx": LastIdx,
-		"FiatPrice": types.FiatPrice,
-		"BtcPrice": types.BtcPrice,
+		"LastIdx":     LastIdx,
+		"FiatPrice":   types.FiatPrice,
+		"BtcPrice":    types.BtcPrice,
 		"AvailOnline": AvailOnline,
 	}).ParseFiles("templates/course.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
 	if err != nil {
@@ -49,10 +49,10 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 
 	register, err := template.New("register.tmpl").Funcs(template.FuncMap{
 		"ShirtOpts": ShirtOptions,
-		"TixCount": TixCount,
-		"LastIdx": LastIdx,
+		"TixCount":  TixCount,
+		"LastIdx":   LastIdx,
 		"FiatPrice": types.FiatPrice,
-		"BtcPrice": types.BtcPrice,
+		"BtcPrice":  types.BtcPrice,
 	}).ParseFiles("templates/register.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
 	if err != nil {
 		return err
@@ -67,8 +67,8 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 
 	waitlist, err := template.New("waitlist").Funcs(template.FuncMap{
 		"FiatPrice": types.FiatPrice,
-		"BtcPrice": types.BtcPrice,
-		"LastIdx": LastIdx,
+		"BtcPrice":  types.BtcPrice,
+		"LastIdx":   LastIdx,
 	}).ParseFiles("templates/waitlist.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 
 	waitlistS, err := template.New("waitlist_success").Funcs(template.FuncMap{
 		"FiatPrice": types.FiatPrice,
-		"BtcPrice": types.BtcPrice,
+		"BtcPrice":  types.BtcPrice,
 	}).ParseFiles("templates/waitlist_success.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
 	if err != nil {
 		panic(err)
@@ -155,7 +155,7 @@ func TixCount(availSeats uint) []types.OptionItem {
 	var items []types.OptionItem
 	for i := uint(1); i <= availSeats; i++ {
 		opt := types.OptionItem{
-			Key: strconv.FormatUint(uint64(i), 10),
+			Key:   strconv.FormatUint(uint64(i), 10),
 			Value: strconv.FormatUint(uint64(i), 10),
 		}
 		items = append(items, opt)
@@ -182,7 +182,7 @@ func MakeCheckoutOpts(amount uint64) []types.OptionItem {
 }
 
 func AvailOnline(avail []types.CourseAvail) bool {
-	for _, a := range(avail) {
+	for _, a := range avail {
 		if a.SelfPacedOnline() {
 			return true
 		}
@@ -263,7 +263,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		err = pageTpl.Execute(w, RegistrationData{
 			Course:  course,
 			Session: session,
-			Page:        getPage(ctx, "Course Registration"),
+			Page:    getPage(ctx, "Course Registration"),
 			Form: types.ClassRegistration{
 				Idempotency: idemToken,
 				Timestamp:   strconv.FormatInt(now, 10),
@@ -328,7 +328,6 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
-
 	/* Ok, now we go to checkout! */
 	switch form.CheckoutVia {
 	case types.Bitcoin:
@@ -369,8 +368,8 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		//pageTpl := ctx.TemplateCache["waitlist.tmpl"]
 		waitlist, err := template.New("waitlist").Funcs(template.FuncMap{
 			"FiatPrice": types.FiatPrice,
-			"LastIdx": LastIdx,
-			"BtcPrice": types.BtcPrice,
+			"LastIdx":   LastIdx,
+			"BtcPrice":  types.BtcPrice,
 		}).ParseFiles("templates/waitlist.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
 		if err != nil {
 			panic(err)
@@ -378,7 +377,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		err = waitlist.ExecuteTemplate(w, "waitlist.tmpl", WaitlistData{
 			Course:  course,
 			Session: session,
-			Page: getPage(ctx, "Course Waitlist"),
+			Page:    getPage(ctx, "Course Waitlist"),
 			Form: types.WaitList{
 				Idempotency: idemToken,
 				SessionUUID: session.ID,
@@ -554,10 +553,10 @@ func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 
 	/* FIXME: make a receipt file */
 	mail := &emails.Mail{
-		JobKey : "testkey" + strconv.Itoa(int(time.Now().UTC().Unix())),
-		Email: "niftynei@gmail.com",
-		Title: fmt.Sprintf("Your Registration for Base58's %s", course.PublicName),
-		SendAt: time.Now(),
+		JobKey:   "testkey" + strconv.Itoa(int(time.Now().UTC().Unix())),
+		Email:    "niftynei@gmail.com",
+		Title:    fmt.Sprintf("Your Registration for Base58's %s", course.PublicName),
+		SendAt:   time.Now(),
 		HTMLBody: welcomeEmail,
 		TextBody: welcomeText,
 	}
@@ -669,7 +668,6 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 			return
 		}
 
-
 		ctx.Infos.Println("great success!")
 	default:
 		ctx.Err.Printf("/stripe-hook unhandled event type %s\n", event.Type)
@@ -690,13 +688,14 @@ func validHash(key, id, msgMAC string) bool {
 }
 
 type ChargeEvent struct {
-	ID string `schema:"id"`
-	Status string `schema:"status"`
-	OrderID string `schema:"order_id"`
+	ID          string `schema:"id"`
+	Status      string `schema:"status"`
+	OrderID     string `schema:"order_id"`
 	HashedOrder string `schema:"hashed_order"`
 }
 
 var decoder = schema.NewDecoder()
+
 func OpenNodeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	err := r.ParseForm()
 	if err != nil {
@@ -809,7 +808,7 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		if clss == course.TmplName {
 			/* FIXME: generalize? */
 			var bundled []*types.Course
-			if clss  == "tx-deep-dive" {
+			if clss == "tx-deep-dive" {
 				bundled = append(bundled, course)
 				for _, c := range courses {
 					if strings.HasPrefix(c.TmplName, course.TmplName) {
@@ -859,27 +858,27 @@ func Styles(w http.ResponseWriter, r *http.Request) {
 
 // PageData is a struct that holds the data for a page
 type Page struct {
-	Title       string
-	Copyright   int
-	Domain      string
-	Callbacks   string
+	Title     string
+	Copyright int
+	Domain    string
+	Callbacks string
 }
 
 type pageData struct {
-	Page        Page
-	Courses     []*types.Course
-	Current     []*types.Course
-	Coming      []*types.Course
+	Page    Page
+	Courses []*types.Course
+	Current []*types.Course
+	Coming  []*types.Course
 }
 
 func getPage(ctx *config.AppContext, title string) Page {
 	if title == "" {
 		title = "Base58"
 	}
-	return Page {
-		Title: title,
-		Copyright:   time.Now().Year(),
-		Domain: ctx.SitePath(),
+	return Page{
+		Title:     title,
+		Copyright: time.Now().Year(),
+		Domain:    ctx.SitePath(),
 		Callbacks: ctx.CallbackPath(),
 	}
 }
@@ -900,10 +899,10 @@ func getHomeData(ctx *config.AppContext, n *types.Notion) (pageData, error) {
 		}
 	}
 	return pageData{
-		Page:        getPage(ctx, ""),
-		Courses:     courses,
-		Current:     current,
-		Coming:      coming,
+		Page:    getPage(ctx, ""),
+		Courses: courses,
+		Current: current,
+		Coming:  coming,
 	}, nil
 }
 

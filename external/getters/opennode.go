@@ -1,14 +1,14 @@
 package getters
 
 import (
-	"fmt"
-	"net/http"
-	"encoding/json"
-	"io/ioutil"
 	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
 
-	"github.com/kodylow/base58-website/internal/types"
 	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/internal/types"
 )
 
 const CHARGES_ENDPOINT string = "/charges"
@@ -20,16 +20,16 @@ func InitOpenNodeCheckout(ctx *config.AppContext, on *types.OpenNodeConfig, c *t
 	success := fmt.Sprintf("%s/success?s=%s", ctx.CallbackPath(), c.SessionID)
 
 	onReq := &types.OpenNodeRequest{
-		Amount: float64(amt),
-		Description: c.MakeDesc(),
-		Currency: "USD",
+		Amount:        float64(amt),
+		Description:   c.MakeDesc(),
+		Currency:      "USD",
 		CustomerEmail: c.Email,
-		NotifEmail: c.Email,
-		OrderID: c.RegisterID,
-		CallbackURL: callback,
-		SuccessURL: success,
-		AutoSettle: false,
-		TTL: 360,
+		NotifEmail:    c.Email,
+		OrderID:       c.RegisterID,
+		CallbackURL:   callback,
+		SuccessURL:    success,
+		AutoSettle:    false,
+		TTL:           360,
 	}
 
 	payload, err := json.Marshal(onReq)

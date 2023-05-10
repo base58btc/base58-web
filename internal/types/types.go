@@ -11,17 +11,17 @@ type (
 
 	/* Configs for the app! */
 	EnvConfig struct {
-		Port     string
-		Domain   string
-		External string
-		Secret   string
+		Port         string
+		Domain       string
+		External     string
+		Secret       string
 		MailerSecret string
 		MailDomain   string
 		MailEndpoint string
-		Notion   NotionConfig
-		Stripe   StripeConfig
-		OpenNode OpenNodeConfig
-		SendGrid SendGridConfig
+		Notion       NotionConfig
+		Stripe       StripeConfig
+		OpenNode     OpenNodeConfig
+		SendGrid     SendGridConfig
 	}
 
 	CourseAvail string
@@ -40,30 +40,30 @@ type (
 		PromoURL     string
 		ComingSoon   bool
 		// FIXME: link to application?
-		AppRequired bool
-		Level       CourseLevel
-		Visible     bool
-		ReplitURL   string
-		UdemyURL    string
+		AppRequired  bool
+		Level        CourseLevel
+		Visible      bool
+		ReplitURL    string
+		UdemyURL     string
 		WelcomeEmail string
 	}
 
 	CourseSession struct {
-		ID         string
-		ClassRef   string
-		CourseName string
-		Cost       uint64
-		TShirt     bool
-		Online     bool
-		TotalSeats uint
-		SeatsAvail uint
-		SignupCode string
-		Date       []string
-		TimeDesc   string
-		Location   string
-		Instructor string
-		PromoURL   string
-		AddlDetails string
+		ID                string
+		ClassRef          string
+		CourseName        string
+		Cost              uint64
+		TShirt            bool
+		Online            bool
+		TotalSeats        uint
+		SeatsAvail        uint
+		SignupCode        string
+		Date              []string
+		TimeDesc          string
+		Location          string
+		Instructor        string
+		PromoURL          string
+		AddlDetails       string
 		LocationSpecifics string
 		ScheduleSpecifics string
 	}
@@ -151,7 +151,7 @@ const (
 func (c CourseSession) Dates() []time.Time {
 	dateStr := "1/2/2006"
 	ret := make([]time.Time, 0)
-	for _, entry := range(c.Date) {
+	for _, entry := range c.Date {
 		d, _ := time.Parse(dateStr, entry)
 		ret = append(ret, d)
 	}
@@ -279,4 +279,3 @@ func (c *Checkout) MakeDesc() string {
 
 	return fmt.Sprintf("%d %s in Base58's %s class", c.Count, seatStr, c.CourseName)
 }
-

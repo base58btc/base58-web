@@ -1,8 +1,8 @@
 package config
 
 import (
-	"html/template"
 	"fmt"
+	"html/template"
 	"log"
 
 	"github.com/alexedwards/scs/v2"
@@ -17,7 +17,7 @@ type AppContext struct {
 	Redraw        bool
 	Session       *scs.SessionManager
 	TemplateCache map[string]*template.Template
-	Notion *types.Notion
+	Notion        *types.Notion
 
 	Env *types.EnvConfig
 }
@@ -46,4 +46,3 @@ func (ctx *AppContext) CallbackPath() string {
 
 	return ctx.Env.External
 }
-
