@@ -97,10 +97,13 @@
 		- idempotency check
 
 	- emails
-		- use the emailer
+		x write emails in gists
+		- custom CSS for div types
 		- signup confirmation email
 		- waitlist confirmation email
-		- write emails in notion, as pages?
+		- use the emailer
+		- add a receipt PDF to confirmations
+		- add ticket(s) to ticketed events
 
 	- don't show sessions w/in 12h of start (or after first) date
 	- turn on waitlist for oversold classes

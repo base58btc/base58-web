@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"io"
 	"io/ioutil"
 	"net/http"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
+	"github.com/gomarkdown/markdown/ast"
 	"github.com/gomarkdown/markdown/parser"
 )
 
@@ -25,16 +27,48 @@ type EmailContent struct {
 	URI string
 }
 
+func emailRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+	if anchor, ok := node.(*ast.Link); ok && entering {
+		styleAttr := `style="text-underline-offset:4px; text-decoration-line:underline; text-underline-offset:4px; font-weight:400;"`
+		anchor.AdditionalAttributes = append(anchor.AdditionalAttributes, styleAttr)
+	}
+	if head, ok := node.(*ast.Heading); ok && entering {
+		styleAttr := ""
+		switch head.Level {
+		case 1:
+			styleAttr = `color: rgb(17 24 39); letter-spacing: -.025em; font-weight: 700; font-size: 2.25rem; line-height: 2.5rem;`
+		case 2:
+			styleAttr = `color:rgb(55 65 81);letter-spacing:-.025em;font-weight:700;font-size:1.5rem;line-height:2rem;margin-top:2rem;`
+		}
+
+		if styleAttr != "" {
+			head.Attribute = &ast.Attribute{
+				Attrs: make(map[string][]byte),
+			}
+			head.Attribute.Attrs["style"] = []byte(styleAttr)
+		}
+	}
+
+	return ast.GoToNext, false
+}
+
+func newEmailRenderer() *html.Renderer {
+	htmlFlags := html.CommonFlags | html.HrefTargetBlank
+	opts := html.RendererOptions{
+		RenderNodeHook: emailRenderHook,
+		Flags: htmlFlags,
+	}
+	return html.NewRenderer(opts)
+}
+
 func mdToHTML(md []byte) []byte {
 	/* create markdown parser with extensions */
 	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
 	p := parser.NewWithExtensions(extensions)
 	doc := p.Parse(md)
 
-	// create HTML renderer with extensions
-	htmlFlags := html.CommonFlags | html.HrefTargetBlank
-	opts := html.RendererOptions{Flags: htmlFlags}
-	renderer := html.NewRenderer(opts)
+	/* Create HTML renderer with extensions */
+	renderer := newEmailRenderer()
 
 	return markdown.Render(doc, renderer)
 }
@@ -90,7 +124,6 @@ func Build(ctx *config.AppContext, tmplURL string, course *types.Course, session
 		ctx.TemplateCache["email.tmpl"] = et
 	}
 
-	ctx.Infos.Println(string(htmlOut))
 	var email bytes.Buffer
 	err = et.ExecuteTemplate(&email, "tmp.tmpl", &EmailContent{
 		Content: string(htmlOut),

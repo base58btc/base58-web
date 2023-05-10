@@ -553,7 +553,6 @@ func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 		return
 	}
 
-	ctx.Infos.Println(string(welcomeEmail))
 	w.Write(welcomeEmail)
 }
 

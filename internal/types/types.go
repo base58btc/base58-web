@@ -148,6 +148,18 @@ func (c CourseSession) Dates() []time.Time {
 	return ret
 }
 
+/* List of dates in a nice, readable format */
+func (c CourseSession) FmtDates() []string {
+	dateFmt := "Mon Jan 2, 2006"
+	ds := c.Dates()
+	out := make([]string, len(ds))
+
+	for i, d := range ds {
+		out[i] = d.Format(dateFmt)
+	}
+	return out
+}
+
 func (s CheckoutOpt) String() string {
 	return string(s)
 }
