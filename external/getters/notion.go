@@ -51,15 +51,24 @@ func parseRichText(key string, props map[string]notion.PropertyValue) string {
 		/* FIXME: log err? */
 		return ""
 	}
-	if len(val.RichText) == 0 {
-		if len(val.Title) != 0 {
-			return val.Title[0].Text.Content
-		}
-		/* FIXME: log err? */
-		return ""
+	var contentList []*notion.RichText
+	if len(val.Title) > 0 {
+		contentList = val.Title
+	} else {
+		contentList = val.RichText
 	}
 
-	return val.RichText[0].Text.Content
+	var builder strings.Builder
+	/* We're gonna lose formatting, yolo */
+	for _, text := range contentList {
+		builder.WriteString(text.Text.Content)
+		if text.Text.Link != nil {
+			if text.Text.Content != text.Text.Link.URL {
+				builder.WriteString(" (" + text.Text.Link.URL + ")")
+			}
+		}
+	}
+	return builder.String()
 }
 
 func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Course {
