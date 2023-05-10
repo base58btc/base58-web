@@ -172,7 +172,7 @@ func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session
 	mail := &Mail{
 		JobKey: confirm.Idempotency,
 		Email:  confirm.Email,
-		Title:  fmt.Sprintf("Your Registration for Base58's %s", confirm.CourseName),
+		Title:  fmt.Sprintf("Your Registration for Base58's %s", course.PublicName),
 		SendAt: time.Now(),
 	}
 	var err error
@@ -260,5 +260,7 @@ func SendMailRequest(ctx *config.AppContext, mail *mailer.MailRequest) error {
 	if !ret.Success {
 		return fmt.Errorf("Unable to schedule mail: %s", ret.Message)
 	}
+
+	ctx.Infos.Printf("Sent mail to %s at domain %s", mail.ToAddr, mail.Domain)
 	return nil
 }

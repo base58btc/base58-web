@@ -112,7 +112,6 @@ type (
 	Confirmed struct {
 		Idempotency string
 		Email       string
-		CourseName  string
 		ClassRef    string
 		Count       uint
 	}
