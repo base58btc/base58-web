@@ -54,7 +54,7 @@ func InitOpenNodeCheckout(ctx *config.AppContext, on *types.OpenNodeConfig, c *t
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("error returned from opennode %s", err.Error())
+		return nil, fmt.Errorf("error returned from opennode %d: %s", resp.StatusCode, body)
 	}
 
 	var onresp types.OpenNodeResponse
