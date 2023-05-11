@@ -20,7 +20,7 @@ const configFile = "config.toml"
 var app config.AppContext
 var session *scs.SessionManager
 
-func loadConfig() *types.EnvConfig {
+func loadConfig() (*types.EnvConfig, bool) {
 	var config types.EnvConfig
 	var err error
 
@@ -62,17 +62,20 @@ func loadConfig() *types.EnvConfig {
 		Pubkey:      os.Getenv("STRIPE_PUBKEY"),
 		EndpointSec: os.Getenv("STRIPE_ENDSEC"),
 	}
-	return &config
+
+	isProd := os.Getenv("IS_PROD") == "1"
+
+	return &config, isProd
 }
 
 func main() {
 	// Initialize the application configuration
-	app.IsProd = false // change to true in prod
 	app.Infos = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	app.Err = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
 	// Load configs from config.toml
-	env := loadConfig()
+	env, isProd := loadConfig()
+	app.IsProd = isProd
 
 	// Start the server
 	app.TemplateCache = make(map[string]*template.Template)

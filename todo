@@ -109,6 +109,12 @@
 
 	- ship website to:
 		-base58.info!
+	- setup cname redirect base58.info -> base58.school
+
+	- applications for lightning + taproot class signups
+		- build typeform for questions
+		- change button from "signup" to "apply"?
+		- wire-in application signup form + email callback to typeform
 
 - next up:
 	- blog
