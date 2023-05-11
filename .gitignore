@@ -5,3 +5,4 @@ stripe
 target
 
 *.swp
+.env

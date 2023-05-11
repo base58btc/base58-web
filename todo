@@ -97,11 +97,6 @@
 	x checkout page (single item atm!)
 		- idempotency check
 
-	- emails
-		- add a receipt PDF to confirmations
-
-	- convert config.toml to envars
-
 	- ship website to:
 		-base58.school!
 
@@ -109,6 +104,8 @@
 	- add welcome email info to classes
 	- add class pre-reqs + long desc
 	- get preliminary views??
+	- emails
+		- add a receipt PDF to confirmations
 
 	- ship website to:
 		-base58.info!

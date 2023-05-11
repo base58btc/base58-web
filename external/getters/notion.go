@@ -276,7 +276,7 @@ func UniqueID(contact string, ref string, counter int32) string {
 }
 
 func SaveRegistration(n *types.Notion, r *types.ClassRegistration, c *types.Checkout) (string, error) {
-	parent := notion.NewDatabaseParent(n.Config.CartsDB)
+	parent := notion.NewDatabaseParent(n.Config.CartsDb)
 	props := map[string]*notion.PropertyValue{
 		"Idempotent": notion.NewTitlePropertyValue(
 			[]*notion.RichText{
@@ -351,7 +351,7 @@ func CheckIdemWaitlist(n *types.Notion, idemTok string) (bool, error) {
 func FinalizeRegistration(n *types.Notion, pageID string, refID string) (string, *types.Confirmed, error) {
 	/* Check that not already added */
 	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
-		n.Config.CartsDB, notion.QueryDatabaseParam{
+		n.Config.CartsDb, notion.QueryDatabaseParam{
 			Filter: &notion.Filter{
 				Property: "PaymentRef",
 				Text: &notion.TextFilterCondition{

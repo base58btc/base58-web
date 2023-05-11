@@ -9,7 +9,7 @@ require (
 	github.com/gomarkdown/markdown v0.0.0-20230322041520-c84983bdbf2a
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/schema v1.2.0
-	github.com/sendgrid/sendgrid-go v3.12.0+incompatible
+	github.com/joho/godotenv v1.5.1
 	github.com/sorcererxw/go-notion v0.2.4
 	github.com/stripe/stripe-go/v74 v74.12.0
 )
@@ -23,6 +23,7 @@ require (
 	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/sendgrid/rest v2.6.9+incompatible // indirect
+	github.com/sendgrid/sendgrid-go v3.12.0+incompatible // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

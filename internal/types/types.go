@@ -21,7 +21,6 @@ type (
 		Notion       NotionConfig
 		Stripe       StripeConfig
 		OpenNode     OpenNodeConfig
-		SendGrid     SendGridConfig
 	}
 
 	CourseAvail string
