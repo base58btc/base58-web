@@ -1,0 +1,24 @@
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
+domains:
+- domain: base58.school
+  type: PRIMARY
+  zone: base58.school
+ingress: {}
+name: base58
+region: nyc
+services:
+- environment_slug: go
+  envs:
+  dockerfile_path: Dockerfile
+  github:
+    branch: master
+    deploy_on_push: true
+    repo: base58btc/base58-web
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: professional-xs
+  name: base58-web
+  run_command: bin/web
+  source_dir: /
