@@ -28,7 +28,7 @@ func loadConfig() (*types.EnvConfig, bool) {
 	if secrets := os.Getenv("SECRETS_FILE"); secrets != "" {
 		fmt.Println("using secrets", secrets)
 		err = godotenv.Load(secrets)
-	} else {
+	} else if _, err := os.Stat(".env"); err == nil {
 		err = godotenv.Load()
 	}
 	if err != nil {
