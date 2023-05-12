@@ -42,6 +42,10 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 		"FiatPrice":   types.FiatPrice,
 		"BtcPrice":    types.BtcPrice,
 		"AvailOnline": AvailOnline,
+		"toHTML": func(s string) template.HTML {
+			b := helpers.ConvertMdToHTML(ctx, s)
+			return template.HTML(string(b))
+		},
 	}).ParseFiles("templates/course.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
 	if err != nil {
 		return err

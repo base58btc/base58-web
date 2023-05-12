@@ -17,6 +17,7 @@ type AppContext struct {
 	Redraw        bool
 	Session       *scs.SessionManager
 	TemplateCache map[string]*template.Template
+	DocCache      map[string][]byte
 	Notion        *types.Notion
 
 	Env *types.EnvConfig

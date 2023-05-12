@@ -94,19 +94,17 @@
 		- feature upcoming bitcoin++ events!
 
 	x course
-		- markdown formatted info for longer desc
 		- optional video embed?
 
 	x checkout page (single item atm!)
 		- idempotency check
 
 	MUST DO'S LAUNCH:
-	- decide what classes we're launching first
-	- add welcome email info to classes
 	- add class pre-reqs + long desc
-		- format these using markdown?
 	- emails
 		- add a receipt PDF to confirmations
+	- decide what classes we're launching first
+	- add welcome email info to classes
 
 	- ship website to:
 		-base58.info!
