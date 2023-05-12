@@ -1,0 +1,11 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+URL:https://www.eventbrite.com/e/tacos-tequila-with-unchained-tickets-602778957087
+DTSTART:20230519T213000Z
+DTEND:20230519T233000Z
+SUMMARY:Tacos & Tequila with Unchained
+DESCRIPTION:For details, go here:\nhttps://www.eventbrite.com/e/tacos-tequila-with-unchained-tickets-602778957087
+LOCATION:Taquiza - 1351 Collins Avenue - Miami Beach, FL 33139
+END:VEVENT
+END:VCALENDAR
