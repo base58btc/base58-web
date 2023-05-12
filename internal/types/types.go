@@ -115,6 +115,19 @@ type (
 		ClassRef    string
 		Count       uint
 	}
+
+	FurlCard struct {
+		URL string
+		Domain string
+		Title string
+		Description string
+		ImageURL string
+		ImageAlt string
+		ExtraOneLabel string
+		ExtraOneData string
+		ExtraTwoLabel string
+		ExtraTwoData string
+	}
 )
 
 const (

@@ -3,4 +3,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ .Title }}</title>
     <link rel="stylesheet" href="/static/css/styles.css" />
+
+	<!-- facebook open graph tags -->
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="{{ .Card.URL }}" />
+	<meta property="og:title" content="{{ .Card.Title }}" />
+	<meta property="og:description" content="{{ .Card.Description }}" />
+	<meta property="og:image" content="{{ .Card.ImageURL }}" />
+
+	<!-- twitter card tags additive with the og: tags -->
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:site" content="@base58btc">
+	<meta name="twitter:domain" value="{{ .Card.Domain }}" />
+	<meta name="twitter:url" value="{{ .Card.URL }}" />
+	<meta name="twitter:title" value="{{ .Card.Title }}" />
+	<meta name="twitter:description" value="{{ .Card.Description }}" />
+	<meta name="twitter:image" content="{{ .Card.ImageURL }}" />
+	{{ if ne .Card.ImageAlt "" }}
+	<meta name="twitter:image:alt" content="{{ .Card.ImageAlt }}" />
+	{{ end }}
+	{{ if ne .Card.ExtraOneLabel "" }}
+	<meta name="twitter:label1" value="{{ .Card.ExtraOneLabel }}" />
+	<meta name="twitter:data1" value="{{ .Card.ExtraOneData }}" />
+	{{ end }}
+	{{ if ne .Card.ExtraTwoLabel "" }}
+	<meta name="twitter:label2" value="{{ .Card.ExtraTwoLabel }}" />
+	<meta name="twitter:data2" value="{{ .Card.ExtraTwoData }}" />
+	{{ end }}
+
+	<!-- meta tags -->
+	<meta name="description" content="{{ .Card.Description }}"/>
+	<meta name="author" content="Base58⛓️ 🔓"/>
+
 {{ end }}

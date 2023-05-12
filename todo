@@ -87,7 +87,10 @@
 - to build:
 	x index
 		- call-out for upcoming confs
+			- new page for /confs/conf-name
+			- what to look like?
 		- call-out for taproot class
+			- like the bitcoin++ one
 		- feature upcoming bitcoin++ events!
 
 	x course
@@ -97,13 +100,11 @@
 	x checkout page (single item atm!)
 		- idempotency check
 
-	- ship website to:
-		-base58.school!
-
+	MUST DO'S LAUNCH:
 	- decide what classes we're launching first
 	- add welcome email info to classes
 	- add class pre-reqs + long desc
-	- get preliminary views??
+		- format these using markdown?
 	- emails
 		- add a receipt PDF to confirmations
 
@@ -116,13 +117,21 @@
 		- change button from "signup" to "apply"?
 		- wire-in application signup form + email callback to typeform
 
+
 - next up:
+	- unfurls!
+		- add route for https://oembed.com/
 	- blog
 	- port mailing list to notion
 	- v2: nostr pubkeys
 		- send nostr notice
+	- v2: send via telegram
+		- send telegram notices
 	- v2: specific pages for confs?
 	- v2: add ticket(s) to ticketed events
+		- integrate with apple wallet
+		- integrate with google wallet
+	- v2: option to add to calendar
 	- v2: popup for newsletter signup?
 	- v2: cart
 	- v2: cookies? https://www.calhoun.io/securing-cookies-in-go/

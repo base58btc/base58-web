@@ -284,11 +284,25 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		now := time.Now().UTC().UnixNano()
 		idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, session.Cost)
 
+		title := "Course Registration"
+		imgAlt := fmt.Sprintf("Image for Base58's %s course registration", course.PublicName)
+		extraData := make([]ExtraData, 2)
+		extraData[0] = ExtraData{
+			Label: "Instructor",
+			Data: session.Instructor,
+		}
+		extraData[1] = ExtraData{
+			Label: "Location",
+			Data: session.Location,
+		}
+
+		furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, imgAlt, extraData)
+
 		w.Header().Set("Content-Type", "text/html")
 		err = pageTpl.Execute(w, RegistrationData{
 			Course:  course,
 			Session: session,
-			Page:    getPage(ctx, "Course Registration"),
+			Page:    getPage(ctx, title, furlCard),
 			Form: types.ClassRegistration{
 				Idempotency: idemToken,
 				Timestamp:   strconv.FormatInt(now, 10),
@@ -395,10 +409,25 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			http.Error(w, "Unable to load page", http.StatusInternalServerError)
 			ctx.Err.Printf("waitlist.tmpl not in cache %v", ctx.TemplateCache)
 		}
+
+		title := "Course Waitlist"
+		imgAlt := fmt.Sprintf("Image for Base58's %s course registration", course.PublicName)
+		extraData := make([]ExtraData, 2)
+		extraData[0] = ExtraData{
+			Label: "Instructor",
+			Data: session.Instructor,
+		}
+		extraData[1] = ExtraData{
+			Label: "Location",
+			Data: session.Location,
+		}
+
+		furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, imgAlt, extraData)
+
 		err = waitlist.ExecuteTemplate(w, "waitlist.tmpl", WaitlistData{
 			Course:  course,
 			Session: session,
-			Page:    getPage(ctx, "Course Waitlist"),
+			Page:    getPage(ctx, title, furlCard),
 			Form: types.WaitList{
 				Idempotency: idemToken,
 				SessionUUID: session.ID,
@@ -463,6 +492,20 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		}
 	}
 
+	title := "You're on the Waitlist!"
+	imgAlt := fmt.Sprintf("Image for Base58's %s course", course.PublicName)
+	extraData := make([]ExtraData, 2)
+	extraData[0] = ExtraData{
+		Label: "Instructor",
+		Data: session.Instructor,
+	}
+	extraData[1] = ExtraData{
+		Label: "Location",
+		Data: session.Location,
+	}
+
+	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, imgAlt, extraData)
+
 	/* Show waitlist success */
 	tmpl, ok := ctx.TemplateCache["waitlist_success.tmpl"]
 	if !ok {
@@ -472,7 +515,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	err = tmpl.ExecuteTemplate(w, "waitlist_success.tmpl", &SuccessData{
 		Course:  course,
 		Session: session,
-		Page:    getPage(ctx, ""),
+		Page:    getPage(ctx, title, furlCard),
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -517,6 +560,11 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 
 	pi, _ := paymentintent.New(params)
 
+	title := fmt.Sprintf("Checkout for %s", checkout.CourseName)
+	imgAlt := fmt.Sprintf("Image for Base58's %s course", checkout.CourseName)
+	extraData := make([]ExtraData, 0)
+	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", checkout.PromoURL, imgAlt, extraData)
+
 	tmpl, ok := ctx.TemplateCache["checkout.tmpl"]
 	if !ok {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -527,7 +575,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		PubKey:       ctx.Env.Stripe.Pubkey,
 		Email:        checkout.Email,
 		SessionID:    checkout.SessionID,
-		Page:         getPage(ctx, "Checkout"),
+		Page:         getPage(ctx, "Checkout", furlCard),
 		PromoURL:     checkout.PromoURL,
 		CourseName:   checkout.CourseName,
 		Total:        price,
@@ -608,6 +656,20 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
+	title := "You're Going!"
+	imgAlt := fmt.Sprintf("Image for Base58's %s course", course.PublicName)
+	extraData := make([]ExtraData, 2)
+	extraData[0] = ExtraData{
+		Label: "Instructor",
+		Data: session.Instructor,
+	}
+	extraData[1] = ExtraData{
+		Label: "Location",
+		Data: session.Location,
+	}
+
+	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, imgAlt, extraData)
+
 	success, ok := ctx.TemplateCache["success.tmpl"]
 	if !ok {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -616,7 +678,7 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	err = success.ExecuteTemplate(w, "success.tmpl", &SuccessData{
 		Course:  course,
 		Session: session,
-		Page:    getPage(ctx, ""),
+		Page:    getPage(ctx, title, furlCard),
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -855,11 +917,24 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			/* Sort sessions by date, soonest first */
 			sort.Sort(sessions)
 
+			imgAlt := fmt.Sprintf("Image for Base58's %s course", course.PublicName)
+			title := fmt.Sprintf("Experience Base58's %s", course.PublicName)
+			extraData := make([]ExtraData, 2)
+			extraData[0] = ExtraData{
+				Label: "Next Session Starts",
+				Data: sessions[0].FmtDates()[0],
+			}
+			extraData[1] = ExtraData{
+				Label: "Seats Left",
+				Data: string(sessions[0].SeatsAvail),
+			}
+			furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, course.PromoURL, imgAlt, extraData)
+
 			t := ctx.TemplateCache["course.tmpl"]
 			err = t.ExecuteTemplate(w, "course.tmpl", CourseData{
 				Course:   course,
 				Sessions: sessions,
-				Page:     getPage(ctx, course.PublicName),
+				Page:     getPage(ctx, course.PublicName, furlCard),
 			})
 			if err != nil {
 				http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -887,6 +962,7 @@ type Page struct {
 	Copyright int
 	Domain    string
 	Callbacks string
+	Card      types.FurlCard
 }
 
 type pageData struct {
@@ -896,15 +972,46 @@ type pageData struct {
 	Coming  []*types.Course
 }
 
-func getPage(ctx *config.AppContext, title string) Page {
+type ExtraData struct {
+	Label string
+	Data string
+}
+
+func buildCard(domain, title, URL, desc, imageURL, imageAlt string, extraData []ExtraData)  types.FurlCard {
+	card := types.FurlCard{
+		URL: URL, /* Of the page we're on */
+		Domain: domain,
+		Title: title,
+		Description: desc,
+		ImageURL: imageURL,
+		ImageAlt: imageAlt,
+	}
+
+	for i, extra := range extraData {
+		if i == 0 {
+			card.ExtraOneLabel = extra.Label
+			card.ExtraOneData = extra.Data
+		}
+		if i == 1 {
+			card.ExtraTwoLabel = extra.Label
+			card.ExtraTwoData = extra.Data
+		}
+	}
+
+	return card
+}
+
+func getPage(ctx *config.AppContext, title string, card types.FurlCard) Page {
 	if title == "" {
 		title = "Base58"
 	}
+
 	return Page{
 		Title:     title,
 		Copyright: time.Now().Year(),
 		Domain:    ctx.SitePath(),
 		Callbacks: ctx.CallbackPath(),
+		Card: card,
 	}
 }
 
@@ -915,6 +1022,14 @@ func getHomeData(ctx *config.AppContext, n *types.Notion) (pageData, error) {
 		return pageData{}, err
 	}
 
+	/* FIXME: come back here */
+	title := "Base58"
+	imgAlt := "Base58's is the world's best bitcoin protocol school"
+	imgPath := ctx.SitePath() + "/static/img/base58_purple.png"
+	desc := "Base58⛓️🔓 is a bitcoin protocol school. Our online and in-person courses are the perfect starting place for technical beginners looking to scratch the surface to even the most experienced devs looking to challenge themselves with a dive deep into the bitcoin protocol itself."
+	extraData := make([]ExtraData, 0)
+
+	furlCard := buildCard(ctx.Env.Domain, title, ctx.SitePath(), desc, imgPath, imgAlt, extraData)
 	var current, coming []*types.Course
 	for _, course := range courses {
 		if course.ComingSoon {
@@ -924,7 +1039,7 @@ func getHomeData(ctx *config.AppContext, n *types.Notion) (pageData, error) {
 		}
 	}
 	return pageData{
-		Page:    getPage(ctx, ""),
+		Page:    getPage(ctx, "", furlCard),
 		Courses: courses,
 		Current: current,
 		Coming:  coming,
