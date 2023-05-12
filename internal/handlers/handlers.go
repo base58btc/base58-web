@@ -923,14 +923,16 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 			imgAlt := fmt.Sprintf("Image for Base58's %s course", course.PublicName)
 			title := fmt.Sprintf("Experience Base58's %s", course.PublicName)
-			extraData := make([]ExtraData, 2)
-			extraData[0] = ExtraData{
-				Label: "Next Session Starts",
-				Data: sessions[0].FmtDates()[0],
-			}
-			extraData[1] = ExtraData{
-				Label: "Seats Left",
-				Data: string(sessions[0].SeatsAvail),
+			extraData := make([]ExtraData, 0)
+			if len(sessions) > 0 {
+				extraData = append(extraData, ExtraData{
+					Label: "Next Session Starts",
+					Data: sessions[0].FmtDates()[0],
+				})
+				extraData = append(extraData, ExtraData{
+					Label: "Seats Left",
+					Data: string(sessions[0].SeatsAvail),
+				})
 			}
 			furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, course.PromoURL, imgAlt, extraData)
 
