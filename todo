@@ -100,11 +100,11 @@
 		- idempotency check
 
 	MUST DO'S LAUNCH:
-	- add class pre-reqs + long desc
 	- emails
-		- add a receipt PDF to confirmations
-	- decide what classes we're launching first
-	- add welcome email info to classes
+		- send receipt with registration
+	- which classes first?
+		- add welcome email info to classes
+		- add pre-reqs + longer desc to classes
 
 	- ship website to:
 		-base58.info!

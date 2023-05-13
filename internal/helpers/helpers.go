@@ -122,6 +122,10 @@ func FilterSessions(sessions []*types.CourseSession, from time.Time) []*types.Co
 	filtered := make([]*types.CourseSession, 0)
 
 	for _, sesh := range sessions {
+		if sesh.IsUnscheduled() {
+			filtered = append(filtered, sesh)
+			continue
+		}
 		seshStart := sesh.Dates()[0]
 		if !seshStart.Before(from.Add(time.Minute * 60)) {
 			filtered = append(filtered, sesh)

@@ -160,6 +160,10 @@ const (
 	Fiat    CheckoutOpt = "fiat"
 )
 
+func (c CourseSession) IsUnscheduled() bool {
+	return len(c.Date) > 0 && c.Date[0] == "TBD"
+}
+
 func (c CourseSession) Dates() []time.Time {
 	dateStr := "1/2/2006"
 	ret := make([]time.Time, 0)
