@@ -158,6 +158,9 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/check-email", func(w http.ResponseWriter, r *http.Request) {
 		CheckEmail(w, r, ctx)
 	})
+	r.HandleFunc("/services/oembed", func(w http.ResponseWriter, r *http.Request) {
+		HandleOembed(w, r, ctx)
+	})
 	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
 		StripeHook(w, r, ctx)
 	}).Methods("POST")
@@ -642,6 +645,49 @@ func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 		return
 	}
 	w.Write(welcomeEmail)
+}
+
+type OembedResponse struct {
+	Type            string `json:"type"`
+	Title           string `json:"title"`
+	AuthorName      string `json:"author_name"`
+	AuthorURL       string `json:"author_url"`
+	Width           int    `json:"width"`
+	Height          int    `json:"height"`
+	URL             string `json:"url"`
+	WebPage         string `json:"web_page"`
+	ThumbnailURL    string `json:"thumbnail_url"`
+	ThumbnailWidth  int    `json:"thumbnail_width"`
+	ThumbnailHeight int    `json:"thumbnail_height"`
+	WebPageShortURL string `json:"web_page_short_url"`
+	License         string `json:"license"`
+	LicenseID       int    `json:"license_id"`
+	HTML            string `json:"html"`
+	Version         string `json:"version"`
+	CacheAge        int    `json:"cache_age"`
+	ProviderName    string `json:"provider_name"`
+	ProviderURL     string `json:"provider_url"`
+}
+
+func HandleOembed(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+
+	format := r.URL.Query().Get("format")
+	// url := r.URL.Query().Get("url")
+	if format != "json" {
+		http.Error(w, fmt.Sprintf("You requested %s. We only support format=json", format), http.StatusBadRequest)
+		return
+	}
+
+	oembedResp := OembedResponse{
+		Type:         "link",
+		Version:      "1.0",
+		License:      "All rights reserved",
+		CacheAge:     3600,
+		ProviderName: "Base58",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(oembedResp)
 }
 
 func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
