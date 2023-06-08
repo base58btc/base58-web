@@ -37,6 +37,10 @@ func parseAvail(avail []*notion.SelectOption) []types.CourseAvail {
 }
 
 func parseLevel(opt *notion.SelectOption) types.CourseLevel {
+	if opt == nil {
+		/* FIXME: log err */
+		return types.Devs
+	}
 	level, ok := types.ParseCourseLevel(opt.Name)
 	if !ok {
 		/* FIXME: log err */
