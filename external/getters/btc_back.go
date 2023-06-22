@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jb55/lnsocket/go"
+	lnsocket "github.com/jb55/lnsocket/go"
 	"github.com/kodylow/base58-website/internal/types"
 )
 
@@ -31,6 +31,7 @@ type Invoice struct {
 func NewInvoice(cmdo *types.CommandoConfig, description string, amt uint64) (string, error) {
 	/* Now we do the fetch the invoice from the LN node */
 	ln := lnsocket.LNSocket{}
+	ln.GenKey()
 
 	err := ln.ConnectAndInit(cmdo.Host, cmdo.NodeID)
 	if err != nil {
