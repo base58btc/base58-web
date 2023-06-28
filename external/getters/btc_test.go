@@ -46,23 +46,25 @@ func loadConfig() (*types.EnvConfig, bool) {
 }
 
 func TestNewInvoice(t *testing.T) {
-	// var app config.AppContext
-	// app.Infos = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
-	// app.Err = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
-
-	// Load configs from config.toml
 	env, _ := loadConfig()
-	// app.IsProd = isProd
-
-	// Start the server
-	// app.TemplateCache = make(map[string]*template.Template)
 	cmdo := env.Commando
 	description := "a test invoice"
 	var amt uint64 = 1000
 	msg, err := NewInvoice(&cmdo, description, amt)
-	// want := ""
 	if err != nil {
 		t.Fatalf(`Error in NewInvoice(cmdo, description, amt) = %q, %v`, msg, err)
+	}
+	fmt.Printf("Invoice = %v\n", msg)
+}
+
+func TestWaitInvoice(t *testing.T) {
+	// Load configs from config.toml
+	env, _ := loadConfig()
+	cmdo := env.Commando
+	label := "b58web-1687978436178850316"
+	msg, err := WaitInvoice(&cmdo, label)
+	if err != nil {
+		t.Fatalf(`Error in WaitInvoice(cmdo, label) = %q, %v`, msg, err)
 	}
 	fmt.Printf("Invoice = %v\n", msg)
 }

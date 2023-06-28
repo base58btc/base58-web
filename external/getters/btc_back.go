@@ -77,3 +77,52 @@ func NewInvoice(cmdo *types.CommandoConfig, description string, amt uint64) (str
 
 	return inv.Bolt11, nil
 }
+
+func WaitInvoice(cmdo *types.CommandoConfig, label string) (string, error) {
+	/* Now we await the invoice from the LN node */
+	ln := lnsocket.LNSocket{}
+	ln.GenKey()
+
+	err := ln.ConnectAndInit(cmdo.Host, cmdo.NodeID)
+	if err != nil {
+		return "", err
+	}
+
+	defer ln.Disconnect()
+
+	/* Add random label */
+	params := fmt.Sprintf("[\"%s\"]", label)
+	body, err := ln.Rpc(cmdo.Rune, "waitinvoice", params)
+	if err != nil {
+		return "", err
+	}
+
+	// Parse as error or result?
+	var resp LNCmdoResponse
+	err = json.NewDecoder(strings.NewReader(body)).Decode(&resp)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.Error != nil {
+		var errMsg LNError
+		err = json.Unmarshal(resp.Error, &errMsg)
+		if err != nil {
+			return "", fmt.Errorf("%s", resp.Error)
+		}
+
+		return "", fmt.Errorf("%s", errMsg.Message)
+	}
+
+	if resp.Result == nil {
+		return "", fmt.Errorf("No result for waitinvoice call")
+	}
+
+	var inv Invoice
+	err = json.Unmarshal(resp.Result, &inv)
+	if err != nil {
+		return "", err
+	}
+
+	return inv.Bolt11, nil
+}
