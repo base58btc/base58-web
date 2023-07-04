@@ -50,21 +50,15 @@ func TestNewInvoice(t *testing.T) {
 	cmdo := env.Commando
 	description := "a test invoice"
 	var amt uint64 = 1000
-	msg, err := NewInvoice(&cmdo, description, amt)
+	msg, label, err := NewInvoice(&cmdo, description, amt)
 	if err != nil {
 		t.Fatalf(`Error in NewInvoice(cmdo, description, amt) = %q, %v`, msg, err)
 	}
-	fmt.Printf("Invoice = %v\n", msg)
-}
+	fmt.Printf("Invoice = %v, label = %s\n", msg, label)
 
-func TestWaitInvoice(t *testing.T) {
-	// Load configs from config.toml
-	env, _ := loadConfig()
-	cmdo := env.Commando
-	label := "b58web-1687978436178850316"
-	msg, err := WaitInvoice(&cmdo, label)
+	msg, err = WaitInvoice(&cmdo, label)
 	if err != nil {
 		t.Fatalf(`Error in WaitInvoice(cmdo, label) = %q, %v`, msg, err)
 	}
-	fmt.Printf("Invoice = %v\n", msg)
+	fmt.Printf("WaitInvoice Found = %v\n", msg)
 }

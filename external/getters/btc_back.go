@@ -28,14 +28,14 @@ type Invoice struct {
 	PaymentSecret string
 }
 
-func NewInvoice(cmdo *types.CommandoConfig, description string, amt uint64) (string, error) {
+func NewInvoice(cmdo *types.CommandoConfig, description string, amt uint64) (string, string, error) {
 	/* Now we do the fetch the invoice from the LN node */
 	ln := lnsocket.LNSocket{}
 	ln.GenKey()
 
 	err := ln.ConnectAndInit(cmdo.Host, cmdo.NodeID)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	defer ln.Disconnect()
@@ -45,37 +45,37 @@ func NewInvoice(cmdo *types.CommandoConfig, description string, amt uint64) (str
 	params := fmt.Sprintf("[\"%dmsat\", \"%s\", \"%s\"]", amt, label, description)
 	body, err := ln.Rpc(cmdo.Rune, "invoice", params)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	// Parse as error or result?
 	var resp LNCmdoResponse
 	err = json.NewDecoder(strings.NewReader(body)).Decode(&resp)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	if resp.Error != nil {
 		var errMsg LNError
 		err = json.Unmarshal(resp.Error, &errMsg)
 		if err != nil {
-			return "", fmt.Errorf("%s", resp.Error)
+			return "", "", fmt.Errorf("%s", resp.Error)
 		}
 
-		return "", fmt.Errorf("%s", errMsg.Message)
+		return "", "", fmt.Errorf("%s", errMsg.Message)
 	}
 
 	if resp.Result == nil {
-		return "", fmt.Errorf("No result for invoice call")
+		return "", "", fmt.Errorf("No result for invoice call")
 	}
 
 	var inv Invoice
 	err = json.Unmarshal(resp.Result, &inv)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return inv.Bolt11, nil
+	return inv.Bolt11, label, nil
 }
 
 func WaitInvoice(cmdo *types.CommandoConfig, label string) (string, error) {
