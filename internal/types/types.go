@@ -21,6 +21,7 @@ type (
 		Notion       NotionConfig
 		Stripe       StripeConfig
 		OpenNode     OpenNodeConfig
+		Commando     CommandoConfig
 	}
 
 	CourseAvail string

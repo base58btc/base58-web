@@ -1,0 +1,15 @@
+
+
+
+
+
+
+-> ln case?
+	- when you go to checkout, what do we need?
+	- "server needs a way to create an invoice for the given price/desc"
+	- website needs to display the invoice
+	- need a way to signal to the website that the invoice has been paid
+		-> websocket: connection to the webpage so it auto updates?
+		-> webhook: webpage is polls webhook to see if updated?
+		-> FANTASY LAND: user enters in PoP (problem: wallets dont expose PoP)
+	- show success screen, execute whatever "post sale logic"

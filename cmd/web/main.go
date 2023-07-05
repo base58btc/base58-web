@@ -63,6 +63,12 @@ func loadConfig() (*types.EnvConfig, bool) {
 		EndpointSec: os.Getenv("STRIPE_ENDSEC"),
 	}
 
+	config.Commando = types.CommandoConfig{
+		Host:   os.Getenv("LN_HOST"),
+		NodeID: os.Getenv("LN_NODE_ID"),
+		Rune:   os.Getenv("LN_RUNE"),
+	}
+
 	isProd := os.Getenv("IS_PROD") == "1"
 
 	return &config, isProd

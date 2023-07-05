@@ -591,6 +591,18 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 	}
 }
 
+func BtcCheckoutStartLocal(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, checkout *types.Checkout) {
+
+	/* Convert to bitcoin! */
+	price := checkout.ComputeTotal(types.Fiat)
+	priceAsMsats := int64(price * 1000)
+
+	/* First we get an bolt11 inv from CLN */
+	bolt11, label, err := getters.NewInvoice(ctx.Env.Commando, "", priceAsMsats)
+
+	/* Display as QR Code! */
+}
+
 func BtcCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, checkout *types.Checkout) {
 	payment, err := getters.InitOpenNodeCheckout(ctx, &ctx.Env.OpenNode, checkout)
 
