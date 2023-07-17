@@ -38,8 +38,7 @@ type (
 		PreReqs      string
 		PromoURL     string
 		ComingSoon   bool
-		// FIXME: link to application?
-		AppRequired   bool
+		AppURL       string
 		Level         CourseLevel
 		Visible       bool
 		ReplitURL     string
@@ -74,13 +73,8 @@ type (
 		Shirt       *ShirtSize
 		ReplitUser  string
 		CheckoutVia CheckoutOpt
-		Idempotency string
-		Timestamp   string
-		SessionUUID string
-		Cost        uint64
+		Session     string
 		Count       uint
-		PromoURL    string
-		CourseName  string
 	}
 
 	WaitList struct {
@@ -107,6 +101,7 @@ type (
 		PromoURL    string
 		CourseName  string
 		Count       uint64
+		Session     *CourseSession
 	}
 
 	Confirmed struct {
@@ -173,6 +168,27 @@ func (c CourseSession) Dates() []time.Time {
 	}
 
 	return ret
+}
+
+func (c CourseSession) FormatDateRange() string {
+	dates := c.FmtDates()
+	if len(dates) == 1 {
+		return dates[0]
+	}
+
+	return dates[0] + " - " + dates[len(dates) - 1]
+}
+
+func (c CourseSession) GetOptionDesc() string {
+	var desc string
+	desc += c.Location 
+	desc += ", " + c.FormatDateRange()
+
+	if !c.Online {
+		desc += " (in-person) "
+	}
+
+	return desc
 }
 
 /* List of dates in a nice, readable format */
@@ -293,5 +309,5 @@ func (c *Checkout) MakeDesc() string {
 		seatStr = "seats"
 	}
 
-	return fmt.Sprintf("%d %s in Base58's %s class", c.Count, seatStr, c.CourseName)
+	return fmt.Sprintf("%d %s in Base58's %s class. %s", c.Count, seatStr, c.CourseName, c.Session.GetOptionDesc())
 }

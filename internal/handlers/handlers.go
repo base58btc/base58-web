@@ -225,9 +225,10 @@ func LastIdx(size int) int {
 
 type RegistrationData struct {
 	Course  *types.Course
-	Session *types.CourseSession
-	Form    types.ClassRegistration
-	Page    Page
+	Sessions []*SessionOption
+	DefaultSelect string
+	HasCode  bool
+	Page     Page
 }
 
 type WaitlistData struct {
@@ -266,64 +267,102 @@ func checkToken(token string, sec []byte, sessionUUID string, timeStr string, co
 	return expToken == token
 }
 
+type SessionOption struct {
+	UUID	string
+	OptionDesc string
+	Cost	uint64
+	Date    []string
+	TimeDesc string
+	Location string
+	Instructor string
+	IdemKey    string
+}
+
+func needsSessionCode(sessions []*types.CourseSession) bool {
+	for _, sesh := range sessions {
+		if sesh.SignupCode != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func makeSessionOptions(ctx *config.AppContext, sessions []*types.CourseSession) []*SessionOption {
+	var opts []*SessionOption
+	for _, sesh := range sessions {
+		/* token! */
+		now := time.Now().UTC().UnixNano()
+		idemToken := getSessionToken(ctx.Env.SecretBytes(), sesh.ID, now, sesh.Cost)
+
+		/* add the timestamp + cost onto the token end */
+		idemToken += ":" + strconv.FormatInt(now, 10)
+		idemToken += ":" + strconv.FormatUint(sesh.Cost, 10)
+		idemToken += ":" + sesh.ID
+
+		opt := &SessionOption{
+			UUID: idemToken,
+			OptionDesc: sesh.FormatDateRange(),
+			Cost: sesh.Cost,
+			Date: sesh.Date,
+			TimeDesc: sesh.TimeDesc,
+			Location: sesh.Location,
+			Instructor: sesh.Instructor,
+		}
+		opts = append(opts, opt)
+	}
+
+	return opts
+}
+
 func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-	sessionID, ok := getSessionKey("s", r)
+	courseID, ok := getSessionKey("c", r)
 	if !ok {
 		/* If there's no session-key, redirect to the front page */
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	switch r.Method {
-	case http.MethodGet:
-		course, session, err := getters.GetSessionInfo(ctx.Notion, sessionID)
-		if err != nil {
-			http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
-			ctx.Err.Printf("/register failed to fetch sessions %s\n", err.Error())
-			return
-		}
 
+	var sessions sessionList
+	course, sessions, err := getters.GetCourseInfo(ctx.Notion, courseID)
+	if err != nil || len(sessions) == 0 {
+		http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
+		ctx.Err.Printf("/register failed to fetch course sessions %s\n", err.Error())
+		return
+	}
+
+	if r.Method == http.MethodGet {
 		pageTpl := ctx.TemplateCache["register.tmpl"]
-
-		/* token! */
-		now := time.Now().UTC().UnixNano()
-		idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, session.Cost)
 
 		title := "Course Registration"
 		imgAlt := fmt.Sprintf("Image for Base58's %s course registration", course.PublicName)
-		extraData := make([]ExtraData, 2)
-		extraData[0] = ExtraData{
-			Label: "Instructor",
-			Data: session.Instructor,
-		}
-		extraData[1] = ExtraData{
-			Label: "Location",
-			Data: session.Location,
-		}
 
-		furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, imgAlt, extraData)
+		furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, course.PromoURL, imgAlt, nil)
+
+		/* Filter out anything in the past or happening in the next 1hr */
+		sessions = helpers.FilterSessions(sessions, time.Now())
+
+		/* Sort sessions by date, soonest first */
+		sort.Sort(sessions)
 
 		w.Header().Set("Content-Type", "text/html")
+		sessionOpts := makeSessionOptions(ctx, sessions)
+
 		err = pageTpl.Execute(w, RegistrationData{
 			Course:  course,
-			Session: session,
-			Page:    getPage(ctx, title, furlCard),
-			Form: types.ClassRegistration{
-				Idempotency: idemToken,
-				Timestamp:   strconv.FormatInt(now, 10),
-				SessionUUID: session.ID,
-				Cost:        session.Cost,
-				PromoURL:    course.PromoURL,
-				CourseName:  course.PublicName,
-			}})
+			DefaultSelect: sessionOpts[0].UUID,
+			Sessions: sessionOpts,
+			HasCode: needsSessionCode(sessions),
+			Page:    getPage(ctx, title, furlCard), 
+		})
 
 		if err != nil {
 			http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
 			ctx.Err.Printf("/register templ exec failed %s\n", err.Error())
 		}
 		return
-	case http.MethodPost:
-		/* Goes to the bottom! */
-	default:
+	}
+	
+	if r.Method != http.MethodPost {
 		http.NotFound(w, r)
 		return
 	}
@@ -332,7 +371,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	dec := schema.NewDecoder()
 	dec.IgnoreUnknownKeys(true)
 	var form types.ClassRegistration
-	err := dec.Decode(&form, r.PostForm)
+	err = dec.Decode(&form, r.PostForm)
 	if err != nil {
 		http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
 		ctx.Err.Printf("/register unable to decode class registrattion %s\n", err.Error())
@@ -340,29 +379,57 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	/* Check that the Idempotency token is valid */
-	if !checkToken(form.Idempotency, ctx.Env.SecretBytes(),
-		form.SessionUUID, form.Timestamp, form.Cost) {
+	infos := strings.Split(form.Session, ":")
+	if len(infos) != 4 {
 		http.Error(w, "Invalid session token", http.StatusBadRequest)
 		ctx.Err.Printf("/register not a good session token \n")
 		return
 	}
 
-	checkout := &types.Checkout{
-		Price:       form.Cost,
-		Type:        form.CheckoutVia,
-		Idempotency: form.Idempotency,
-		SessionID:   sessionID,
-		Email:       form.Email,
-		PromoURL:    form.PromoURL,
-		CourseName:  form.CourseName,
-		Count:       uint64(form.Count),
+	idem := infos[0]
+	time := infos[1] 
+	cost, err := strconv.ParseUint(infos[2], 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid session token", http.StatusBadRequest)
+		ctx.Err.Printf("/register session token cost did not parse %s\n", form.Session)
 	}
+	sessionUUID := infos[3]
 
 	// FIXME: keep track of token usage//timeout?
+	if !checkToken(idem, ctx.Env.SecretBytes(), sessionUUID, time, cost) {
+		http.Error(w, "Invalid session token", http.StatusBadRequest)
+		ctx.Err.Printf("/register not a good session token %s\n", form.Session)
+		return
+	}
+
+	var session *types.CourseSession
+	for _, sesh := range sessions {
+		if sessionUUID == sesh.ID {
+			session = sesh
+			break
+		}
+	}
+	if session == nil {
+		http.Error(w, "Invalid session token", http.StatusBadRequest)
+		ctx.Err.Printf("/cant find session token %s\n", sessionUUID)
+		return
+	}
+
+	checkout := &types.Checkout{
+		Price:       cost,
+		Type:        form.CheckoutVia,
+		Idempotency: idem,
+		SessionID:   sessionUUID,
+		Email:       form.Email,
+		PromoURL:    course.PromoURL,
+		CourseName:  course.PublicName,
+		Count:       uint64(form.Count),
+		Session:     session,
+	}
 
 	/* Save to signups! Note: won't be considered final
 	 * until there's a payment ref attached */
-	checkout.RegisterID, err = getters.SaveRegistration(ctx.Notion, &form, checkout)
+	checkout.RegisterID, err = getters.SaveRegistration(ctx.Notion, idem, sessionUUID, &form, checkout)
 
 	// TODO: what happens if there's a duplicate/idempotent token?
 	if err != nil {
@@ -375,6 +442,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	switch form.CheckoutVia {
 	case types.Bitcoin:
 		BtcCheckoutStart(w, r, ctx, checkout)
+		return
 	case types.Fiat:
 		FiatCheckoutStart(w, r, ctx, checkout)
 		return
@@ -534,6 +602,7 @@ type StripeCheckout struct {
 	SessionID    string
 	PromoURL     string
 	CourseName   string
+	Desc         string
 	Count        uint64
 	Total        uint64
 	Page         Page
@@ -582,6 +651,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		Page:         getPage(ctx, "Checkout", furlCard),
 		PromoURL:     checkout.PromoURL,
 		CourseName:   checkout.CourseName,
+		Desc:         checkout.Session.GetOptionDesc(),
 		Total:        price,
 		Count:        checkout.Count,
 	})
@@ -847,6 +917,7 @@ func Home(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 type CourseData struct {
 	Course   *types.Course
 	Sessions []*types.CourseSession
+	SeatsAvail uint
 	Page     Page
 }
 
@@ -873,6 +944,15 @@ func (s sessionList) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
+func countSeats(s sessionList) uint {
+	var acc uint
+	for _, sesh := range s {
+		acc += sesh.SeatsAvail
+	}
+
+	return acc
+}
+
 func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* If there's no class-key, redirect to the front page */
 	params := mux.Vars(r)
@@ -885,76 +965,55 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
-	courses, err := getters.ListCourses(ctx.Notion)
+	course, err := getters.GetCourse(ctx.Notion, clss)
 	if err != nil {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("/courses list courses attempt failed %s\n", err.Error())
+		http.Error(w, "Unable to load page, course not found", http.StatusInternalServerError)
+		ctx.Err.Printf("/courses unable to find course %s\n", err.Error())
 		return
 	}
 
-	for _, course := range courses {
-		if clss == course.TmplName {
-			/* FIXME: generalize? */
-			var bundled []*types.Course
-			if clss == "tx-deep-dive" {
-				bundled = append(bundled, course)
-				for _, c := range courses {
-					if strings.HasPrefix(c.TmplName, course.TmplName) {
-						bundled = append(bundled, c)
-					}
-				}
-			} else {
-				bundled = []*types.Course{course}
-			}
-			var sessions sessionList
-			sessions, err = getters.GetCourseSessions(ctx.Notion, bundled)
-
-			if err != nil {
-				http.Error(w, "Unable to load page", http.StatusInternalServerError)
-				ctx.Err.Printf("/courses course sessions fetch failed %s\n", err.Error())
-				return
-			}
-
-			/* Filter out anything in the past or happening in the next 1hr */
-			sessions = helpers.FilterSessions(sessions, time.Now())
-
-			/* Sort sessions by date, soonest first */
-			sort.Sort(sessions)
-
-			imgAlt := fmt.Sprintf("Image for Base58's %s course", course.PublicName)
-			title := fmt.Sprintf("Experience Base58's %s", course.PublicName)
-			extraData := make([]ExtraData, 0)
-			if len(sessions) > 0 {
-				extraData = append(extraData, ExtraData{
-					Label: "Next Session Starts",
-					Data: sessions[0].FmtDates()[0],
-				})
-				extraData = append(extraData, ExtraData{
-					Label: "Seats Left",
-					Data: string(sessions[0].SeatsAvail),
-				})
-			}
-			furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, course.PromoURL, imgAlt, extraData)
-
-			t := ctx.TemplateCache["course.tmpl"]
-			err = t.ExecuteTemplate(w, "course.tmpl", CourseData{
-				Course:   course,
-				Sessions: sessions,
-				Page:     getPage(ctx, course.PublicName, furlCard),
-			})
-			if err != nil {
-				http.Error(w, "Unable to load page", http.StatusInternalServerError)
-				ctx.Err.Printf("/courses exec templ failed %s\n", err.Error())
-				return
-			}
-
-			return
-		}
+	var sessions sessionList
+	sessions, err = getters.GetCourseSessions(ctx.Notion, course)
+	if err != nil {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/courses course sessions fetch failed %s\n", err.Error())
+		return
 	}
 
-	/* We didn't find it */
-	http.Error(w, "Unable to find course", http.StatusNotFound)
-	ctx.Err.Printf("/course course not found %s\n", clss)
+	/* Filter out anything in the past or happening in the next 1hr */
+	sessions = helpers.FilterSessions(sessions, time.Now())
+
+	/* Sort sessions by date, soonest first */
+	sort.Sort(sessions)
+
+	imgAlt := fmt.Sprintf("Image for Base58's %s course", course.PublicName)
+	title := fmt.Sprintf("Experience Base58's %s", course.PublicName)
+	extraData := make([]ExtraData, 0)
+	if len(sessions) > 0 {
+		extraData = append(extraData, ExtraData{
+			Label: "Next Session Starts",
+			Data: sessions[0].FmtDates()[0],
+		})
+		extraData = append(extraData, ExtraData{
+			Label: "Seats Left",
+			Data: string(sessions[0].SeatsAvail),
+		})
+	}
+	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, course.PromoURL, imgAlt, extraData)
+
+	t := ctx.TemplateCache["course.tmpl"]
+	err = t.ExecuteTemplate(w, "course.tmpl", CourseData{
+		Course:   course,
+		SeatsAvail: countSeats(sessions),
+		Sessions: sessions,
+		Page:     getPage(ctx, course.PublicName, furlCard),
+	})
+
+	if err != nil {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/courses exec templ failed %s\n", err.Error())
+		return
+	}
 }
 
 func Styles(w http.ResponseWriter, r *http.Request) {

@@ -85,7 +85,7 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Co
 		LongDesc:      parseRichText("LongDesc", props),
 		PreReqs:       parseRichText("PreReqs", props),
 		ComingSoon:    props["Coming Soon"].Checkbox,
-		AppRequired:   props["Application Required"].Checkbox,
+		AppURL:        props["AppURL"].URL,
 		Level:         parseLevel(props["Difficulty"].Select),
 		Visible:       props["Visible"].Checkbox,
 		ReplitURL:     props["ReplitURL"].URL,
@@ -131,6 +131,7 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 		ScheduleSpecifics: parseRichText("ScheduleSpecifics", props),
 		LocationSpecifics: parseRichText("LocationSpecifics", props),
 	}
+
 	if props["Signup Code"].Select != nil {
 		session.SignupCode = props["Signup Code"].Select.Name
 	}
@@ -157,7 +158,7 @@ func fakeCourselist() []*types.Course {
 			ShortDesc:    "This is a temporary class bullet",
 			ComingSoon:   false,
 			Level:        types.Devs,
-			AppRequired:  false,
+			AppURL:       "",
 			Visible:      true,
 		},
 	}
@@ -181,6 +182,28 @@ func ListCourses(n *types.Notion) ([]*types.Course, error) {
 	return courses, nil
 }
 
+func GetCourse(n *types.Notion, classSlug string) (*types.Course, error) {
+	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
+		n.Config.CoursesDb, notion.QueryDatabaseParam{
+			Filter: &notion.Filter{
+				Property: "Name",
+				Text: &notion.TextFilterCondition{
+					Equals: classSlug,
+				},
+			},
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(pages) != 1 {
+		return nil, fmt.Errorf("Unable to find %s", classSlug)
+	}
+
+	course := parseCourse(pages[0].ID, pages[0].Properties)
+	return course, nil
+}
+
 func GetSessionInfoUUID(n *types.Notion, sessionUUID string) (*types.Course, *types.CourseSession, error) {
 	sessionPage, err := n.Client.RetrievePage(context.Background(), sessionUUID)
 	if err != nil {
@@ -197,6 +220,21 @@ func GetSessionInfoUUID(n *types.Notion, sessionUUID string) (*types.Course, *ty
 	course := parseCourse(page.ID, page.Properties)
 	session.CourseName = course.PublicName
 	return course, session, nil
+}
+
+func GetCourseInfo(n *types.Notion, courseUUID string) (*types.Course, []*types.CourseSession, error) {
+	page, err := n.Client.RetrievePage(context.Background(), courseUUID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	course := parseCourse(page.ID, page.Properties)
+	sessions, err := GetCourseSessions(n, course)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return course, sessions, nil
 }
 
 func GetSessionInfo(n *types.Notion, sessionID string) (*types.Course, *types.CourseSession, error) {
@@ -230,35 +268,25 @@ func GetSessionInfo(n *types.Notion, sessionID string) (*types.Course, *types.Co
 	return course, session, nil
 }
 
-func GetCourseSessions(n *types.Notion, courses []*types.Course) ([]*types.CourseSession, error) {
+func GetCourseSessions(n *types.Notion, course *types.Course) ([]*types.CourseSession, error) {
 	var sessions []*types.CourseSession
-
-	/* Build a map of course IDs we're looking for? */
-	var orFilter []*notion.Filter
-	idDict := make(map[string]*types.Course)
-	for _, course := range courses {
-		idDict[course.ID] = course
-		filter := &notion.Filter{
-			Property: "course",
-			Relation: &notion.RelationFilterCondition{
-				Contains: course.ID,
-			},
-		}
-		orFilter = append(orFilter, filter)
-	}
 
 	/* FIXME: pagination */
 	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
 		n.Config.SessionsDb,
 		notion.QueryDatabaseParam{
-			Filter: &notion.Filter{Or: orFilter},
+			Filter: &notion.Filter{
+				Property: "course",
+				Relation: &notion.RelationFilterCondition{
+					Contains: course.ID,
+				},
+			},
 		})
 
 	if err != nil {
 		return nil, err
 	}
 	for _, page := range pages {
-		course := idDict[page.Properties["course"].Relation[0].ID]
 		session := parseSession(page.ID, page.Properties)
 		session.CourseName = course.PublicName
 		sessions = append(sessions, session)
@@ -279,13 +307,13 @@ func UniqueID(contact string, ref string, counter int32) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func SaveRegistration(n *types.Notion, r *types.ClassRegistration, c *types.Checkout) (string, error) {
+func SaveRegistration(n *types.Notion, idem string, seshUUID string, r *types.ClassRegistration, c *types.Checkout) (string, error) {
 	parent := notion.NewDatabaseParent(n.Config.CartsDb)
 	props := map[string]*notion.PropertyValue{
 		"Idempotent": notion.NewTitlePropertyValue(
 			[]*notion.RichText{
 				{Type: notion.RichTextText,
-					Text: &notion.Text{Content: r.Idempotency}},
+					Text: &notion.Text{Content: idem}},
 			}...),
 		"Contact": notion.NewRichTextPropertyValue(
 			[]*notion.RichText{
@@ -293,7 +321,7 @@ func SaveRegistration(n *types.Notion, r *types.ClassRegistration, c *types.Chec
 					Text: &notion.Text{Content: r.Email}},
 			}...),
 		"session": notion.NewRelationPropertyValue(
-			[]*notion.ObjectReference{{ID: r.SessionUUID}}...,
+			[]*notion.ObjectReference{{ID: seshUUID}}...,
 		),
 		"Amount": {
 			Type:   notion.PropertyNumber,
