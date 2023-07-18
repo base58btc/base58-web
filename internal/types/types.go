@@ -29,16 +29,16 @@ type (
 	CheckoutOpt string
 
 	Course struct {
-		ID           string
-		TmplName     string
-		PublicName   string
-		Availability []CourseAvail
-		ShortDesc    string
-		LongDesc     string
-		PreReqs      string
-		PromoURL     string
-		ComingSoon   bool
-		AppURL       string
+		ID            string
+		TmplName      string
+		PublicName    string
+		Availability  []CourseAvail
+		ShortDesc     string
+		LongDesc      string
+		PreReqs       string
+		PromoURL      string
+		ComingSoon    bool
+		AppURL        string
 		Level         CourseLevel
 		Visible       bool
 		ReplitURL     string
@@ -113,16 +113,16 @@ type (
 	}
 
 	FurlCard struct {
-		URL string
-		Domain string
-		Title string
-		Description string
-		ImageURL string
-		ImageAlt string
+		URL           string
+		Domain        string
+		Title         string
+		Description   string
+		ImageURL      string
+		ImageAlt      string
 		ExtraOneLabel string
-		ExtraOneData string
+		ExtraOneData  string
 		ExtraTwoLabel string
-		ExtraTwoData string
+		ExtraTwoData  string
 	}
 )
 
@@ -177,12 +177,12 @@ func (c CourseSession) FormatDateRange() string {
 		return dates[0]
 	}
 
-	return dates[0] + " - " + dates[len(dates) - 1]
+	return dates[0] + " - " + dates[len(dates)-1]
 }
 
 func (c CourseSession) GetOptionDesc() string {
 	var desc string
-	desc += c.Location 
+	desc += c.Location
 	desc += ", " + c.FormatDateRange()
 
 	if !c.Online {

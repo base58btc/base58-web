@@ -13,7 +13,6 @@ import (
 	"github.com/gomarkdown/markdown/ast"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
-
 )
 
 func blockRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {

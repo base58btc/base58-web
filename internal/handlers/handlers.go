@@ -224,11 +224,11 @@ func LastIdx(size int) int {
 }
 
 type RegistrationData struct {
-	Course  *types.Course
-	Sessions []*SessionOption
+	Course        *types.Course
+	Sessions      []*SessionOption
 	DefaultSelect string
-	HasCode  bool
-	Page     Page
+	HasCode       bool
+	Page          Page
 }
 
 type WaitlistData struct {
@@ -268,12 +268,12 @@ func checkToken(token string, sec []byte, sessionUUID string, timeStr string, co
 }
 
 type SessionOption struct {
-	UUID	string
+	UUID       string
 	OptionDesc string
-	Cost	uint64
-	Date    []string
-	TimeDesc string
-	Location string
+	Cost       uint64
+	Date       []string
+	TimeDesc   string
+	Location   string
 	Instructor string
 	IdemKey    string
 	AvailSeats uint
@@ -301,12 +301,12 @@ func makeSessionOptions(ctx *config.AppContext, sessions []*types.CourseSession)
 		idemToken += ":" + sesh.ID
 
 		opt := &SessionOption{
-			UUID: idemToken,
+			UUID:       idemToken,
 			OptionDesc: sesh.FormatDateRange(),
-			Cost: sesh.Cost,
-			Date: sesh.Date,
-			TimeDesc: sesh.TimeDesc,
-			Location: sesh.Location,
+			Cost:       sesh.Cost,
+			Date:       sesh.Date,
+			TimeDesc:   sesh.TimeDesc,
+			Location:   sesh.Location,
 			Instructor: sesh.Instructor,
 			AvailSeats: sesh.SeatsAvail,
 		}
@@ -353,11 +353,11 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		sessionOpts := makeSessionOptions(ctx, sessions)
 
 		err = pageTpl.Execute(w, RegistrationData{
-			Course:  course,
+			Course:        course,
 			DefaultSelect: sessionOpts[0].UUID,
-			Sessions: sessionOpts,
-			HasCode: needsSessionCode(sessions),
-			Page:    getPage(ctx, title, furlCard), 
+			Sessions:      sessionOpts,
+			HasCode:       needsSessionCode(sessions),
+			Page:          getPage(ctx, title, furlCard),
 		})
 
 		if err != nil {
@@ -366,7 +366,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		}
 		return
 	}
-	
+
 	if r.Method != http.MethodPost {
 		http.NotFound(w, r)
 		return
@@ -392,7 +392,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	idem := infos[0]
-	time := infos[1] 
+	time := infos[1]
 	cost, err := strconv.ParseUint(infos[2], 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid session token", http.StatusBadRequest)
@@ -451,7 +451,6 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
-
 	/* Ok, now we go to checkout! */
 	switch form.CheckoutVia {
 	case types.Bitcoin:
@@ -501,11 +500,11 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		extraData := make([]ExtraData, 2)
 		extraData[0] = ExtraData{
 			Label: "Instructor",
-			Data: session.Instructor,
+			Data:  session.Instructor,
 		}
 		extraData[1] = ExtraData{
 			Label: "Location",
-			Data: session.Location,
+			Data:  session.Location,
 		}
 
 		furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, imgAlt, extraData)
@@ -583,11 +582,11 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	extraData := make([]ExtraData, 2)
 	extraData[0] = ExtraData{
 		Label: "Instructor",
-		Data: session.Instructor,
+		Data:  session.Instructor,
 	}
 	extraData[1] = ExtraData{
 		Label: "Location",
-		Data: session.Location,
+		Data:  session.Location,
 	}
 
 	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, imgAlt, extraData)
@@ -749,11 +748,11 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	extraData := make([]ExtraData, 2)
 	extraData[0] = ExtraData{
 		Label: "Instructor",
-		Data: session.Instructor,
+		Data:  session.Instructor,
 	}
 	extraData[1] = ExtraData{
 		Label: "Location",
-		Data: session.Location,
+		Data:  session.Location,
 	}
 
 	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, imgAlt, extraData)
@@ -929,10 +928,10 @@ func Home(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 }
 
 type CourseData struct {
-	Course   *types.Course
-	Sessions []*types.CourseSession
+	Course     *types.Course
+	Sessions   []*types.CourseSession
 	SeatsAvail uint
-	Page     Page
+	Page       Page
 }
 
 type sessionList []*types.CourseSession
@@ -1006,21 +1005,21 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	if len(sessions) > 0 {
 		extraData = append(extraData, ExtraData{
 			Label: "Next Session Starts",
-			Data: sessions[0].FmtDates()[0],
+			Data:  sessions[0].FmtDates()[0],
 		})
 		extraData = append(extraData, ExtraData{
 			Label: "Seats Left",
-			Data: string(sessions[0].SeatsAvail),
+			Data:  string(sessions[0].SeatsAvail),
 		})
 	}
 	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, course.PromoURL, imgAlt, extraData)
 
 	t := ctx.TemplateCache["course.tmpl"]
 	err = t.ExecuteTemplate(w, "course.tmpl", CourseData{
-		Course:   course,
+		Course:     course,
 		SeatsAvail: countSeats(sessions),
-		Sessions: sessions,
-		Page:     getPage(ctx, course.PublicName, furlCard),
+		Sessions:   sessions,
+		Page:       getPage(ctx, course.PublicName, furlCard),
 	})
 
 	if err != nil {
@@ -1053,17 +1052,17 @@ type pageData struct {
 
 type ExtraData struct {
 	Label string
-	Data string
+	Data  string
 }
 
-func buildCard(domain, title, URL, desc, imageURL, imageAlt string, extraData []ExtraData)  types.FurlCard {
+func buildCard(domain, title, URL, desc, imageURL, imageAlt string, extraData []ExtraData) types.FurlCard {
 	card := types.FurlCard{
-		URL: URL, /* Of the page we're on */
-		Domain: domain,
-		Title: title,
+		URL:         URL, /* Of the page we're on */
+		Domain:      domain,
+		Title:       title,
 		Description: desc,
-		ImageURL: imageURL,
-		ImageAlt: imageAlt,
+		ImageURL:    imageURL,
+		ImageAlt:    imageAlt,
 	}
 
 	for i, extra := range extraData {
@@ -1090,7 +1089,7 @@ func getPage(ctx *config.AppContext, title string, card types.FurlCard) Page {
 		Copyright: time.Now().Year(),
 		Domain:    ctx.SitePath(),
 		Callbacks: ctx.CallbackPath(),
-		Card: card,
+		Card:      card,
 	}
 }
 
