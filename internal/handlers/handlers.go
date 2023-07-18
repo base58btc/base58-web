@@ -276,6 +276,7 @@ type SessionOption struct {
 	Location string
 	Instructor string
 	IdemKey    string
+	AvailSeats uint
 }
 
 func needsSessionCode(sessions []*types.CourseSession) bool {
@@ -307,6 +308,7 @@ func makeSessionOptions(ctx *config.AppContext, sessions []*types.CourseSession)
 			TimeDesc: sesh.TimeDesc,
 			Location: sesh.Location,
 			Instructor: sesh.Instructor,
+			AvailSeats: sesh.SeatsAvail,
 		}
 		opts = append(opts, opt)
 	}
@@ -343,6 +345,9 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 		/* Sort sessions by date, soonest first */
 		sort.Sort(sessions)
+
+		/* Leave out sessoins w/o any available seats */
+		sessions = helpers.FilterWaitlistSessions(sessions)
 
 		w.Header().Set("Content-Type", "text/html")
 		sessionOpts := makeSessionOptions(ctx, sessions)
@@ -437,6 +442,15 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		ctx.Err.Printf("/register Unable to save registration %s\n", err.Error())
 		return
 	}
+
+	/* Verify that the code is OK */
+	if session.SignupCode != "" && strings.ToLower(form.SignupCode) != strings.ToLower(session.SignupCode) {
+		errMsg := fmt.Sprintf("You haven't applied yet! Apply here: <a href=\"%s\">%s</a>", course.AppURL, course.AppURL)
+		http.Error(w, errMsg, http.StatusNotFound)
+		ctx.Err.Printf("/register %s\n", form.CheckoutVia)
+		return
+	}
+
 
 	/* Ok, now we go to checkout! */
 	switch form.CheckoutVia {

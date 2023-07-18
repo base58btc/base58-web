@@ -29,7 +29,9 @@
 		{{ range .Sessions }}
 		<label for="{{ .UUID }}">
 			<input type="radio" name="Session" value="{{ .UUID }}" id="{{ .UUID }}" class="hidden peer"
-			{{ if eq $.DefaultSelect .UUID }} checked {{end}} />
+			{{ if eq $.DefaultSelect .UUID }} checked {{end}} 
+			{{ if eq .AvailSeats 0 }} disabled {{end}} 
+		     />
 		     <div class="text-white ring-2 ring-blue-600 
 				 peer-checked:bg-blue-600
 				 flex flex-cols items-center justify-content

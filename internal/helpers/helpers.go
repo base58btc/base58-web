@@ -118,6 +118,18 @@ func ConvertMdToHTML(ctx *config.AppContext, mdContent string) []byte {
 	return htmlOut
 }
 
+func FilterWaitlistSessions(sessions []*types.CourseSession) []*types.CourseSession {
+	filtered := make([]*types.CourseSession, 0)
+
+	for _, sesh := range sessions {
+		if sesh.SeatsAvail > 0 {
+			filtered = append(filtered, sesh)
+		}
+	}
+
+	return filtered
+}
+
 func FilterSessions(sessions []*types.CourseSession, from time.Time) []*types.CourseSession {
 	filtered := make([]*types.CourseSession, 0)
 

@@ -75,6 +75,7 @@ type (
 		CheckoutVia CheckoutOpt
 		Session     string
 		Count       uint
+		SignupCode  string
 	}
 
 	WaitList struct {
