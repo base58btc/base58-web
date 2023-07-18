@@ -228,6 +228,7 @@ type RegistrationData struct {
 	Sessions      []*SessionOption
 	DefaultSelect string
 	HasCode       bool
+	KeyCode       string
 	Page          Page
 }
 
@@ -318,6 +319,7 @@ func makeSessionOptions(ctx *config.AppContext, sessions []*types.CourseSession)
 
 func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	courseID, ok := getSessionKey("c", r)
+
 	if !ok {
 		/* If there's no session-key, redirect to the front page */
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -343,6 +345,9 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		/* Filter out anything in the past or happening in the next 1hr */
 		sessions = helpers.FilterSessions(sessions, time.Now())
 
+		keycode, _ := getSessionKey("key", r)
+
+
 		/* Sort sessions by date, soonest first */
 		sort.Sort(sessions)
 
@@ -357,6 +362,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			DefaultSelect: sessionOpts[0].UUID,
 			Sessions:      sessionOpts,
 			HasCode:       needsSessionCode(sessions),
+			KeyCode:       keycode,
 			Page:          getPage(ctx, title, furlCard),
 		})
 

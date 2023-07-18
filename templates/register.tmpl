@@ -89,7 +89,10 @@
 		<label class="text-gray-300 mt-4 mb-2">
 			Registration Code
 		</label>
-		<input class="rounded-md" name="SignupCode" type="text" placeholder="From your registration email" required />
+		<input class="rounded-md" name="SignupCode" type="text" placeholder="From your registration email" required
+		{{ if .KeyCode }}
+		value="{{ .KeyCode }}"
+		{{ end }} />
 		{{ end }}
 
 		<div class="grid grid-cols-2 gap-6 mt-8 justify-center place-items-stretch">
