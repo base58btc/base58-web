@@ -3,7 +3,7 @@ module github.com/kodylow/base58-website
 go 1.19
 
 require (
-	github.com/BurntSushi/toml v1.2.1
+	github.com/akamensky/base58 v0.0.0-20210829145138-ce8bf8802e8f
 	github.com/alexedwards/scs/v2 v2.5.0
 	github.com/base58btc/mailer v0.0.0-20230510213939-04e8f45514b5
 	github.com/gomarkdown/markdown v0.0.0-20230322041520-c84983bdbf2a
