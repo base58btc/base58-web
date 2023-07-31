@@ -88,6 +88,12 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	}
 	ctx.TemplateCache["success.tmpl"] = success
 
+	wif, err := template.New("wif").ParseFiles("templates/tools/wif.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["wif.tmpl"] = wif
+
 	waitlistS, err := template.New("waitlist_success").Funcs(template.FuncMap{
 		"FiatPrice": types.FiatPrice,
 		"BtcPrice":  types.BtcPrice,
@@ -165,6 +171,13 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/opennode-hook", func(w http.ResponseWriter, r *http.Request) {
 		OpenNodeHook(w, r, ctx)
 	}).Methods("POST")
+
+	r.HandleFunc("/tools/wif", func(w http.ResponseWriter, r *http.Request) {
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
+		WIF(w, r, ctx)
+	})
 
 	/* serve files from the "static" directory */
 	fs := http.FileServer(http.Dir("static"))
@@ -346,7 +359,6 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		sessions = helpers.FilterSessions(sessions, time.Now())
 
 		keycode, _ := getSessionKey("key", r)
-
 
 		/* Sort sessions by date, soonest first */
 		sort.Sort(sessions)
@@ -1152,4 +1164,55 @@ func AddFaviconRoutes(r *mux.Router) error {
 	}
 
 	return nil
+}
+
+type WIFForm struct {
+	Value string
+}
+
+type WIFData struct {
+	Value  string
+	WIF    string
+	ErrMsg string
+	Page   Page
+}
+
+func WIF(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	/* Show a WIF calc page! */
+
+	title := "Base58 WIF calculator"
+	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", "", "", nil)
+
+	var data WIFData
+	var err error
+	if r.Method == http.MethodPost {
+		r.ParseForm()
+		dec := schema.NewDecoder()
+		var form WIFForm
+		err = dec.Decode(&form, r.PostForm)
+		if err != nil {
+			http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
+			ctx.Err.Printf("/tools/wif unable to decode wif value %s\n", err.Error())
+			return
+		}
+
+		/* Note: Currently only support testnet/regtest */
+		data.WIF, err = MakeWIF(form.Value, DEFAULT_NETWORK_BYTE)
+		if err != nil {
+			data.ErrMsg = err.Error()
+		}
+		data.Value = form.Value
+	}
+
+	wifTmpl, ok := ctx.TemplateCache["wif.tmpl"]
+	if !ok {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("wif.tmpl not in cache %v", ctx.TemplateCache)
+	}
+	data.Page = getPage(ctx, title, furlCard)
+	err = wifTmpl.ExecuteTemplate(w, "wif.tmpl", &data)
+	if err != nil {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/tools/wif execute template failed %s\n", err.Error())
+	}
 }

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    {{ block "head" .Page }} {{ end }}
+  </head>
+  <body>
+   {{ block "nav" . }} {{ end }}
+   <main class="py-24 sm:py-32">
+    <section>
+      <div class="relative isolate">
+        <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+          <div class="bg-gray-900 ring-1 ring-white/10 sm:rounded-3xl">
+	          <div class="mx-auto flex max-w-2xl flex-col gap-16 px-6 py-16 sm:rounded-3xl sm:p-8 lg:mx-0 lg:max-w-none lg:flex-row lg:items-top lg:py-20 xl:gap-x-20 xl:px-20">
+		          <img class="h-32 aspect-video sm:aspect-inherit sm:h-96 w-full flex-none rounded-2xl object-cover shadow-xl lg:aspect-square lg:h-auto lg:max-w-sm" src="/static/img/anon.jpg" alt="">
+		          <div class="w-full flex-auto text-white">
+		             <p class="font-semibold leading-7 text-bitcoin">
+                  Regtest + Testnet only
+                </p>
+                 <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl mb-10">
+                  WIF Calculator
+                 </h2>
+                 <div class="mt-10 flex">
+                    <form method="POST" class="grid grid-cols-1 gap-x-8 text-base w-full sm:w-2xl">
+                    <label class="text-gray-300 mt-4 mb-2">
+                      Secret Key Value (as integer)
+                    </label>
+                    <input class="rounded-md text-black" type="text" name="Value" placeholder="888" 
+                      {{ if .Value }}
+                      value="{{ .Value }}"
+                      {{ end }}
+                      required>
+                    {{ if .ErrMsg }}
+                    <label class="text-red-300 mt-4 mb-2">
+                      {{ .ErrMsg }}
+                    </label>
+                    {{ end }}
+                    <button class="mt-6 bg-bitcoin hover:bg-btcgold text-white font-bold py-2 px-4 rounded" type="submit" >
+                      Compute WIF
+                    </button>
+                  </form>
+                </div>
+                {{ if .WIF }}
+                <p class="mt-6 text-lg leading-8 text-gray-300">
+                  Result: {{ .WIF }}
+                </p>
+                {{ end }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  {{ block "footer" .Page }} {{ end }}
+  </body>
+</html>
