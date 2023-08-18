@@ -94,6 +94,12 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	}
 	ctx.TemplateCache["wif.tmpl"] = wif
 
+	keyaddr, err := template.New("keyaddr").ParseFiles("templates/tools/keyaddr.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["keyaddr.tmpl"] = keyaddr
+
 	waitlistS, err := template.New("waitlist_success").Funcs(template.FuncMap{
 		"FiatPrice": types.FiatPrice,
 		"BtcPrice":  types.BtcPrice,
@@ -177,6 +183,13 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 			panic(err)
 		}
 		WIF(w, r, ctx)
+	})
+
+	r.HandleFunc("/tools/keyaddr", func(w http.ResponseWriter, r *http.Request) {
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
+		KeyAddr(w, r, ctx)
 	})
 
 	/* serve files from the "static" directory */
@@ -1164,6 +1177,57 @@ func AddFaviconRoutes(r *mux.Router) error {
 	}
 
 	return nil
+}
+
+type KeyAddrForm struct {
+	Value string
+}
+
+type KeyAddrData struct {
+	Value  string
+	Addr string
+	ErrMsg string
+	Page   Page
+}
+
+func KeyAddr(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	/* Show a address from scriptPubkey page! */
+	title := "Base58 Address calculator"
+	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", "", "", nil)
+
+	var data KeyAddrData 
+	var err error
+	if r.Method == http.MethodPost {
+		r.ParseForm()
+		dec := schema.NewDecoder()
+		var form KeyAddrForm
+		err = dec.Decode(&form, r.PostForm)
+		if err != nil {
+			http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
+			ctx.Err.Printf("/tools/keyaddr unable to decode wif value %s\n", err.Error())
+			return
+		}
+
+		/* Note: Currently only support mainnet */
+		/* Option values: bc, tb (test+sig), bcrt (reg) */
+		data.Addr, err = MakeAddr(form.Value, "bc")
+		if err != nil {
+			data.ErrMsg = err.Error()
+		}
+		data.Value = form.Value
+	}
+
+	keyAddrTmpl, ok := ctx.TemplateCache["keyaddr.tmpl"]
+	if !ok {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("keyaddr.tmpl not in cache %v", ctx.TemplateCache)
+	}
+	data.Page = getPage(ctx, title, furlCard)
+	err = keyAddrTmpl.ExecuteTemplate(w, "keyaddr.tmpl", &data)
+	if err != nil {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/tools/keyaddr execute template failed %s\n", err.Error())
+	}
 }
 
 type WIFForm struct {
