@@ -501,13 +501,13 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 }
 
 func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-	sessionID, ok := getSessionKey("s", r)
+	sessionRef, ok := getSessionKey("s", r)
 	if !ok {
 		/* If there's no session-key, redirect to the front page */
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionID)
+	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionRef)
 	if err != nil {
 		http.Error(w, "Unable to fetch session info", http.StatusInternalServerError)
 		ctx.Err.Printf("/register get session info failed  %s\n", err.Error())
@@ -727,10 +727,10 @@ type SuccessData struct {
 }
 
 func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-	sessionUUID := "apr23-tx-inperson"
-	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionUUID)
+	sessionRef := "apr23-tx-inperson"
+	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionRef)
 	if err != nil {
-		ctx.Err.Printf("/check-email unable to get sessioninfo from notion %s", sessionUUID)
+		ctx.Err.Printf("/check-email unable to get sessioninfo from notion %s", sessionRef)
 		return
 	}
 
@@ -760,14 +760,14 @@ func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 
 func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Show a success page! */
-	sessionID, ok := getSessionKey("s", r)
+	sessionUUID, ok := getSessionKey("sid", r)
 	if !ok {
 		/* If there's no session-key, redirect to the front page */
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
-	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionID)
+	course, session, err := getters.GetSessionInfoUUID(ctx.Notion, sessionUUID)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/success get session info failed %s\n", err.Error())

@@ -104,7 +104,7 @@ form.addEventListener('submit', function(ev) {
 	    elements,
 	    clientSecret,
 	    confirmParams: {
-	      return_url: '{{ .Page.Callbacks }}/success?s={{ .SessionID }}',
+	      return_url: '{{ .Page.Callbacks }}/success?sid={{ .SessionID }}',
 	    }, 
             redirect: 'if_required',
 	  }).then(function(result) {
@@ -117,7 +117,7 @@ form.addEventListener('submit', function(ev) {
 	      } else {
 		console.log(result.paymentIntent);
 		if (result.paymentIntent.status === 'succeeded') {
-		  window.location.href = "/success?s={{ .SessionID }}"
+		  window.location.href = "/success?sid={{ .SessionID }}"
 	      }
 	    }
 	  });
