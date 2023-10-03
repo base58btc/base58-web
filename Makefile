@@ -2,6 +2,7 @@ APP_NAME = base58-website
 
 .PHONY: dev-run
 dev-run:
+	trap "pkill $(APP_NAME)" EXIT
 	go build -o target/$(APP_NAME) ./cmd/web/main.go
 	./target/${APP_NAME} &
 	./tools/tailwind -i templates/css/input.css -o static/css/styles.css --watch
