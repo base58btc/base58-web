@@ -5,7 +5,7 @@ dev-run:
 	trap "pkill $(APP_NAME)" EXIT
 	go build -o target/$(APP_NAME) ./cmd/web/main.go
 	./target/${APP_NAME} &
-	./tools/tailwind -i templates/css/input.css -o static/css/styles.css --watch
+	./tools/tailwind -i templates/css/input.css -o static/css/styles.css --watch --minify
 
 .PHONY: run
 run:
