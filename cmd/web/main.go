@@ -87,7 +87,7 @@ func main() {
 
 	cors := cors.New(cors.Options{
 		AllowedMethods: []string{http.MethodGet, http.MethodPost},
-		AllowedOrigins: []string{"https://chain.fail"},
+		AllowedOrigins: []string{"*"},
 		AllowedHeaders: []string{"Content-Type", "Accept"},
 	})
 
