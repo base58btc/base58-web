@@ -13,6 +13,7 @@ import (
 	"github.com/kodylow/base58-website/internal/config"
 	"github.com/kodylow/base58-website/internal/handlers"
 	"github.com/kodylow/base58-website/internal/types"
+	"github.com/rs/cors"
 )
 
 const configFile = "config.toml"
@@ -84,9 +85,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	cors := cors.New(cors.Options{
+		AllowedMethods: []string{http.MethodGet, http.MethodPost},
+		AllowedOrigins: []string{"https://chain.fail"},
+		AllowedHeaders: []string{"Content-Type", "Accept"},
+	})
+
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", env.Port),
-		Handler: routes,
+		Handler: cors.Handler(routes),
 	}
 
 	fmt.Printf("Starting application on port %s\n", env.Port)
