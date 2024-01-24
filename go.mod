@@ -7,7 +7,7 @@ require (
 	github.com/alexedwards/scs/v2 v2.5.0
 	github.com/base58btc/mailer v0.0.0-20230510213939-04e8f45514b5
 	github.com/btcsuite/btcutil v1.0.2
-	github.com/gomarkdown/markdown v0.0.0-20230322041520-c84983bdbf2a
+	github.com/gomarkdown/markdown v0.0.0-20231222211730-1d6d20845b47
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/schema v1.2.0
 	github.com/joho/godotenv v1.5.1
