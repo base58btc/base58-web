@@ -137,7 +137,7 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 
 	/* LNURL hack oof */
 	/* This goes to chain.fail (on nixbox) which then fwds to nodebox */
-	r.HandleFunc("/.well-known/lnurlp/{user:hello|nifty|niftynei|pay}", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/.well-known/lnurlp/{user:hello|nifty|niftynei|pay|zap}", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://chain.fail/based-lnurl/lnurl", http.StatusSeeOther)
 	})
 	r.HandleFunc("/lnurl_api/lnurl", func(w http.ResponseWriter, r *http.Request) {
