@@ -16,10 +16,7 @@ import (
 	"github.com/rs/cors"
 )
 
-const configFile = "config.toml"
-
 var app config.AppContext
-var session *scs.SessionManager
 
 func loadConfig() (*types.EnvConfig, bool) {
 	var config types.EnvConfig
@@ -48,7 +45,8 @@ func loadConfig() (*types.EnvConfig, bool) {
 		Token:      os.Getenv("NOTION_TOKEN"),
 		CoursesDb:  os.Getenv("NOTION_COURSES"),
 		SessionsDb: os.Getenv("NOTION_SESSIONS"),
-		CartsDb:    os.Getenv("NOTION_CARTS"),
+		SessionCartsDb:    os.Getenv("NOTION_CARTS"),
+		ItemCartsDb:    os.Getenv("NOTION_ITEM_CARTS"),
 		SignupsDb:  os.Getenv("NOTION_SIGNUPS"),
 		WaitlistDb: os.Getenv("NOTION_WAITLIST"),
 	}
@@ -78,6 +76,9 @@ func main() {
 	env, isProd := loadConfig()
 	app.IsProd = isProd
 
+  /* Register cart types */
+  handlers.RegisterCheckoutTypes()
+
 	// Start the server
 	app.TemplateCache = make(map[string]*template.Template)
 	routes, err := handlers.Routes(&app)
@@ -91,16 +92,20 @@ func main() {
 		AllowedHeaders: []string{"Content-Type", "Accept"},
 	})
 
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", env.Port),
-		Handler: cors.Handler(routes),
-	}
+  corsHandler := cors.Handler(routes)
 
 	fmt.Printf("Starting application on port %s\n", env.Port)
 	err = run(env)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+  loader := app.Session.LoadAndSave(corsHandler)
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%s", env.Port),
+		Handler: loader,
+	}
+
 	err = srv.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
@@ -116,13 +121,11 @@ func run(env *types.EnvConfig) error {
 	app.Env = env
 
 	// Initialize the session manager
-	session = scs.New()
-	session.Lifetime = 72 * time.Hour
-	session.Cookie.Persist = true
-	session.Cookie.SameSite = http.SameSiteLaxMode
-	session.Cookie.Secure = app.IsProd
-
-	app.Session = session
+	app.Session = scs.New()
+	app.Session.Lifetime = 72 * time.Hour
+	app.Session.Cookie.Persist = true
+	app.Session.Cookie.SameSite = http.SameSiteLaxMode
+	app.Session.Cookie.Secure = app.IsProd
 
 	app.Notion = &types.Notion{Config: env.Notion}
 	app.Notion.Setup()

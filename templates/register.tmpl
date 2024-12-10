@@ -41,10 +41,10 @@
 				 <div class="text-lg leading-8 text-gray-300">
 					<p class="font-semibold">{{ .Location }}</p>
 					<p>{{ .OptionDesc }}</p>
-				        <p> 
-					<span class="text-green-600">${{ FiatPrice .Cost }}</span> |
-					<span class="text-btcgold">${{ BtcPrice .Cost }}</span>
-				        </p> 
+				  <p> 
+            <span class="text-green-600">${{ FiatPrice .Cost }}</span> |
+            <span class="text-btcgold">${{ BtcPrice .Cost }}</span>
+          </p> 
 				 </div>
 			    </li>
 			    <li class="flex gap-x-3">
@@ -78,7 +78,8 @@
 		</label>
 		{{end}}
 		</div>
-		<input class="rounded-md" type="hidden" name="Count" value="1" required>
+		<input class="rounded-md" type="hidden" name="Count" 
+        value="{{ .Count }}" required>
 
 		<label class="text-gray-300 mt-4 mb-2">
 			Email

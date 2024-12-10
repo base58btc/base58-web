@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/binary"
+  "encoding/gob"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
+	"github.com/kodylow/base58-website/checkout"
 	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/config"
 	"github.com/kodylow/base58-website/internal/emails"
@@ -70,6 +72,20 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	}
 	ctx.TemplateCache["checkout.tmpl"] = checkout
 
+	reserve, err := template.New("reserve.tmpl").Funcs(template.FuncMap{
+		"LastIdx":   LastIdx,
+	}).ParseFiles("templates/reserve.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["reserve.tmpl"] = reserve
+
+	summary, err := template.ParseFiles("templates/summary.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["summary.tmpl"] = summary
+
 	waitlist, err := template.New("waitlist").Funcs(template.FuncMap{
 		"FiatPrice": types.FiatPrice,
 		"BtcPrice":  types.BtcPrice,
@@ -100,6 +116,12 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	}
 	ctx.TemplateCache["keyaddr.tmpl"] = keyaddr
 
+	larp, err := template.New("larp").ParseFiles("templates/larp.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+	if err != nil {
+		return err
+	}
+	ctx.TemplateCache["larp.tmpl"] = larp
+
 	waitlistS, err := template.New("waitlist_success").Funcs(template.FuncMap{
 		"FiatPrice": types.FiatPrice,
 		"BtcPrice":  types.BtcPrice,
@@ -118,6 +140,11 @@ func maybeRebuildCache(ctx *config.AppContext) error {
 	}
 
 	return BuildTemplateCache(ctx)
+}
+
+func RegisterCheckoutTypes() {
+  checkout.RegisterCartSerialization()
+  gob.Register(CourseItem{})
 }
 
 func Routes(ctx *config.AppContext) (http.Handler, error) {
@@ -172,6 +199,18 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 		}
 		Register(w, r, ctx)
 	})
+	r.HandleFunc("/reserve", func(w http.ResponseWriter, r *http.Request) {
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
+		Reserve(w, r, ctx)
+	})
+	r.HandleFunc("/summary", func(w http.ResponseWriter, r *http.Request) {
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
+		Summary(w, r, ctx, nil)
+	})
 	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
 		if err = maybeRebuildCache(ctx); err != nil {
 			panic(err)
@@ -201,6 +240,13 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 			panic(err)
 		}
 		KeyAddr(w, r, ctx)
+	})
+
+	r.HandleFunc("/larp", func(w http.ResponseWriter, r *http.Request) {
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
+		LARP(w, r, ctx)
 	})
 
 	/* serve files from the "static" directory */
@@ -260,12 +306,37 @@ func LastIdx(size int) int {
 	return size - 1
 }
 
+type LARPData struct {
+	Page          Page
+	Course        *types.Course
+}
+
 type RegistrationData struct {
 	Course        *types.Course
 	Sessions      []*SessionOption
 	DefaultSelect string
 	HasCode       bool
 	KeyCode       string
+  Count         uint
+	Page          Page
+}
+
+type SummaryData struct {
+	Page          Page
+  Cart checkout.Cart
+  SubTotal checkout.Price
+  Discount checkout.Price
+  Taxes checkout.Price
+  Shipping *checkout.Price
+  Total checkout.Price
+}
+
+type ReservationData struct {
+	Course        *types.Course
+	Sessions      []*SessionOption
+	DefaultSelect string
+  DefaultQty    string
+  SeatOpts      []string
 	Page          Page
 }
 
@@ -362,7 +433,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-
+  
 	var sessions sessionList
 	course, sessions, err := getters.GetCourseInfo(ctx.Notion, courseID)
 	if err != nil || len(sessions) == 0 {
@@ -370,6 +441,8 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		ctx.Err.Printf("/register failed to fetch course sessions %s\n", err.Error())
 		return
 	}
+
+  registerType, _ := getSessionKey("t", r)
 
 	if r.Method == http.MethodGet {
 		pageTpl := ctx.TemplateCache["register.tmpl"]
@@ -387,18 +460,31 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		/* Sort sessions by date, soonest first */
 		sort.Sort(sessions)
 
-		/* Leave out sessoins w/o any available seats */
-		sessions = helpers.FilterWaitlistSessions(sessions)
+    /* Leave out sessions where available seats < 6 */
+    var seatCount uint
+    if registerType == "table" {
+      sessions = helpers.FilterSessionsByAvail(sessions, 6)
+      seatCount = 6
+    } else {
+      /* Leave out sessoins w/o any available seats */
+      sessions = helpers.FilterWaitlistSessions(sessions)
+      seatCount = 1
+    }
 
 		w.Header().Set("Content-Type", "text/html")
 		sessionOpts := makeSessionOptions(ctx, sessions)
 
+    defaultSession := ""
+    if len(sessionOpts) > 0 {
+      defaultSession = sessionOpts[0].UUID
+    }
 		err = pageTpl.Execute(w, RegistrationData{
 			Course:        course,
-			DefaultSelect: sessionOpts[0].UUID,
+			DefaultSelect: defaultSession,
 			Sessions:      sessionOpts,
 			HasCode:       needsSessionCode(sessions),
 			KeyCode:       keycode,
+      Count:         seatCount,
 			Page:          getPage(ctx, title, furlCard),
 		})
 
@@ -462,7 +548,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
-	checkout := &types.Checkout{
+	cc := &types.Checkout{
 		Price:       cost,
 		Type:        form.CheckoutVia,
 		Idempotency: idem,
@@ -472,11 +558,13 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		CourseName:  course.PublicName,
 		Count:       uint64(form.Count),
 		Session:     session,
+    /* FIXME: auto matically gives a discount of 1 to 6 seats */
+    DiscountCode: "6c-1",
 	}
 
 	/* Save to signups! Note: won't be considered final
 	 * until there's a payment ref attached */
-	checkout.RegisterID, err = getters.SaveRegistration(ctx.Notion, idem, sessionUUID, &form, checkout)
+	cc.RegisterID, err = getters.SaveRegistration(ctx.Notion, idem, sessionUUID, &form, cc)
 
 	// TODO: what happens if there's a duplicate/idempotent token?
 	if err != nil {
@@ -496,11 +584,30 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Ok, now we go to checkout! */
 	switch form.CheckoutVia {
 	case types.Bitcoin:
-		BtcCheckoutStart(w, r, ctx, checkout)
+    openCheckout := getters.OpenCheckoutInfo{
+      Amount: float64(cc.ComputePrice(types.Bitcoin)),
+      Description: cc.MakeDesc(),
+      Email: cc.Email,
+      OrderID: cc.RegisterID,
+      SuccessID: cc.SessionID,
+    }
+		BtcCheckoutStart(w, r, ctx, openCheckout)
 		return
+
 	case types.Fiat:
-		FiatCheckoutStart(w, r, ctx, checkout)
+    item := ConvertToItem(session, ctx, uint(form.Count))
+    cart := &checkout.Cart{
+      Token: idem,
+      Infos: &checkout.CheckoutData{
+        Email: form.Email,
+      },
+      Items: []checkout.CartItem{ item },
+      BtcOk: true,
+      FiatOk: true,
+    }
+		FiatCheckoutStart(w, r, ctx, cart)
 		return
+
 	default:
 		http.Error(w, "Page not found", http.StatusNotFound)
 		ctx.Err.Printf("/register unable to find checkout method %s\n", form.CheckoutVia)
@@ -509,6 +616,233 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 	return
+}
+
+/* Separate checkout for LARP */
+func Reserve(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	courseID, ok := getSessionKey("c", r)
+
+	if !ok {
+		/* If there's no session-key, redirect to the front page */
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+  
+	var sessions sessionList
+	course, sessions, err := getters.GetCourseInfo(ctx.Notion, courseID)
+	if err != nil || len(sessions) == 0 {
+		http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
+		ctx.Err.Printf("/reserve failed to fetch course sessions %s\n", err.Error())
+		return
+	}
+
+  reservationOption, _ := getSessionKey("t", r)
+  defaultQty := uint(1)
+  if reservationOption == "table" {
+    defaultQty = uint(6)
+  }
+
+	if r.Method == http.MethodGet {
+		pageTpl := ctx.TemplateCache["reserve.tmpl"]
+
+		title := "LARP Reservation"
+		imgAlt := fmt.Sprintf("Image for Base58's LARP reservations")
+
+		furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, course.PromoURL, imgAlt, nil)
+
+		/* Filter out anything in the past or happening in the next 1hr */
+		sessions = helpers.FilterSessions(sessions, time.Now())
+
+		/* Sort sessions by date, soonest first */
+		sort.Sort(sessions)
+
+    /* Leave out sessoins w/o any available seats */
+    sessions = helpers.FilterWaitlistSessions(sessions)
+
+		w.Header().Set("Content-Type", "text/html")
+		sessionOpts := makeSessionOptions(ctx, sessions)
+
+		err = pageTpl.Execute(w, ReservationData{
+			Course:        course,
+			DefaultSelect: sessionOpts[0].UUID,
+      DefaultQty:    strconv.Itoa(int(defaultQty)),
+      SeatOpts:      []string{"1", "2", "3", "4", "5", "6"},
+			Sessions:      sessionOpts,
+			Page:          getPage(ctx, title, furlCard),
+		})
+
+		if err != nil {
+			ctx.Err.Printf("/reserve templ exec failed %s\n", err.Error())
+		}
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+
+	r.ParseForm()
+	dec := schema.NewDecoder()
+	dec.IgnoreUnknownKeys(true)
+	var form types.ClassRegistration
+	err = dec.Decode(&form, r.PostForm)
+	if err != nil {
+		http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
+		ctx.Err.Printf("/reserve unable to decode class registrattion %s\n", err.Error())
+		return
+	}
+
+	/* Check that the Idempotency token is valid */
+	infos := strings.Split(form.Session, ":")
+	if len(infos) != 4 {
+		http.Error(w, "Invalid session token", http.StatusBadRequest)
+		ctx.Err.Printf("/reserve not a good session token \n")
+		return
+	}
+
+	idem := infos[0]
+	time := infos[1]
+	cost, err := strconv.ParseUint(infos[2], 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid session token", http.StatusBadRequest)
+		ctx.Err.Printf("/reserve session token cost did not parse %s\n", form.Session)
+	}
+	sessionUUID := infos[3]
+
+	// FIXME: keep track of token usage//timeout?
+	if !checkToken(idem, ctx.Env.SecretBytes(), sessionUUID, time, cost) {
+		http.Error(w, "Invalid session token", http.StatusBadRequest)
+		ctx.Err.Printf("/reserve not a good session token %s\n", form.Session)
+		return
+	}
+
+	var session *types.CourseSession
+	for _, sesh := range sessions {
+		if sessionUUID == sesh.ID {
+			session = sesh
+			break
+		}
+	}
+
+	if session == nil {
+		http.Error(w, "Invalid session identifier", http.StatusBadRequest)
+		ctx.Err.Printf("/cant find session token %s\n", sessionUUID)
+		return
+	}
+
+  item := ConvertToItem(session, ctx, uint(form.Count))
+	cart := &checkout.Cart{
+		Token: idem,
+    Infos: &checkout.CheckoutData{
+      Email: form.Email,
+    },
+    Items: []checkout.CartItem{ item },
+    Discounts: []string{"6c-1",},
+    BtcOk: true,
+    FiatOk: true,
+	}
+
+	/* Save to signups! Won't be considered final until there's a payment ref attached */
+	cart.LookupID, err = getters.SaveCart(ctx.Notion, cart)
+
+	// TODO: what happens if there's a duplicate/idempotent token?
+	if err != nil {
+		http.Error(w, "Oops, we weren't able to save cart", http.StatusInternalServerError)
+		ctx.Err.Printf("/reserve Unable to save cart for reservation %s\n", err.Error())
+		return
+	}
+  
+  ctx.Session.Put(r.Context(), "cart", cart)
+  Summary(w, r, ctx, cart)
+}
+
+func Summary(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, cart *checkout.Cart) {
+
+  if cart == nil {
+    _, ok := ctx.Session.Get(r.Context(), "cart").(checkout.Cart)
+
+    if !ok {
+      http.Error(w, "No checkout in progrss!", http.StatusInternalServerError)
+      ctx.Err.Printf("/summary Unable to load cart for checkout\n")
+      return
+    }
+  }
+
+	if r.Method == http.MethodGet {
+    tmpl, ok := ctx.TemplateCache["summary.tmpl"]
+    if !ok {
+      http.Error(w, "Unable to load page", http.StatusInternalServerError)
+      ctx.Err.Printf("summary.tmpl not in cache %v", ctx.TemplateCache)
+    }
+
+    title := "Checkout Summary"
+    furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "Checkout", "", "", nil)
+
+    err := tmpl.ExecuteTemplate(w, "summary.tmpl", &SummaryData{
+      Page:         getPage(ctx, title, furlCard),
+      Cart:         *cart,
+      SubTotal:     cart.SubTotal(checkout.USD),
+      Discount:     cart.Discount(checkout.USD),
+      Taxes:        cart.Taxes(checkout.USD),
+      Total:        cart.Total(checkout.USD),
+    })
+
+    if err != nil {
+      http.Error(w, "Unable to load page", http.StatusInternalServerError)
+      ctx.Err.Printf("/summary tmpl execute failed %s\n", err.Error())
+    }
+    return
+  }
+
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+
+	r.ParseForm()
+	dec := schema.NewDecoder()
+	dec.IgnoreUnknownKeys(true)
+	var form checkout.SummaryPage
+  err := dec.Decode(&form, r.PostForm)
+  if err != nil {
+		http.Error(w, "Unable to load page, please try again later", http.StatusInternalServerError)
+		ctx.Err.Printf("/reserve unable to decode class registrattion %s\n", err.Error())
+		return
+  }
+
+	switch form.CheckoutVia {
+	case checkout.Bitcoin:
+    amtVal := cart.Total(checkout.USD)
+    /* OPennode expects $00.00) */
+    amount := float64(amtVal.Value / 100)
+    openCheckout := getters.OpenCheckoutInfo{
+      Amount: amount,
+      Description: cart.MakeDesc(),
+      Email: cart.Infos.Email,
+      OrderID: cart.LookupID,
+      /* FIXME: better way to show display endpage? */
+      SuccessID: cart.Items[0].GetID(),
+    }
+		BtcCheckoutStart(w, r, ctx, openCheckout)
+		return
+	case checkout.Fiat:
+		FiatCheckoutStart(w, r, ctx, cart)
+		return
+	default:
+		http.Error(w, "Page not found", http.StatusNotFound)
+		ctx.Err.Printf("/register unable to find checkout method %s\n", form.CheckoutVia)
+		return
+	}
+  if true {
+    w.Write([]byte(cart.LookupID))
+    return
+  }
+
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return
+
 }
 
 func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -663,35 +997,32 @@ type StripeCheckout struct {
 	Page         Page
 }
 
-func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, checkout *types.Checkout) {
+func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, cart *checkout.Cart) {
 	stripe.Key = ctx.Env.Stripe.Key
 
-	/* convert to cents for stripe! */
-	price := checkout.ComputeTotal(types.Fiat)
-	priceAsCents := int64(price * 100)
-
 	/* First we register a payment intent */
+  total := cart.Total(checkout.USD)
 	params := &stripe.PaymentIntentParams{
-		Amount:   stripe.Int64(priceAsCents),
+		Amount:   stripe.Int64(int64(total.Value)),
 		Currency: stripe.String(string(stripe.CurrencyUSD)),
 		AutomaticPaymentMethods: &stripe.PaymentIntentAutomaticPaymentMethodsParams{
 			Enabled: stripe.Bool(true),
 		},
 		/* Sends customer a receipt from Stripe */
-		ReceiptEmail: &checkout.Email,
+		ReceiptEmail: &cart.Infos.Email,
 	}
 
-	params.AddMetadata("b58_registration_id", checkout.RegisterID)
+	params.AddMetadata("b58_registration_id", cart.LookupID)
 	if ctx.Env.Stripe.IsTest() {
 		params.AddMetadata("integration_check", "accept_a_payment")
 	}
 
 	pi, _ := paymentintent.New(params)
 
-	title := fmt.Sprintf("Checkout for %s", checkout.CourseName)
-	imgAlt := fmt.Sprintf("Image for Base58's %s course", checkout.CourseName)
+	title := fmt.Sprintf("Checkout for %s", cart.Items[0].GetDisplayName())
+	imgAlt := fmt.Sprintf("Image for Base58's %s course", cart.Items[0].GetDisplayName())
 	extraData := make([]ExtraData, 0)
-	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", checkout.PromoURL, imgAlt, extraData)
+	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", cart.Items[0].GetImgURL(), imgAlt, extraData)
 
 	tmpl, ok := ctx.TemplateCache["checkout.tmpl"]
 	if !ok {
@@ -701,14 +1032,14 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 	err := tmpl.ExecuteTemplate(w, "checkout.tmpl", &StripeCheckout{
 		ClientSecret: pi.ClientSecret,
 		PubKey:       ctx.Env.Stripe.Pubkey,
-		Email:        checkout.Email,
-		SessionID:    checkout.SessionID,
+		Email:        cart.Infos.Email,
+		SessionID:    cart.LookupID,
 		Page:         getPage(ctx, "Checkout", furlCard),
-		PromoURL:     checkout.PromoURL,
-		CourseName:   checkout.CourseName,
-		Desc:         checkout.Session.GetOptionDesc(),
-		Total:        price,
-		Count:        checkout.Count,
+		PromoURL:     cart.Items[0].GetImgURL(),
+		CourseName:   cart.Items[0].GetDisplayName(),
+		Desc:         cart.Items[0].GetDetails(),
+		Total:        total.Value / 100,
+		Count:        uint64(cart.Items[0].GetQty()),
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -716,7 +1047,9 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 	}
 }
 
-func BtcCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, checkout *types.Checkout) {
+func BtcCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, checkout getters.OpenCheckoutInfo) {
+
+  ctx.Infos.Printf("callbackpath? %s", ctx.CallbackPath())
 	payment, err := getters.InitOpenNodeCheckout(ctx, &ctx.Env.OpenNode, checkout)
 
 	if err != nil {
@@ -815,27 +1148,90 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 }
 
-func finalizeRegistration(ctx *config.AppContext, pageID, refID string) error {
+type CourseItem struct {
+    checkout.Item
+}
 
-	/* Update cart with payment details */
-	sessionUUID, confirmed, err := getters.FinalizeRegistration(ctx.Notion, pageID, refID)
+func (ci CourseItem) OnCallback(appCtx interface{}, cart *checkout.Cart, paymentID string) error {
+  
+  ctx := appCtx.(*config.AppContext)
+
+	course, session, err := getters.GetSessionInfoUUID(ctx.Notion, ci.GetID())
+	if err != nil {
+		return err
+	}
+
+	/* Add seats for registration */
+  err = getters.AddClassRegistration(ctx.Notion, paymentID, cart.LookupID, ci.GetID(), cart.Token, cart.Infos.Email, cart.Infos.MailingAddr, cart.Infos.ShirtSize)
+
 	if err != nil {
 		return err
 	}
 
 	/* Decrement available class count */
-	err = getters.CountClassRegistration(ctx.Notion, sessionUUID, confirmed.Count)
+	err = getters.CountClassRegistration(ctx.Notion, ci.GetID(), ci.GetQty())
 	if err != nil {
 		return err
 	}
 
 	/* Send email confirming class registration! */
-	course, session, err := getters.GetSessionInfoUUID(ctx.Notion, sessionUUID)
-	if err != nil {
-		return err
-	}
-
+  confirmed := &types.Confirmed{
+    Idempotency: cart.Token,
+    Email: cart.Infos.Email,
+  }
 	return emails.SendRegistrationEmail(ctx, course, session, confirmed)
+}
+
+
+func completeCheckout(ctx *config.AppContext, cartID, paymentID string) error {
+  /* Check if we've already marked this cart as paid */
+  alreadyPaid, err := getters.CheckCartNotPaid(ctx.Notion, paymentID)
+
+  if err != nil {
+    return err
+  }
+
+  if alreadyPaid {
+    return fmt.Errorf("Cart marked as already paid (PaymentRef: %s)", paymentID)
+  }
+
+  cart, err := getters.MarkCartPaid(ctx.Notion, cartID, paymentID)
+  if err != nil {
+    return err
+  }
+
+  /* For each item, execute the item callback! */
+  for _, item := range cart.Items {
+    err = item.OnCallback(ctx, cart, paymentID)
+    if err != nil {
+      ctx.Err.Printf("call back on item %s failed: %s", item.GetDisplayName(), err)
+    }
+  }
+
+  // TODO: send a 'unified' receipt!!
+  // TODO: Notify ~me~ that a cart was paid!
+  return nil
+}
+
+
+func ConvertToItem(sesh *types.CourseSession, ctx *config.AppContext, qty uint) *CourseItem {
+  return &CourseItem{
+      checkout.Item{
+        ID:            sesh.ID,
+        LookupID:      sesh.ClassRef,
+        DisplayName:   sesh.CourseName,
+        Details:       sesh.Details(),
+        Options:       sesh.GetOptionDesc(),
+        Qty:           qty,
+        Price: checkout.Price{
+          /* FIXME: Convert to cents */
+          Value: uint64(sesh.Cost * 100),
+          /* FIXME: use sats as well? */
+          Unit: checkout.USD,
+        },
+        ImgURL: sesh.PromoURL,
+      },
+    }
 }
 
 func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -866,18 +1262,18 @@ func StripeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 			return
 		}
 		/* Get out payment data */
-		pageID := payment.Metadata["b58_registration_id"]
+		cartID := payment.Metadata["b58_registration_id"]
 		refID := payment.ID
 
-		if pageID == "" {
+		if cartID == "" {
 			/* no registration id means not a base58 payment...*/
 			break
 		}
 
-		err = finalizeRegistration(ctx, pageID, refID)
+		err = completeCheckout(ctx, cartID, refID)
 		if err != nil {
 			http.Error(w, "Unable to process, please try again later", http.StatusBadRequest)
-			ctx.Err.Printf("/stripe-hook unable to finalize signup %s %s\n", pageID, err.Error())
+			ctx.Err.Printf("/stripe-hook unable to finalize signup %s %s\n", cartID, err.Error())
 			return
 		}
 
@@ -935,7 +1331,7 @@ func OpenNodeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 
 	/* If it's paid, update and add seats */
 	if ev.Status == "paid" {
-		err = finalizeRegistration(ctx, ev.OrderID, ev.ID)
+		err = completeCheckout(ctx, ev.OrderID, ev.ID)
 		if err != nil {
 			ctx.Err.Printf("/opennode-hook unable to update signup %s %s\n", ev.OrderID, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
@@ -1157,6 +1553,8 @@ func getHomeData(ctx *config.AppContext, n *types.Notion) (pageData, error) {
 		} else {
 			current = append(current, course)
 		}
+
+    ctx.Infos.Printf("course %s id %s", course.TmplName, course.ID)
 	}
 	return pageData{
 		Page:    getPage(ctx, "", furlCard),
@@ -1289,5 +1687,30 @@ func WIF(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/tools/wif execute template failed %s\n", err.Error())
+	}
+}
+
+func LARP(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+  /* FIXME: sort through list of courses? */
+	courseID := "eb477a1b-3964-4765-950d-34f1656edfd2"
+	course, _, err := getters.GetCourseInfo(ctx.Notion, courseID)
+
+	/* landing page for the base58 bitcoin LARP! */
+	title := "Base58 World Famous Bitcoin Live Action Role Play"
+	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", "", "", nil)
+
+	larpTmpl, ok := ctx.TemplateCache["larp.tmpl"]
+	if !ok {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("larp.tmpl not in cache %v", ctx.TemplateCache)
+	}
+  data := LARPData{
+	  Page:     getPage(ctx, title, furlCard),
+    Course:   course,
+  }
+	err = larpTmpl.ExecuteTemplate(w, "larp.tmpl", &data)
+	if err != nil {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/larp execute template failed %s\n", err.Error())
 	}
 }

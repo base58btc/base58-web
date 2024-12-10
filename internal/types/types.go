@@ -27,6 +27,7 @@ type (
 	CourseLevel string
 	ShirtSize   string
 	CheckoutOpt string
+  Currency    string
 
 	Course struct {
 		ID            string
@@ -52,6 +53,7 @@ type (
 		ClassRef          string
 		CourseName        string
 		Cost              uint64
+    Currency          Currency
 		TShirt            bool
 		Online            bool
 		TotalSeats        uint
@@ -103,6 +105,7 @@ type (
 		CourseName  string
 		Count       uint64
 		Session     *CourseSession
+    DiscountCode   string
 	}
 
 	Confirmed struct {
@@ -124,6 +127,7 @@ type (
 		ExtraTwoLabel string
 		ExtraTwoData  string
 	}
+
 )
 
 const (
@@ -138,11 +142,17 @@ func (c CourseAvail) SelfPacedOnline() bool {
 }
 
 const (
+  USD     Currency = "usd"
+  SATS    Currency = "sats"
+)
+
+const (
 	Devs     CourseLevel = "devs"
 	Everyone CourseLevel = "everyone"
 	Entry    CourseLevel = "entry-dev"
 	Expert   CourseLevel = "exp-devs"
 )
+
 const (
 	Small ShirtSize = "small"
 	Med   ShirtSize = "med"
@@ -190,6 +200,10 @@ func (c CourseSession) GetOptionDesc() string {
 	}
 
 	return desc
+}
+
+func (c CourseSession) Details() string {
+  return fmt.Sprintf("Led by %s @ %s", c.Instructor, c.TimeDesc)
 }
 
 /* List of dates in a nice, readable format */
@@ -260,6 +274,19 @@ func ParseCourseAvail(str string) (CourseAvail, bool) {
 	return ss, ok
 }
 
+var mapEnumCurrency = func() map[string]Currency {
+  m := make(map[string]Currency)
+  m[string(USD)] = USD
+  m[string(SATS)] = SATS
+
+  return m
+}()
+
+func ParseCurrency(option string) (Currency, bool) {
+  curr, ok := mapEnumCurrency[strings.ToLower(option)]
+  return curr, ok
+}
+
 func (s CourseLevel) String() string {
 	return string(s)
 }
@@ -292,13 +319,32 @@ func BtcPrice(val uint64) uint64 {
 	return uint64(float64(val) * .85)
 }
 
+func (c *Checkout) ComputePrice(opt CheckoutOpt) uint64 {
+  switch opt {
+    case Bitcoin:
+      return BtcPrice(c.Price)
+    case Fiat:
+      return FiatPrice(c.Price)
+  }
+
+  panic(fmt.Sprintf("checkout option \"%s\" does not compute", opt))
+}
+
+func (c *Checkout) ComputeCount() uint64 {
+  /* FIXME: more intelligent parsing lang for count discounts */
+  if c.DiscountCode == "6s-1" && c.Count == 6 {
+    return c.Count - 1
+  }
+
+  return c.Count
+}
+
 /* Returns the dollar value (USD) of a checkout */
 func (c *Checkout) ComputeTotal(opt CheckoutOpt) uint64 {
-	if opt == Bitcoin {
-		return BtcPrice(c.Price) * c.Count
-	}
+  price := c.ComputePrice(opt)
+  count := c.ComputeCount()
 
-	return FiatPrice(c.Price) * c.Count
+	return price * count
 }
 
 /* Produces a human readable description */

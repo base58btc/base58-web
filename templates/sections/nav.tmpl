@@ -1,5 +1,5 @@
 {{ define "nav" }}
-  <header class="absolute inset-x-0 top-0 z-50">
+  <header class="bg-white absolute inset-x-0 top-0 z-50">
     <nav class="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8" aria-label="Global">
       <div class="flex lg:flex-1">
         <a href="/" class="-m-1.5 p-1.5">
@@ -17,6 +17,7 @@
         </button>
       </div>
       <div class="hidden lg:flex lg:gap-x-12">
+        <a href="/larp" class="text-sm font-semibold leading-6 text-gray-900">LARP</a>
         <a href="/#courses" class="text-sm font-semibold leading-6 text-gray-900">Courses</a>
 
         <a href="/#testimonials" class="text-sm font-semibold leading-6 text-gray-900">Testimonials</a>
@@ -47,6 +48,7 @@
         <div class="mt-6 flow-root">
           <div class="-my-6 divide-y divide-gray-500/10">
             <div class="space-y-2 py-6">
+              <a onclick="toggleMenu(this)" href="/larp" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">LARP</a>
               <a onclick="toggleMenu(this)" href="/#courses" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">Courses</a>
 
               <a onclick="toggleMenu(this)" href="/#testimonials" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">Testimonials</a>

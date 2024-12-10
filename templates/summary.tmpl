@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html h-full bg-white>
+  <head>
+    {{ block "head" .Page }} {{ end }}
+  </head>
+  <body class="h-full">
+    {{ block "nav" . }} {{ end }}
+    <main class="py-24 sm:py-32">
+      <div class="relative isolate">
+        <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+          <div class="bg-gray-900 ring-1 ring-white/10 sm:rounded-3xl">
+            <div class="mx-auto flex max-w-2xl flex-col gap-16 bg-white/5 px-6 py-16 ring-1 ring-white/10 sm:rounded-3xl sm:p-8 lg:mx-0 lg:max-w-none lg:flex-row lg:items-top lg:py-20 xl:gap-x-20 xl:px-20">
+            <img class="h-96 w-full flex-none rounded-2xl object-cover shadow-xl lg:aspect-square lg:h-auto lg:max-w-sm" src="{{ .Course.PromoURL }}" alt="">
+            <div class="w-full flex-auto">
+              <p class="font-semibold leading-7 text-bitcoin">Base58 Checkout</p>
+              <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Order Summary</h2>
+              <div class="mt-10 flex">
+
+                <main class="lg:flex lg:min-h-full lg:flex-row-reverse lg:overflow-hidden">
+                  <h1 class="sr-only">Checkout</h1>
+
+                  <!-- Mobile order summary -->
+                  <section aria-labelledby="order-heading" class="bg-gray-50 px-4 py-6 sm:px-6 lg:hidden">
+                    <form method="POST">
+                      <div class="mx-auto max-w-lg">
+                        <div class="flex items-center justify-between">
+                          <h2 id="order-heading" class="text-lg font-medium text-gray-900">Your Order</h2>
+                          <button type="button" class="font-medium text-indigo-600 hover:text-indigo-500" aria-controls="disclosure-1" aria-expanded="false">
+                            <!-- Only display for open option. -->
+                            <span>Hide full summary</span>
+                            <!-- Don't display for open option. -->
+                            <span>Show full summary</span>
+                          </button>
+                        </div>
+
+                        <div id="disclosure-1">
+                          <ul role="list" class="divide-y divide-gray-200 border-b border-gray-200">
+                            {{ range .Cart.Items }}
+                            <li class="flex space-x-6 py-6">
+                              <img src="{{ .ImgURL }}" alt="{{ .DisplayName }}" 
+                               class="h-40 w-40 flex-none rounded-md bg-gray-200 object-cover object-center">
+                              <div class="flex flex-col justify-between space-y-4">
+                                <div class="space-y-1 text-sm font-medium">
+                                  <h3 class="text-gray-900">{{ .DisplayName }}</h3>
+                                  <p class="text-gray-900">{{ .Price.Display }}</p>
+                                  <p class="text-gray-500">{{ .Details }}</p>
+                                  <p class="text-gray-500">{{ .Options }}</p>
+                                  <p class="text-gray-500">{{ .Qty }}</p>
+                                </div>
+                                <!-- FIXME: add in HTMX for edit + remove buttons -->
+                                <!--
+                                <div class="flex space-x-4">
+                                  <button type="button" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Edit</button>
+                                  <div class="flex border-l border-gray-300 pl-4">
+                                    <button type="button" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Remove</button>
+                                  </div>
+                                </div>
+                                -->
+                              </div>
+                            </li>
+                            {{ end }}
+                          <!-- More products... -->
+                          </ul>
+
+                          <div class="mt-10">
+                            <label for="discount-code-mobile" class="block text-sm font-medium text-gray-700">Discount code</label>
+                            <div class="mt-1 flex space-x-4">
+                              <input type="text" id="discount-code-mobile" name="DiscountCode" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                              <button type="submit" class="rounded-md bg-gray-200 px-4 text-sm font-medium text-gray-600 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50">Apply</button>
+                            </div>
+                          </div>
+
+                          <dl class="mt-10 space-y-6 text-sm font-medium text-gray-500">
+                            <div class="flex justify-between">
+                              <dt>Subtotal</dt>
+                              <dd class="text-gray-900">{{ .SubTotal.Display }}</dd>
+                            </div>
+                            <div class="flex justify-between">
+                              <dt class="flex">
+                              Discount
+                              <span class="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs tracking-wide text-gray-600">CHEAPSKATE</span>
+                              </dt>
+                              <dd class="text-gray-900">-{{ .Discount.Display }}</dd>
+                            </div>
+                            <div class="flex justify-between">
+                              <dt>Taxes</dt>
+                              <dd class="text-gray-900">{{ .Taxes.Display }}</dd>
+                            </div>
+                            {{ if .Shipping }}
+                            <div class="flex justify-between">
+                              <dt>Shipping</dt>
+                              <dd class="text-gray-900">{{ .Shipping.Display }}</dd>
+                            </div>
+                            {{ end }}
+                          </dl>
+                        </div>
+
+                        <p class="mt-6 flex items-center justify-between border-t border-gray-200 pt-6 text-sm font-medium text-gray-900">
+                          <span class="text-base">Total (USD)</span>
+                          <span class="text-base">{{ .Total.Display }}</span>
+                        </p>
+                      </div>
+
+                      <div id="checkout-mobile" class="grid grid-cols-2 gap-6 mt-8 justify-center place-items-stretch">
+                          {{ if .Cart.FiatOk }}
+                          <button class="text-white ring-2 ring-green-600 
+                            bg-green-600 flex flex-cols items-center justify-content
+                            text-center rounded-md p-6 h-full"
+                            type="submit" value="fiat" name="CheckoutVia">
+                            <div class="h-fit w-full text-center">Pay with Fiat</div>
+                          </button>
+                          {{ end }}
+
+                          {{ if .Cart.BtcOk }}
+                          <button class="text-white ring-2 ring-green-600 
+                            bg-green-600 flex flex-cols items-center justify-content
+                            text-center rounded-md p-6 h-full"
+                            type="submit" value="btc" name="CheckoutVia">
+                            <div class="h-fit w-full text-center">Pay with 
+				                      <span class="font-bitcoin">bitcoin</span>
+                            </div>
+                          </button>
+                          {{ end }}
+                      </div>
+                    </form>
+                  </section>
+
+                  <!-- Order summary -->
+                  <section aria-labelledby="summary-heading" class="hidden w-full max-w-md flex-col bg-gray-50 lg:flex">
+                  <form method="POST">
+                    <h2 id="summary-heading" class="sr-only">Order summary</h2>
+
+                    <ul role="list" class="flex-auto divide-y divide-gray-200 overflow-y-auto px-6">
+                      {{ range .Cart.Items }}
+                      <li class="flex space-x-6 py-6">
+                        <img src="https://tailwindui.com/img/ecommerce-images/checkout-form-04-product-01.jpg" alt="Off-white t-shirt with circular dot illustration on the front of mountain ridges that fade." class="h-40 w-40 flex-none rounded-md bg-gray-200 object-cover object-center">
+                        <div class="flex flex-col justify-between space-y-4">
+                          <div class="space-y-1 text-sm font-medium">
+                            <h3 class="text-gray-900">{{ .DisplayName }}</h3>
+                            <p class="text-gray-900">{{ .Price.Display }}</p>
+                            <p class="text-gray-500">{{ .Details }}</p>
+                            <p class="text-gray-500">{{ .Options }}</p>
+                            <p class="text-gray-500">{{ .Qty }}</p>
+                          </div>
+                          <!-- FIXME: add in HTMX for edit + remove buttons -->
+                          <!--
+                          <div class="flex space-x-4">
+                            <button type="button" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Edit</button>
+                            <div class="flex border-l border-gray-300 pl-4">
+                              <button type="button" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Remove</button>
+                            </div>
+                          </div>
+                          -->
+                        </div>
+                      </li>
+                      {{ end }}
+
+                    <!-- More products... -->
+                    </ul>
+
+                    <div class="sticky bottom-0 flex-none border-t border-gray-200 bg-gray-50 p-6">
+                        <label for="discount-code" class="block text-sm font-medium text-gray-700">Discount code</label>
+                        <div class="mt-1 flex space-x-4">
+                          <input type="text" id="discount" name="DiscountCode" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                          <button type="submit" class="rounded-md bg-gray-200 px-4 text-sm font-medium text-gray-600 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50">Apply</button>
+                        </div>
+
+                      <dl class="mt-10 space-y-6 text-sm font-medium text-gray-500">
+                        <div class="flex justify-between">
+                          <dt>Subtotal</dt>
+                          <dd class="text-gray-900">{{ .SubTotal.Display }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                          <dt class="flex">
+                          Discount
+                          <span class="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs tracking-wide text-gray-600">CHEAPSKATE</span>
+                          </dt>
+                          <dd class="text-gray-900">-{{ .Discount.Display }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                          <dt>Taxes</dt>
+                          <dd class="text-gray-900">{{ .Taxes.Display }}</dd>
+                        </div>
+                        {{ if .Shipping }}
+                        <div class="flex justify-between">
+                          <dt>Shipping</dt>
+                          <dd class="text-gray-900">{{ .Shipping.Display }}</dd>
+                        </div>
+                        {{ end }}
+                        <div class="flex items-center justify-between border-t border-gray-200 pt-6 text-gray-900">
+                          <dt>Total</dt>
+                          <dd class="text-base">{{ .Total.Display }}</dd>
+                        </div>
+                      </dl>
+                    </div>
+
+                    <div id="checkout" class="grid grid-cols-2 gap-6 mt-8 justify-center place-items-stretch">
+                        {{ if .Cart.FiatOk }}
+                        <button class="text-white ring-2 ring-green-600 
+                          bg-green-600 flex flex-cols items-center justify-content
+                          text-center rounded-md p-6 h-full"
+                          type="submit" value="fiat" name="CheckoutVia">
+                          <div class="h-fit w-full text-center">Pay with Fiat</div>
+                        </button>
+                        {{ end }}
+
+                        {{ if .Cart.BtcOk }}
+                        <button class="text-white ring-2 ring-green-600 
+                          bg-green-600 flex flex-cols items-center justify-content
+                          text-center rounded-md p-6 h-full"
+                          type="submit" value="btc" name="CheckoutVia">
+                          <div class="h-fit w-full text-center">Pay with
+                            <span class="font-bitcoin">bitcoin</span>
+                          </div>
+                        </button>
+                        {{ end }}
+                    </div>
+                  </form>
+                </section>
+              </main>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  {{ block "footer" .Page }} {{ end }}
+  </body>
+</html>

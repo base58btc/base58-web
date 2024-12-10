@@ -1,6 +1,7 @@
 base58-website
 config.toml
 stripe
+.DS_Store
 
 target
 

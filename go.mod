@@ -17,6 +17,7 @@ require (
 )
 
 require (
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/jmoiron/sqlx v1.3.5 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/mailgun/mailgun-go/v4 v4.8.2 // indirect

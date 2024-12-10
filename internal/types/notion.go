@@ -9,7 +9,8 @@ type (
 		Token      string
 		CoursesDb  string `toml:"available_courses"`
 		SessionsDb string `toml:"upcoming_sessions"`
-		CartsDb    string `toml:"carts"`
+		SessionCartsDb    string `toml:"session_carts"`
+		ItemCartsDb    string `toml:"item_carts"`
 		SignupsDb  string `toml:"signups"`
 		WaitlistDb string `toml:"class_waitlist"`
 	}

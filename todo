@@ -1,16 +1,29 @@
 - to build:
-	x index
-		- call-out for upcoming confs
-			- new page for /confs/conf-name
-			- what to look like?
-		- call-out for taproot class
-			- like the bitcoin++ one
-		- feature upcoming bitcoin++ events!
+  - add a new page for the LARP
+    - get a LARP kit!
+    - build a LARP kit!
+    - how to play
+    - sign up for LARP training!
+    - sign up for a LARP (near you)
+	- v2: session marker (store cart state in browser cookies)
+	- v2: cart??
+  - receipts
+  - emails for class/LARP signups
+  - (also create email for person who is running the LARP!
+     include a pin that they'll use to check people in?
+     and include a link to a roster page w/ signup emails
+     and button to download signups as csv!)
+     - also include ticketing system?
 
-	x course
+	x index
+		- feature upcoming bitcoin++ events!
+		- call-out for taproot class
+   
+	x courses
 		- optional video embed?
 
 	MUST DO'S LAUNCH:
+  - page with nonprofit info + board pics
 	- emails
 		- send receipt with registration
 	- which classes first?
@@ -22,20 +35,15 @@
 	- blog
 	- unfurls!
 		- add route for https://oembed.com/
-	- port mailing list to notion
 	- v2: nostr pubkeys
 		- send nostr notice
 	- v2: send via telegram
 		- send telegram notices
-	- v2: specific pages for confs?
 	- v2: add ticket(s) to ticketed events
 		- integrate with apple wallet
 		- integrate with google wallet
 	- v2: option to add to calendar
 	- v2: popup for newsletter signup?
-	- v2: cart
-	- v2: cookies? https://www.calhoun.io/securing-cookies-in-go/
-	- v2: session marker (store cart state in browser cookies)
 	- v2: custom btc backend
 	- v2: bolt12
 	x BIP21 + BOLT11 payment options 
@@ -43,9 +51,3 @@
 		- click to copy  
 	- notification from LN node that has been paid? (websocket to server?)
 		- pipe response to checkout page (if still around)
-	- recurring subscriptions for access to all replit content?
-	- ship w/ nix
-		- https://github.com/NixOS/nixpkgs/pull/57080/files#diff-6f133905935141621e64527de48c170d1905dadcedaf9cd1aba2640c49b7a8df
-		- https://golangexample.com/an-on-site-demonstration-of-packaging-go-applications-with-nix/
-		- https://serokell.io/blog/practical-nix-flakes
-		- https://nixos.wiki/wiki/Nixpkgs/Create_and_debug_packages

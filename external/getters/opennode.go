@@ -13,19 +13,26 @@ import (
 
 const CHARGES_ENDPOINT string = "/charges"
 
-func InitOpenNodeCheckout(ctx *config.AppContext, on *types.OpenNodeConfig, c *types.Checkout) (*types.OpenNodePayment, error) {
+type OpenCheckoutInfo struct {
+  Amount float64
+  Description string
+  Email string
+  OrderID string
+  SuccessID string
+}
 
-	amt := c.ComputeTotal(c.Type)
+func InitOpenNodeCheckout(ctx *config.AppContext, on *types.OpenNodeConfig, c OpenCheckoutInfo) (*types.OpenNodePayment, error) {
+
 	callback := ctx.CallbackPath() + "/opennode-hook"
-	success := fmt.Sprintf("%s/success?s=%s", ctx.CallbackPath(), c.SessionID)
+	success := fmt.Sprintf("%s/success?s=%s", ctx.CallbackPath(), c.SuccessID)
 
 	onReq := &types.OpenNodeRequest{
-		Amount:        float64(amt),
-		Description:   c.MakeDesc(),
+		Amount:        c.Amount,
+		Description:   c.Description,
 		Currency:      "USD",
 		CustomerEmail: c.Email,
 		NotifEmail:    c.Email,
-		OrderID:       c.RegisterID,
+		OrderID:       c.OrderID,
 		CallbackURL:   callback,
 		SuccessURL:    success,
 		AutoSettle:    false,
