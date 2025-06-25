@@ -23,16 +23,16 @@ type (
 		OpenNode     OpenNodeConfig
 	}
 
-	CourseAvail string
+	CourseAvail  string
 	CourseFormat string
-	CourseLevel string
-	ShirtSize   string
-	CheckoutOpt string
-	Currency    string
+	CourseLevel  string
+	ShirtSize    string
+	CheckoutOpt  string
+	Currency     string
 
 	Course struct {
 		ID            string
-		Tag	      string
+		Tag           string
 		Title         string
 		Difficulty    string
 		Format        []CourseFormat
@@ -56,7 +56,7 @@ type (
 		ClassRef          string
 		CourseName        string
 		Cost              uint64
-    Currency          Currency
+		Currency          Currency
 		TShirt            bool
 		Online            bool
 		TotalSeats        uint
@@ -98,17 +98,17 @@ type (
 	}
 
 	Checkout struct {
-		RegisterID  string
-		Email       string
-		SessionID   string
-		Price       uint64
-		Type        CheckoutOpt
-		Idempotency string
-		PromoURL    string
-		CourseName  string
-		Count       uint64
-		Session     *CourseSession
-    DiscountCode   string
+		RegisterID   string
+		Email        string
+		SessionID    string
+		Price        uint64
+		Type         CheckoutOpt
+		Idempotency  string
+		PromoURL     string
+		CourseName   string
+		Count        uint64
+		Session      *CourseSession
+		DiscountCode string
 	}
 
 	Confirmed struct {
@@ -130,7 +130,6 @@ type (
 		ExtraTwoLabel string
 		ExtraTwoData  string
 	}
-
 )
 
 const (
@@ -145,8 +144,8 @@ func (c CourseAvail) SelfPacedOnline() bool {
 }
 
 const (
-  USD     Currency = "usd"
-  SATS    Currency = "sats"
+	USD  Currency = "usd"
+	SATS Currency = "sats"
 )
 
 const (
@@ -182,7 +181,7 @@ func (c Course) PromoURL(domain string) string {
 }
 
 func (c Course) Featured(difficulty string) bool {
-	return difficulty == c.Difficulty && c.Visible && c.Feature	
+	return difficulty == c.Difficulty && c.Visible && c.Feature
 }
 
 func (c CourseSession) Dates() []time.Time {
@@ -218,7 +217,7 @@ func (c CourseSession) GetOptionDesc() string {
 }
 
 func (c CourseSession) Details() string {
-  return fmt.Sprintf("Led by %s @ %s", c.Instructor, c.TimeDesc)
+	return fmt.Sprintf("Led by %s @ %s", c.Instructor, c.TimeDesc)
 }
 
 /* List of dates in a nice, readable format */
@@ -290,16 +289,16 @@ func ParseCourseAvail(str string) (CourseAvail, bool) {
 }
 
 var mapEnumCurrency = func() map[string]Currency {
-  m := make(map[string]Currency)
-  m[string(USD)] = USD
-  m[string(SATS)] = SATS
+	m := make(map[string]Currency)
+	m[string(USD)] = USD
+	m[string(SATS)] = SATS
 
-  return m
+	return m
 }()
 
 func ParseCurrency(option string) (Currency, bool) {
-  curr, ok := mapEnumCurrency[strings.ToLower(option)]
-  return curr, ok
+	curr, ok := mapEnumCurrency[strings.ToLower(option)]
+	return curr, ok
 }
 
 func (s CourseLevel) String() string {
@@ -335,29 +334,29 @@ func BtcPrice(val uint64) uint64 {
 }
 
 func (c *Checkout) ComputePrice(opt CheckoutOpt) uint64 {
-  switch opt {
-    case Bitcoin:
-      return BtcPrice(c.Price)
-    case Fiat:
-      return FiatPrice(c.Price)
-  }
+	switch opt {
+	case Bitcoin:
+		return BtcPrice(c.Price)
+	case Fiat:
+		return FiatPrice(c.Price)
+	}
 
-  panic(fmt.Sprintf("checkout option \"%s\" does not compute", opt))
+	panic(fmt.Sprintf("checkout option \"%s\" does not compute", opt))
 }
 
 func (c *Checkout) ComputeCount() uint64 {
-  /* FIXME: more intelligent parsing lang for count discounts */
-  if c.DiscountCode == "6s-1" && c.Count == 6 {
-    return c.Count - 1
-  }
+	/* FIXME: more intelligent parsing lang for count discounts */
+	if c.DiscountCode == "6s-1" && c.Count == 6 {
+		return c.Count - 1
+	}
 
-  return c.Count
+	return c.Count
 }
 
 /* Returns the dollar value (USD) of a checkout */
 func (c *Checkout) ComputeTotal(opt CheckoutOpt) uint64 {
-  price := c.ComputePrice(opt)
-  count := c.ComputeCount()
+	price := c.ComputePrice(opt)
+	count := c.ComputeCount()
 
 	return price * count
 }

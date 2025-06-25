@@ -6,13 +6,13 @@ import (
 
 type (
 	NotionConfig struct {
-		Token      string
-		CoursesDb  string `toml:"courses"`
-		SessionsDb string `toml:"upcoming_sessions"`
-		SessionCartsDb    string `toml:"session_carts"`
+		Token          string
+		CoursesDb      string `toml:"courses"`
+		SessionsDb     string `toml:"upcoming_sessions"`
+		SessionCartsDb string `toml:"session_carts"`
 		ItemCartsDb    string `toml:"item_carts"`
-		SignupsDb  string `toml:"signups"`
-		WaitlistDb string `toml:"class_waitlist"`
+		SignupsDb      string `toml:"signups"`
+		WaitlistDb     string `toml:"class_waitlist"`
 	}
 
 	Notion struct {

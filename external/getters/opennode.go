@@ -14,11 +14,11 @@ import (
 const CHARGES_ENDPOINT string = "/charges"
 
 type OpenCheckoutInfo struct {
-  Amount float64
-  Description string
-  Email string
-  OrderID string
-  SuccessID string
+	Amount      float64
+	Description string
+	Email       string
+	OrderID     string
+	SuccessID   string
 }
 
 func InitOpenNodeCheckout(ctx *config.AppContext, on *types.OpenNodeConfig, c OpenCheckoutInfo) (*types.OpenNodePayment, error) {

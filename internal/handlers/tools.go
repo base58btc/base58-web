@@ -49,7 +49,7 @@ func MakeWIF(input string, networkByte uint8) (string, error) {
 	return base58.Encode(buf), nil
 }
 
-func MakeAddr(input string , hrp string) (string, error) {
+func MakeAddr(input string, hrp string) (string, error) {
 	/* For now, only work on segwit */
 	data, err := hex.DecodeString(input)
 	if err != nil {

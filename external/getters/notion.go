@@ -102,21 +102,21 @@ func parseRichText(key string, props map[string]notion.PropertyValue) string {
 func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Course {
 
 	course := &types.Course{
-		ID:            pageID,
-		Tag:           parseRichText("Tag", props),
-		Title:         parseRichText("Title", props),
-		Difficulty:    props["Difficulty"].Select.Name,
-		Format:        parseFormat(props["Format"].MultiSelect),
-		Topic:         props["Topic"].Select.Name,
-		Availability:  props["Availability"].Select.Name,
-		Popularity:    uint(props["Popularity"].Number),
-		PriceUSD:      uint(props["PriceUSD"].Number),
-		Flavor:        parseRichText("Flavor", props),
-		ShortDesc:     parseRichText("ShortDesc", props),
-		LongDesc:      parseRichText("LongDesc", props),
-		PreReqs:       parseRichText("PreReqs", props),
-		Visible:       props["Visible"].Checkbox,
-		Feature:       props["Feature"].Checkbox,
+		ID:           pageID,
+		Tag:          parseRichText("Tag", props),
+		Title:        parseRichText("Title", props),
+		Difficulty:   props["Difficulty"].Select.Name,
+		Format:       parseFormat(props["Format"].MultiSelect),
+		Topic:        props["Topic"].Select.Name,
+		Availability: props["Availability"].Select.Name,
+		Popularity:   uint(props["Popularity"].Number),
+		PriceUSD:     uint(props["PriceUSD"].Number),
+		Flavor:       parseRichText("Flavor", props),
+		ShortDesc:    parseRichText("ShortDesc", props),
+		LongDesc:     parseRichText("LongDesc", props),
+		PreReqs:      parseRichText("PreReqs", props),
+		Visible:      props["Visible"].Checkbox,
+		Feature:      props["Feature"].Checkbox,
 
 		//ExtURL:        props["ExternalURL"].URL,
 		//WelcomeEmail:  props["WelcomeEmail"].URL,
@@ -365,66 +365,69 @@ func SaveRegistration(n *types.Notion, idem string, seshUUID string, r *types.Cl
 	return page.ID, err
 }
 
-/* Save the Email + Items in a Cart, plus the Token. Helps us later identify
-   who hasn't checked out, and what they were planning to buy (but no quantities) */
+/*
+Save the Email + Items in a Cart, plus the Token. Helps us later identify
+
+	who hasn't checked out, and what they were planning to buy (but no quantities)
+*/
 func SaveCart(n *types.Notion, cart *checkout.Cart) (string, error) {
 
-  itemRefs := make([]*notion.ObjectReference, 0)
-  for _, item := range cart.Items {
-    itemRefs = append(itemRefs, &notion.ObjectReference{
-      ID: item.GetID(),
-    })
-  }
+	itemRefs := make([]*notion.ObjectReference, 0)
+	for _, item := range cart.Items {
+		itemRefs = append(itemRefs, &notion.ObjectReference{
+			ID: item.GetID(),
+		})
+	}
 
-  /* Concert cart to Base64 */
-  cartSerial, err := cart.ToBase64()
+	/* Concert cart to Base64 */
+	cartSerial, err := cart.ToBase64()
 
-  if err != nil {
-    return "", err
-  }
+	if err != nil {
+		return "", err
+	}
 
 	parent := notion.NewDatabaseParent(n.Config.ItemCartsDb)
 	props := map[string]*notion.PropertyValue{
 		"Token": notion.NewTitlePropertyValue(
 			[]*notion.RichText{
 				{
-          Type: notion.RichTextText,
-					Text: &notion.Text{Content: cart.Token,},
-        },
+					Type: notion.RichTextText,
+					Text: &notion.Text{Content: cart.Token},
+				},
 			}...),
 		"Contact": notion.NewRichTextPropertyValue(
 			[]*notion.RichText{
 				{
-          Type: notion.RichTextText,
-					Text: &notion.Text{Content: cart.Infos.Email,},
-        },
+					Type: notion.RichTextText,
+					Text: &notion.Text{Content: cart.Infos.Email},
+				},
 			}...),
-    "Items": notion.NewRelationPropertyValue(itemRefs...),
-    "JSON": notion.NewRichTextPropertyValue(
-      []*notion.RichText{
-        {
-          Type: notion.RichTextText,
-          Text: &notion.Text{Content: cartSerial,},
-        },
-      }...),
+		"Items": notion.NewRelationPropertyValue(itemRefs...),
+		"JSON": notion.NewRichTextPropertyValue(
+			[]*notion.RichText{
+				{
+					Type: notion.RichTextText,
+					Text: &notion.Text{Content: cartSerial},
+				},
+			}...),
 	}
 
-  if len(cart.Discounts) > 0 {
-    var discounts strings.Builder
-    for _, discount := range cart.Discounts {
-      if discounts.Len() > 0 {
-        discounts.WriteString(", ")
-      }
-      discounts.WriteString(discount)
-    }
-    props["Discounts"] = notion.NewRichTextPropertyValue(
-      []*notion.RichText{
-        {
-          Type: notion.RichTextText,
-          Text: &notion.Text{Content: discounts.String(),},
-        },
-      }...)
-  }
+	if len(cart.Discounts) > 0 {
+		var discounts strings.Builder
+		for _, discount := range cart.Discounts {
+			if discounts.Len() > 0 {
+				discounts.WriteString(", ")
+			}
+			discounts.WriteString(discount)
+		}
+		props["Discounts"] = notion.NewRichTextPropertyValue(
+			[]*notion.RichText{
+				{
+					Type: notion.RichTextText,
+					Text: &notion.Text{Content: discounts.String()},
+				},
+			}...)
+	}
 
 	page, err := n.Client.CreatePage(context.Background(), parent, props)
 	if err != nil {
@@ -451,47 +454,47 @@ func CheckIdemWaitlist(n *types.Notion, idemTok string) (bool, error) {
 	return len(pages) > 0, nil
 }
 
-func AddClassRegistration(n *types.Notion, regID, cartUUID, sessionUUID, token, email string, mailingAddr *string, tShirt *checkout.ShirtSize) (error) {
+func AddClassRegistration(n *types.Notion, regID, cartUUID, sessionUUID, token, email string, mailingAddr *string, tShirt *checkout.ShirtSize) error {
 
-  props := map[string]*notion.PropertyValue{
-    "Contact": notion.NewTitlePropertyValue(
-      []*notion.RichText{
-        {Type: notion.RichTextText,
-          Text: &notion.Text{Content: email}},
-      }...),
-    "RefID": notion.NewRichTextPropertyValue(
-      []*notion.RichText{
-        {Type: notion.RichTextText,
-          Text: &notion.Text{Content: regID}},
-      }...),
-    "session": notion.NewRelationPropertyValue(
-      []*notion.ObjectReference{{ID: sessionUUID}}...,
-    ),
-    "CartRef": notion.NewRelationPropertyValue(
-      []*notion.ObjectReference{{ID: cartUUID}}...,
-    ),
-  }
+	props := map[string]*notion.PropertyValue{
+		"Contact": notion.NewTitlePropertyValue(
+			[]*notion.RichText{
+				{Type: notion.RichTextText,
+					Text: &notion.Text{Content: email}},
+			}...),
+		"RefID": notion.NewRichTextPropertyValue(
+			[]*notion.RichText{
+				{Type: notion.RichTextText,
+					Text: &notion.Text{Content: regID}},
+			}...),
+		"session": notion.NewRelationPropertyValue(
+			[]*notion.ObjectReference{{ID: sessionUUID}}...,
+		),
+		"CartRef": notion.NewRelationPropertyValue(
+			[]*notion.ObjectReference{{ID: cartUUID}}...,
+		),
+	}
 
-  if mailingAddr != nil {
-    props["Mailing Address"] = notion.NewRichTextPropertyValue(
-      []*notion.RichText{
-        {Type: notion.RichTextText,
-          Text: &notion.Text{Content: *mailingAddr}},
-      }...)
-  }
+	if mailingAddr != nil {
+		props["Mailing Address"] = notion.NewRichTextPropertyValue(
+			[]*notion.RichText{
+				{Type: notion.RichTextText,
+					Text: &notion.Text{Content: *mailingAddr}},
+			}...)
+	}
 
-  if tShirt != nil {
-    props["T-Shirt Size"] = &notion.PropertyValue{
-      Type: notion.PropertySelect,
-      Select: &notion.SelectOption{
-        Name: tShirt.String(),
-      },
-    }
-  }
+	if tShirt != nil {
+		props["T-Shirt Size"] = &notion.PropertyValue{
+			Type: notion.PropertySelect,
+			Select: &notion.SelectOption{
+				Name: tShirt.String(),
+			},
+		}
+	}
 
-  _, err := n.Client.CreatePage(context.Background(), notion.NewDatabaseParent(n.Config.SignupsDb), props)
+	_, err := n.Client.CreatePage(context.Background(), notion.NewDatabaseParent(n.Config.SignupsDb), props)
 
-  return err
+	return err
 }
 
 func CheckCartNotPaid(n *types.Notion, paymentID string) (bool, error) {
@@ -520,13 +523,13 @@ func MarkCartPaid(n *types.Notion, lookupID string, paymentID string) (*checkout
 				}...),
 		})
 
-  if err != nil {
-    return nil, err
-  }
+	if err != nil {
+		return nil, err
+	}
 
-  /* Pull out the cart json data */
-  cartSerialized := parseRichText("JSON", page.Properties)
-  return checkout.CartFromBase64(cartSerialized)
+	/* Pull out the cart json data */
+	cartSerialized := parseRichText("JSON", page.Properties)
+	return checkout.CartFromBase64(cartSerialized)
 }
 
 func CountClassRegistration(n *types.Notion, sessionUUID string, seats uint) error {

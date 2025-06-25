@@ -118,7 +118,7 @@ func ConvertMdToHTML(ctx *config.AppContext, mdContent string) []byte {
 }
 
 func FilterWaitlistSessions(sessions []*types.CourseSession) []*types.CourseSession {
-  return FilterSessionsByAvail(sessions, 0)
+	return FilterSessionsByAvail(sessions, 0)
 }
 
 func FilterSessionsByAvail(sessions []*types.CourseSession, minAvail uint) []*types.CourseSession {
@@ -128,8 +128,8 @@ func FilterSessionsByAvail(sessions []*types.CourseSession, minAvail uint) []*ty
 		if sesh.SeatsAvail > minAvail {
 			filtered = append(filtered, sesh)
 		}
-  }
-  return filtered
+	}
+	return filtered
 }
 
 func FilterSessions(sessions []*types.CourseSession, from time.Time) []*types.CourseSession {

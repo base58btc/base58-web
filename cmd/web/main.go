@@ -42,13 +42,13 @@ func loadConfig() (*types.EnvConfig, bool) {
 	config.MailEndpoint = os.Getenv("MAIL_API")
 
 	config.Notion = types.NotionConfig{
-		Token:      os.Getenv("NOTION_TOKEN"),
-		CoursesDb:  os.Getenv("NOTION_COURSES"),
-		SessionsDb: os.Getenv("NOTION_SESSIONS"),
-		SessionCartsDb:    os.Getenv("NOTION_CARTS"),
+		Token:          os.Getenv("NOTION_TOKEN"),
+		CoursesDb:      os.Getenv("NOTION_COURSES"),
+		SessionsDb:     os.Getenv("NOTION_SESSIONS"),
+		SessionCartsDb: os.Getenv("NOTION_CARTS"),
 		ItemCartsDb:    os.Getenv("NOTION_ITEM_CARTS"),
-		SignupsDb:  os.Getenv("NOTION_SIGNUPS"),
-		WaitlistDb: os.Getenv("NOTION_WAITLIST"),
+		SignupsDb:      os.Getenv("NOTION_SIGNUPS"),
+		WaitlistDb:     os.Getenv("NOTION_WAITLIST"),
 	}
 
 	config.OpenNode = types.OpenNodeConfig{
@@ -76,8 +76,8 @@ func main() {
 	env, isProd := loadConfig()
 	app.IsProd = isProd
 
-  /* Register cart types */
-  handlers.RegisterCheckoutTypes()
+	/* Register cart types */
+	handlers.RegisterCheckoutTypes()
 
 	// Start the server
 	app.TemplateCache = make(map[string]*template.Template)
@@ -92,7 +92,7 @@ func main() {
 		AllowedHeaders: []string{"Content-Type", "Accept"},
 	})
 
-  corsHandler := cors.Handler(routes)
+	corsHandler := cors.Handler(routes)
 
 	fmt.Printf("Starting application on port %s\n", env.Port)
 	err = run(env)
@@ -100,7 +100,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-  loader := app.Session.LoadAndSave(corsHandler)
+	loader := app.Session.LoadAndSave(corsHandler)
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", env.Port),
 		Handler: loader,
