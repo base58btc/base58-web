@@ -175,7 +175,7 @@ func SendWaitlistEmail(ctx *config.AppContext, idem string, email string, course
 	mail := &Mail{
 		JobKey: idem,
 		Email:  email,
-		Title:  fmt.Sprintf("You're on the list for Base58's %s", course.PublicName),
+		Title:  fmt.Sprintf("You're on the list for Base58's %s", course.Title),
 		SendAt: time.Now(),
 	}
 
@@ -192,7 +192,7 @@ func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session
 	mail := &Mail{
 		JobKey: confirm.Idempotency,
 		Email:  confirm.Email,
-		Title:  fmt.Sprintf("Your Registration for Base58's %s", course.PublicName),
+		Title:  fmt.Sprintf("Your Registration for Base58's %s", course.Title),
 		SendAt: time.Now(),
 	}
 	mail.HTMLBody, mail.TextBody, err = Build(ctx, course.WelcomeEmail, course, session)

@@ -24,26 +24,29 @@ type (
 	}
 
 	CourseAvail string
+	CourseFormat string
 	CourseLevel string
 	ShirtSize   string
 	CheckoutOpt string
-  Currency    string
+	Currency    string
 
 	Course struct {
 		ID            string
-		TmplName      string
-		PublicName    string
-		Availability  []CourseAvail
+		Tag	      string
+		Title         string
+		Difficulty    string
+		Format        []CourseFormat
+		Topic         string
+		Availability  string
+		Popularity    uint
+		PriceUSD      uint
+		Flavor        string
 		ShortDesc     string
 		LongDesc      string
 		PreReqs       string
-		PromoURL      string
-		ComingSoon    bool
-		AppURL        string
-		Level         CourseLevel
 		Visible       bool
-		ReplitURL     string
-		UdemyURL      string
+		Feature       bool
+		ExtURL        string
 		WelcomeEmail  string
 		WaitlistEmail string
 	}
@@ -168,6 +171,18 @@ const (
 
 func (c CourseSession) IsUnscheduled() bool {
 	return len(c.Date) > 0 && c.Date[0] == "TBD"
+}
+
+func (c Course) FurlImg() string {
+	return fmt.Sprintf("courses/%s_card.png", c.Title)
+}
+
+func (c Course) PromoURL(domain string) string {
+	return fmt.Sprintf("https://%s/static/img/courses/%s-800.png", domain, c.Tag)
+}
+
+func (c Course) Featured(difficulty string) bool {
+	return difficulty == c.Difficulty && c.Visible && c.Feature	
 }
 
 func (c CourseSession) Dates() []time.Time {

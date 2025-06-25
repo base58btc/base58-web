@@ -1,0 +1,648 @@
+<!DOCTYPE html><!--  Last Published: Tue Apr 08 2025 21:31:31 GMT+0000 (Coordinated Universal Time)  -->
+<html data-wf-page="67e99b67a440161ba7dd67f5" data-wf-site="67d76c360ee76ed0c60f7a0e">
+<head>
+  <meta charset="utf-8">
+  <title>Bitcoin at Work(shop) | Base58⛓️🔓</title>
+  <meta content="Bitcoin at Work(shop) | Base58⛓️🔓" property="og:title">
+  <meta content="Bitcoin at Work(shop) | Base58⛓️🔓" property="twitter:title">
+  <meta content="width=device-width, initial-scale=1" name="viewport">
+  <link href="css/normalize.css" rel="stylesheet" type="text/css">
+  <link href="css/webflow.css" rel="stylesheet" type="text/css">
+  <link href="css/base58-staging-site-02.webflow.css" rel="stylesheet" type="text/css">
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin="anonymous">
+  <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js" type="text/javascript"></script>
+  <script type="text/javascript">WebFont.load({  google: {    families: ["Inter:regular,500,600,700,800,italic,500italic,600italic,700italic,800italic"]  }});</script>
+  <script src="https://use.typekit.net/yrr4gue.js" type="text/javascript"></script>
+  <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
+  <script type="text/javascript">!function(o,c){var n=c.documentElement,t=" w-mod-";n.className+=t+"js",("ontouchstart"in o||o.DocumentTouch&&c instanceof DocumentTouch)&&(n.className+=t+"touch")}(window,document);</script>
+  <link href="images/favicon.png" rel="shortcut icon" type="image/x-icon">
+  <link href="images/webclip.webp" rel="apple-touch-icon"><!--  Keep this css code to improve the font quality -->
+  <style>
+  * {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -o-font-smoothing: antialiased;
+  -webkit-appearance:none;
+}
+</style>
+  <style>
+.no-scroll {overflow:hidden;}
+</style>
+</head>
+<body>
+  <div class="page-wrapper is-relative">
+    <div class="global-styles w-embed">
+      <style>
+/* Set color style to inherit */
+.inherit-color * {
+    color: inherit;
+}
+/* Focus state style for keyboard navigation for the focusable elements */
+*[tabindex]:focus-visible,
+  input[type="file"]:focus-visible {
+   outline: 0.125rem solid #4d65ff;
+   outline-offset: 0.125rem;
+}
+/* Get rid of top margin on first element in any rich text element */
+.w-richtext > :not(div):first-child, .w-richtext > div:first-child > :first-child {
+  margin-top: 0 !important;
+}
+/* Get rid of bottom margin on last element in any rich text element */
+.w-richtext>:last-child, .w-richtext ol li:last-child, .w-richtext ul li:last-child {
+	margin-bottom: 0 !important;
+}
+/* Prevent all click and hover interaction with an element */
+.pointer-events-off {
+	pointer-events: none;
+}
+/* Enables all click and hover interaction with an element */
+.pointer-events-on {
+  pointer-events: auto;
+}
+/* Create a class of .div-square which maintains a 1:1 dimension of a div */
+.div-square::after {
+	content: "";
+	display: block;
+	padding-bottom: 100%;
+}
+/* Make sure containers never lose their center alignment */
+.container-medium,.container-small, .container-large {
+	margin-right: auto !important;
+  margin-left: auto !important;
+}
+/* 
+Make the following elements inherit typography styles from the parent and not have hardcoded values. 
+Important: You will not be able to style for example "All Links" in Designer with this CSS applied.
+Uncomment this CSS to use it in the project. Leave this message for future hand-off.
+*/
+/*
+a,
+.w-input,
+.w-select,
+.w-tab-link,
+.w-nav-link,
+.w-dropdown-btn,
+.w-dropdown-toggle,
+.w-dropdown-link {
+  color: inherit;
+  text-decoration: inherit;
+  font-size: inherit;
+}
+*/
+/* Apply "..." after 3 lines of text */
+.text-style-3lines {
+	display: -webkit-box;
+	overflow: hidden;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+}
+/* Apply "..." after 2 lines of text */
+.text-style-2lines {
+	display: -webkit-box;
+	overflow: hidden;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+}
+/* Adds inline flex display */
+.display-inlineflex {
+  display: inline-flex;
+}
+/* These classes are never overwritten */
+.hide {
+  display: none !important;
+}
+@media screen and (max-width: 991px) {
+    .hide, .hide-tablet {
+        display: none !important;
+    }
+}
+  @media screen and (max-width: 767px) {
+    .hide-mobile-landscape{
+      display: none !important;
+    }
+}
+  @media screen and (max-width: 479px) {
+    .hide-mobile{
+      display: none !important;
+    }
+}
+.margin-0 {
+  margin: 0rem !important;
+}
+.padding-0 {
+  padding: 0rem !important;
+}
+.spacing-clean {
+padding: 0rem !important;
+margin: 0rem !important;
+}
+.margin-top {
+  margin-right: 0rem !important;
+  margin-bottom: 0rem !important;
+  margin-left: 0rem !important;
+}
+.padding-top {
+  padding-right: 0rem !important;
+  padding-bottom: 0rem !important;
+  padding-left: 0rem !important;
+}
+.margin-right {
+  margin-top: 0rem !important;
+  margin-bottom: 0rem !important;
+  margin-left: 0rem !important;
+}
+.padding-right {
+  padding-top: 0rem !important;
+  padding-bottom: 0rem !important;
+  padding-left: 0rem !important;
+}
+.margin-bottom {
+  margin-top: 0rem !important;
+  margin-right: 0rem !important;
+  margin-left: 0rem !important;
+}
+.padding-bottom {
+  padding-top: 0rem !important;
+  padding-right: 0rem !important;
+  padding-left: 0rem !important;
+}
+.margin-left {
+  margin-top: 0rem !important;
+  margin-right: 0rem !important;
+  margin-bottom: 0rem !important;
+}
+.padding-left {
+  padding-top: 0rem !important;
+  padding-right: 0rem !important;
+  padding-bottom: 0rem !important;
+}
+.margin-horizontal {
+  margin-top: 0rem !important;
+  margin-bottom: 0rem !important;
+}
+.padding-horizontal {
+  padding-top: 0rem !important;
+  padding-bottom: 0rem !important;
+}
+.margin-vertical {
+  margin-right: 0rem !important;
+  margin-left: 0rem !important;
+}
+.padding-vertical {
+  padding-right: 0rem !important;
+  padding-left: 0rem !important;
+}
+/* Apply "..." at 100% width */
+.truncate-width { 
+		width: 100%; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}
+/* Removes native scrollbar */
+.no-scrollbar {
+    -ms-overflow-style: none;
+    overflow: -moz-scrollbars-none; 
+}
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+</style>
+    </div>
+    <div data-animation="default" class="navbar_section w-nav" data-easing2="ease" fs-scrolldisable-element="smart-nav" data-easing="ease" data-collapse="all" data-w-id="69af4d2f-92aa-cc08-ec30-a6ebbe738c2b" role="banner" data-duration="0">
+      <div class="navbar_container">
+        <a href="index.html" class="navbar_logo-link w-nav-brand"><img loading="lazy" src="images/chainlogo.avif" alt="" class="image-3"><img loading="lazy" src="images/locklogo.avif" alt="" class="image-3"></a>
+        <div class="navbar_wrapper">
+          <nav role="navigation" style="display:none;opacity:0" class="navbar_menu w-nav-menu">
+            <div class="navbar_menu-wrapper">
+              <div class="navbar_links-wrapper">
+                <a href="courses.html" class="navbar_link w-nav-link">Courses</a>
+                <div id="w-node-_69af4d2f-92aa-cc08-ec30-a6ebbe738c36-a7dd67f5"><img id="w-node-_69af4d2f-92aa-cc08-ec30-a6ebbe738c37-a7dd67f5" loading="lazy" alt="" src="https://d3e54v103j8qbb.cloudfront.net/plugins/Basic/assets/placeholder.60f9b1840c.svg" class="image _2"></div>
+                <a href="about.html" class="navbar_link w-nav-link">About Base58</a>
+                <a href="bitcoin-at-workshop.html" aria-current="page" class="navbar_link w-nav-link w--current"><span class="text-span-15">Bitcoin at Work(shop)</span></a>
+              </div>
+              <div class="navbar_bottom">
+                <a href="mailto:hello@base58.info" class="text-size-large menu">hello@base58.info</a>
+                <div class="w-layout-grid navbar_social-list">
+                  <a href="#" class="navbar_social-link w-inline-block"><img sizes="100vw" srcset="images/discord-white_1discord-white.avif 500w, images/discord-white_1-p-800.png 800w, images/discord-white_1-p-1080.png 1080w, images/discord-white_1.avif 3337w" alt="" src="images/discord-white_1.avif" loading="lazy" class="menu-image"></a>
+                  <a href="#" class="navbar_social-link w-inline-block"><img src="images/youtubeicon-white_1.avif" loading="lazy" alt="" class="menu-image"></a>
+                  <a href="#" class="navbar_social-link w-inline-block"><img src="images/x-icon-white.avif" loading="lazy" alt="" class="menu-image"></a>
+                  <a href="#" class="navbar_social-link w-inline-block"><img src="images/gh-white.avif" loading="lazy" alt="" class="menu-image"></a>
+                </div>
+              </div>
+            </div>
+          </nav>
+          <div class="navbar18_menu-button w-nav-button">
+            <div class="menu-icon4">
+              <div class="menu-icon_wrapper">
+                <div class="menu-icon4_line-top"></div>
+                <div class="menu-icon4_line-middle">
+                  <div class="menu-icon4_line-middle-top"></div>
+                  <div class="menu-icon4_line-middle-base"></div>
+                </div>
+                <div class="menu-icon4_line-bottom"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <main class="main-wrapper">
+      <header class="workshophero_section">
+        <div class="padding-global extra padding-xlarge">
+          <div class="container-large">
+            <div class="padding-section-large">
+              <div class="header48_component">
+                <div class="w-layout-grid header48_content">
+                  <div class="header48_content-left">
+                    <h1 class="heading-1">Proof of work doesn&#x27;t work unless you&#x27;ve done it for yourself.</h1>
+                  </div>
+                  <div class="header48_content-right"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <section class="product_section">
+        <div class="padding-global">
+          <div class="container-large">
+            <div class="padding-section-large">
+              <div class="w-layout-grid product_grid">
+                <div class="product_content">
+                  <div class="margin-bottom margin-small">
+                    <div style="padding-top:56.17021276595745%" class="w-embed-youtubevideo"><iframe src="https://www.youtube.com/embed/mk4rry2QMGo?rel=0&amp;controls=1&amp;autoplay=0&amp;mute=0&amp;start=0" frameborder="0" style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:auto" allow="autoplay; encrypted-media" allowfullscreen="" title="The Great Bitcoin Node LARP"></iframe></div>
+                  </div>
+                </div>
+                <div class="product_content">
+                  <div class="margin-bottom margin-small">
+                    <h2 class="heading-2">Bitcoin, Unplugged<br></h2>
+                  </div>
+                  <div class="margin-bottom margin-medium">
+                    <div class="header48_content-right">
+                      <p class="text-size-medium">Bitcoin is an open, decentralized protocol, but most people never get to see it in action. Bitcoin at Work(shop)<span> </span>changes that.<br><br>In this interactive workshop, you’ll step into the network itself, acting as nodes, miners, and transactors to experience how Bitcoin functions in real-time. No computers, just pure protocol in motion.<br><br>Perfect for STEM educators and communities, corporate teams, or anyone interested in getting hands-on with the protocol, Bitcoin at Work(shop) offers a tangible, engaging way to grasp the fundamentals of blockchain technology.</p>
+                      <p class="cta-text cta-text-format">Get to know the people bringing our workshop to life.</p>
+                      <div class="margin-top margin-medium">
+                        <div class="button-group">
+                          <a href="#meet-facilitators" class="secondary-button w-button">Meet Our Facilitators</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="facilitators_section">
+        <div class="padding-global">
+          <div class="container-large">
+            <div class="padding-section-large">
+              <div class="team10_component">
+                <div class="margin-bottom margin-xxlarge">
+                  <div class="max-width-large">
+                    <div class="margin-bottom margin-xsmall"></div>
+                    <div class="margin-bottom margin-small">
+                      <p id="meet-facilitators" class="bold-text yellow-accent callout">Meet our facilitators</p>
+                      <h2 class="heading-2 white">Learn more about the experts leading our workshops</h2>
+                    </div>
+                    <p class="cta-text neutral">Facilitators are traditionally non-technical leaders from Bitcoin communities who have gone through facilitator training and grown to become protocol experts themselves. Bitcoiners first, they can explain firsthand how the protocol works and would love to bring that same deep knowledge to your classroom or corporate boardroom.<br></p>
+                  </div>
+                  <div id="w-node-fd790565-f3d9-5d5a-3044-3ecbdb5be1bf-a7dd67f5" class="w-layout-layout quick-stack wf-layout-layout">
+                    <div class="w-layout-cell">
+                      <div class="team10_item">
+                        <div class="margin-bottom margin-small">
+                          <div class="team10_image-wrapper"><img loading="lazy" src="images/placeholder-image.svg" alt="" class="team10_image"></div>
+                        </div>
+                        <div class="margin-bottom margin-xsmall">
+                          <div class="team10_title-wrapper">
+                            <div class="text-size-large-2 text-weight-semibold white">niftynei</div>
+                            <div class="text-size-small white">Founder</div>
+                          </div>
+                        </div>
+                        <p class="text-size-medium white">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique.</p>
+                        <div class="margin-top margin-small"></div>
+                      </div>
+                    </div>
+                    <div class="w-layout-cell">
+                      <div class="team10_item">
+                        <div class="margin-bottom margin-small">
+                          <div class="team10_image-wrapper"><img loading="lazy" src="images/placeholder-image.svg" alt="" class="team10_image"></div>
+                        </div>
+                        <div class="margin-bottom margin-xsmall">
+                          <div class="team10_title-wrapper">
+                            <div class="text-size-large-2 text-weight-semibold white">nym</div>
+                            <div class="text-size-small white">Title</div>
+                          </div>
+                        </div>
+                        <p class="text-size-medium white">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique.</p>
+                        <div class="margin-top margin-small"></div>
+                      </div>
+                    </div>
+                    <div class="w-layout-cell">
+                      <div class="team10_item">
+                        <div class="margin-bottom margin-small">
+                          <div class="team10_image-wrapper"><img loading="lazy" src="images/placeholder-image.svg" alt="" class="team10_image"></div>
+                        </div>
+                        <div class="margin-bottom margin-xsmall">
+                          <div class="team10_title-wrapper">
+                            <div class="text-size-large-2 text-weight-semibold white">nym</div>
+                            <div class="text-size-small white">Title</div>
+                          </div>
+                        </div>
+                        <p class="text-size-medium white">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique.</p>
+                        <div class="margin-top margin-small"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="margin-top margin-xxlarge">
+                  <div class="max-width-medium">
+                    <div class="margin-bottom margin-xsmall">
+                      <h3 class="headng-3 white">Bring Bitcoin expertise to your community</h3>
+                    </div>
+                    <p class="cta-text yellow-accent">Want to bring a facilitator to your community or step up and become one yourself? We’re here to make it happen.</p>
+                    <div class="margin-top margin-medium">
+                      <div class="button-group">
+                        <a href="bitcoin-at-workshop/book-facilitator.html" class="primary-button w-button">Book a Facilitator</a>
+                        <a href="bitcoin-at-workshop/become-facilitator.html" class="tertiary-button dark-bg w-button">Become a Facilitator</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="product_section orange">
+        <div class="padding-global">
+          <div class="container-large">
+            <div class="padding-section-large">
+              <div class="w-layout-grid product_grid">
+                <div class="product_content">
+                  <div class="margin-bottom margin-small"><img src="images/placeholder-image.svg" loading="lazy" alt=""></div>
+                </div>
+                <div class="product_content">
+                  <div class="margin-bottom margin-small">
+                    <h2 class="heading-2">Do it yourself<br></h2>
+                  </div>
+                  <div class="margin-bottom margin-medium">
+                    <div class="header48_content-right">
+                      <p class="cta-text">Bitcoin at Work(shop) is designed to be fully self teachable and trainable. If you don&#x27;t want to teach official training or hire a facilitator, we have plenty of open-source materials and guides to help you get started. Running a Bitcoin at Work(shop) isn’t just educational—<span class="text-span-7">it’s an absolute blast</span>. </p>
+                      <p class="cta-text cta-text-format">Two ways to get started:</p>
+                      <ul role="list" class="list-2">
+                        <li>
+                          <p class="pre-requisites">
+                            <a href="#"><span class="semi-bold">Order a ready-made kit</span></a> and start playing right away
+                          </p>
+                        </li>
+                        <li>
+                          <p class="pre-requisites">
+                            <a href="https://github.com/base58btc/LARP" target="_blank"><span class="semi-bold">Follow the GitHub guide</span></a> to build your own
+                          </p>
+                        </li>
+                      </ul>
+                      <div class="button-group">
+                        <a href="#" class="primary-button w-button">Buy a Kit</a>
+                        <a href="#" class="tertiary-button w-button">Build a Kit</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="gallery_section">
+        <div class="padding-global">
+          <div class="container-large">
+            <div class="padding-section-large">
+              <div class="gallery_container">
+                <div class="margin-bottom margin-xxlarge">
+                  <h2 class="heading-2 white">People love Bitcoin at Workshop<br></h2>
+                  <p class="callout-text orange-text">(formerly known as World Famous Bitcoin LARP)</p>
+                </div>
+                <div data-delay="4000" data-animation="slide" class="gallery_slider w-slider" data-autoplay="false" data-easing="ease" data-hide-arrows="false" data-disable-swipe="false" data-autoplay-limit="0" data-nav-spacing="3" data-duration="500" data-infinite="false">
+                  <div class="gallery_mask w-slider-mask">
+                    <div data-w-id="556aaef2-4d54-72de-c5f2-09bee41ac82c" class="gallery_slide w-slide">
+                      <div class="gallery_image-wrapper"><img loading="lazy" src="images/placeholder-image.svg" alt="" class="gallery_image"></div>
+                    </div>
+                    <div data-w-id="556aaef2-4d54-72de-c5f2-09bee41ac82f" class="gallery_slide w-slide">
+                      <div class="gallery_image-wrapper"><img loading="lazy" src="images/placeholder-image.svg" alt="" class="gallery_image"></div>
+                    </div>
+                    <div data-w-id="556aaef2-4d54-72de-c5f2-09bee41ac832" class="gallery_slide w-slide">
+                      <div class="gallery_image-wrapper"><img loading="lazy" src="images/placeholder-image.svg" alt="" class="gallery_image"></div>
+                    </div>
+                  </div>
+                  <div class="slider-arrow is-bottom-previous w-slider-arrow-left">
+                    <div class="slider-arrow-icon_default w-embed"><svg width="100%" height="100%" viewbox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3.31066 8.75001L9.03033 14.4697L7.96967 15.5303L0.439339 8.00001L7.96967 0.469676L9.03033 1.53034L3.31066 7.25001L15.5 7.25L15.5 8.75L3.31066 8.75001Z" fill="currentColor"></path>
+                      </svg></div>
+                  </div>
+                  <div class="slider-arrow is-bottom-next w-slider-arrow-right">
+                    <div class="slider-arrow-icon_default w-embed"><svg width="100%" height="100%" viewbox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12.6893 7.25L6.96967 1.53033L8.03033 0.469666L15.5607 8L8.03033 15.5303L6.96967 14.4697L12.6893 8.75H0.5V7.25H12.6893Z" fill="currentColor"></path>
+                      </svg></div>
+                  </div>
+                  <div class="gallery_slide-nav w-slider-nav w-slider-nav-invert w-round"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="section_faq">
+        <div class="padding-global">
+          <div class="container-large">
+            <div class="padding-section-large">
+              <div class="faq_container">
+                <div class="w-layout-grid faq_content">
+                  <div class="faq_content-left">
+                    <div class="margin-bottom margin-small">
+                      <h2 class="heading-2 white">FAQ</h2>
+                    </div>
+                    <p class="text-size-medium white"><span class="orange-text">We&#x27;ve answered the most common questions here. </span><br>‍<br><span class="question_cta">Question not answered?</span></p>
+                    <div class="margin-top margin-medium">
+                      <div class="button-group">
+                        <a href="contact.html" class="tertiary-button dark-bg w-button">Get in Touch</a>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="faq_list">
+                    <div class="w-layout-grid faq_list-grid">
+                      <div class="faq_accordion">
+                        <div class="faq_question">
+                          <div class="text-size-medium text-weight-bold">What payment methods do you accept?</div>
+                          <div class="faq_icon-wrapper">
+                            <div class="icon-embed-small w-embed"><svg width="100%" height="100%" viewbox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M25.3333 15.667V16.3336C25.3333 16.7018 25.0349 17.0003 24.6667 17.0003H17V24.667C17 25.0351 16.7015 25.3336 16.3333 25.3336H15.6667C15.2985 25.3336 15 25.0351 15 24.667V17.0003H7.3333C6.96511 17.0003 6.66663 16.7018 6.66663 16.3336V15.667C6.66663 15.2988 6.96511 15.0003 7.3333 15.0003H15V7.33365C15 6.96546 15.2985 6.66699 15.6667 6.66699H16.3333C16.7015 6.66699 17 6.96546 17 7.33365V15.0003H24.6667C25.0349 15.0003 25.3333 15.2988 25.3333 15.667Z" fill="currentColor"></path>
+                              </svg></div>
+                          </div>
+                        </div>
+                        <div class="faq_answer">
+                          <div class="margin-bottom margin-small">
+                            <div class="max-width-large">
+                              <p class="text-size-small">You can checkout with Bitcoin (onchain + lightning) or with a credit card (fiat)</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="faq_accordion">
+                        <div class="faq_question">
+                          <div class="text-size-medium text-weight-bold">What if I&#x27;m not satisfied with the course?</div>
+                          <div class="faq_icon-wrapper">
+                            <div class="icon-embed-small w-embed"><svg width="100%" height="100%" viewbox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M25.3333 15.667V16.3336C25.3333 16.7018 25.0349 17.0003 24.6667 17.0003H17V24.667C17 25.0351 16.7015 25.3336 16.3333 25.3336H15.6667C15.2985 25.3336 15 25.0351 15 24.667V17.0003H7.3333C6.96511 17.0003 6.66663 16.7018 6.66663 16.3336V15.667C6.66663 15.2988 6.96511 15.0003 7.3333 15.0003H15V7.33365C15 6.96546 15.2985 6.66699 15.6667 6.66699H16.3333C16.7015 6.66699 17 6.96546 17 7.33365V15.0003H24.6667C25.0349 15.0003 25.3333 15.2988 25.3333 15.667Z" fill="currentColor"></path>
+                              </svg></div>
+                          </div>
+                        </div>
+                        <div class="faq_answer">
+                          <div class="margin-bottom margin-small">
+                            <div class="max-width-large">
+                              <p class="text-size-small">You can get a full refund within the first week of the course. No questions asked.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="faq_accordion">
+                        <div class="faq_question">
+                          <div class="text-size-medium text-weight-bold">Are there any options for team training?</div>
+                          <div class="faq_icon-wrapper">
+                            <div class="icon-embed-small w-embed"><svg width="100%" height="100%" viewbox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M25.3333 15.667V16.3336C25.3333 16.7018 25.0349 17.0003 24.6667 17.0003H17V24.667C17 25.0351 16.7015 25.3336 16.3333 25.3336H15.6667C15.2985 25.3336 15 25.0351 15 24.667V17.0003H7.3333C6.96511 17.0003 6.66663 16.7018 6.66663 16.3336V15.667C6.66663 15.2988 6.96511 15.0003 7.3333 15.0003H15V7.33365C15 6.96546 15.2985 6.66699 15.6667 6.66699H16.3333C16.7015 6.66699 17 6.96546 17 7.33365V15.0003H24.6667C25.0349 15.0003 25.3333 15.2988 25.3333 15.667Z" fill="currentColor"></path>
+                              </svg></div>
+                          </div>
+                        </div>
+                        <div class="faq_answer">
+                          <div class="margin-bottom margin-small">
+                            <div class="max-width-large">
+                              <p class="text-size-small">Yes! Please contact us at <a href="mailto:base58.info">hello@base58.info</a>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="cta_section courses">
+        <div class="padding-global">
+          <div class="container-small">
+            <div class="padding-section-large">
+              <div class="text_align-center">
+                <div class="margin-bottom margin-small">
+                  <h3 class="heading-3">Want to go deeper? </h3>
+                </div>
+                <p class="cta-text">Whether you&#x27;re new to Bitcoin development or looking to go deeper, our courses give you the technical foundation to build, verify, and contribute with confidence.</p>
+                <div class="margin-top margin-medium">
+                  <div class="button-group is-center">
+                    <a href="courses.html" class="secondary-button w-button">Explore Our Courses</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <footer class="footer_section">
+        <div class="padding-global">
+          <div class="container-large">
+            <div class="padding-vertical padding-xxlarge">
+              <div class="padding-bottom padding-xxlarge">
+                <div class="w-layout-grid footer2_top-wrapper">
+                  <div class="w-layout-grid footer2_left-wrapper">
+                    <a href="index.html" class="navbar_logo-link w-nav-brand"><img loading="lazy" src="images/chainlogo.avif" alt="" class="image-3"><img loading="lazy" src="images/locklogo.avif" alt="" class="image-3"></a>
+                    <div class="footer2_link-column">
+                      <div class="margin-bottom margin-xsmall">
+                        <div class="bold-text">Courses</div>
+                      </div>
+                      <div class="footer2_link-list">
+                        <a href="#" class="footer2_link">Link One</a>
+                        <a href="#" class="footer2_link">Link Two</a>
+                        <a href="#" class="footer2_link">Link Three</a>
+                        <a href="#" class="footer2_link">Link Four</a>
+                        <a href="#" class="footer2_link">Link Five</a>
+                      </div>
+                    </div>
+                    <div class="footer2_link-column">
+                      <div class="margin-bottom margin-xsmall">
+                        <div class="bold-text">Workshops</div>
+                      </div>
+                      <div class="footer2_link-list">
+                        <a href="#" class="footer2_link">Link Six</a>
+                        <a href="#" class="footer2_link">Link Seven</a>
+                        <a href="#" class="footer2_link">Link Eight</a>
+                        <a href="#" class="footer2_link">Link Nine</a>
+                        <a href="#" class="footer2_link">Link Ten</a>
+                      </div>
+                    </div>
+                    <div class="footer2_link-column">
+                      <div class="margin-bottom margin-xsmall">
+                        <div class="bold-text">Company</div>
+                      </div>
+                      <div class="footer2_link-list">
+                        <a href="#" class="footer2_link">Link Eleven</a>
+                        <a href="#" class="footer2_link">Link Twelve</a>
+                        <a href="#" class="footer2_link">Link Thirteen</a>
+                        <a href="#" class="footer2_link">Link Fourteen</a>
+                        <a href="#" class="footer2_link">Link Fifteen</a>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="footer2_right-wrapper">
+                    <div class="margin-bottom margin-xsmall">
+                      <div class="text-weight-semibold">Subscribe</div>
+                    </div>
+                    <div class="margin-bottom margin-xsmall"></div>
+                    <div class="footer2_form-block w-form">
+                      <form id="email-form" name="email-form" data-name="Email Form" method="get" class="footer9_form" data-wf-page-id="67e99b67a440161ba7dd67f5" data-wf-element-id="b28bcbf7-dd0f-a837-ba65-18a319b91d17"><input class="form_input w-input" maxlength="256" name="email-2" data-name="Email 2" placeholder="nym@email.com" type="email" id="email-2" required=""><input type="submit" data-wait="Please wait..." class="tertiary-button is-light w-button" value="Subscribe"></form>
+                      <div class="text-size-tiny neutral">By subscribing you agree to receive updates from Base58. No spam, just the good stuff.</div>
+                      <div class="form_message-success-wrapper w-form-done">
+                        <div class="form_message-success-4">
+                          <div>Thank you! Your submission has been received!</div>
+                        </div>
+                      </div>
+                      <div class="form_message-error-wrapper w-form-fail">
+                        <div class="form_message-error-2">
+                          <div>Oops! Something went wrong while submitting the form.</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="line-divider"></div>
+              <div class="padding-top padding-medium">
+                <div class="footer2_bottom-wrapper">
+                  <div class="w-layout-grid footer2_legal-list">
+                    <div id="w-node-b28bcbf7-dd0f-a837-ba65-18a319b91d28-19b91cda" class="footer2_credit-text">© 2025 Base58. All rights reserved.</div>
+                    <a href="#" class="footer2_legal-link white">Privacy Policy</a>
+                    <a href="#" class="footer2_legal-link white">Terms of Service</a>
+                  </div>
+                  <div class="w-layout-grid footer2_social-list">
+                    <a href="#" class="footer2_social-link w-inline-block"><img src="images/discord-white_1.avif" loading="lazy" width="24" sizes="24px" alt="" srcset="images/discord-white_1discord-white.avif 500w, images/discord-white_1-p-800.png 800w, images/discord-white_1-p-1080.png 1080w, images/discord-white_1.avif 3337w"></a>
+                    <a href="#" class="footer2_social-link w-inline-block"><img src="images/youtubeicon-white_1.avif" loading="lazy" width="24" alt=""></a>
+                    <a href="#" class="footer2_social-link w-inline-block"><img src="images/x-icon-white.avif" loading="lazy" width="22" alt=""></a>
+                    <a href="#" class="footer2_social-link w-inline-block"><img src="images/gh-white.avif" loading="lazy" width="24" alt=""></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </main>
+  </div>
+  <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=67d76c360ee76ed0c60f7a0e" type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+  <script src="js/webflow.js" type="text/javascript"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+{{ define "course_item" }}
+<div role="listitem" class="w-dyn-item"><a role="listitem"
+    href="courses/{{ .TmplName }}"
+    class="grid-list_item w-inline-block"><img loading="lazy"
+      src="https://cdn.prod.website-files.com/67d76c360ee76ed0c60f7a55/67d83b1c436a775bd1e41bdb_bitdevbasics.png"
+      alt="" sizes="100vw"
+      srcset="https://cdn.prod.website-files.com/67d76c360ee76ed0c60f7a55/67d83b1c436a775bd1e41bdb_bitdevbasics-p-500.png 500w, https://cdn.prod.website-files.com/67d76c360ee76ed0c60f7a55/67d83b1c436a775bd1e41bdb_bitdevbasics-p-800.png 800w, https://cdn.prod.website-files.com/67d76c360ee76ed0c60f7a55/67d83b1c436a775bd1e41bdb_bitdevbasics.png 1024w"
+      class="courses_lightbox-image">
+    <div class="grid-list_content-bottom">
+      <div class="grid-list_title-wrapper">
+	<div class="margin-bottom margin-xxsmall">
+	  <div fs-cmssort-field="name" fs-cmsfilter-field="name" class="heading-6">{{ .PublicName }}</div>
+	</div>
+	<p fs-cmsfilter-field="description" class="paragraph-3">{{ .ShortDesc }}</p>
+      </div>
+      <div class="margin-top margin-small">
+	<div class="grid-list10_details-wrapper">
+	  <div class="grid-list10_metatag">
+            {{ if eq .Level "everyone" }}
+	    {{ end }}
+            {{ if eq .Level "entry-dev" }}
+            <div class="page-header2_metatag-icon"><img
+		src="https://cdn.prod.website-files.com/67d76c360ee76ed0c60f7a55/67d89ed70c130303e9b54fd6_entrylevel-icon.png"
+		loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+	    <div fs-cmsfilter-field="level" class="text-size-small">Entry-level</div>
+	  {{ end }}
+          {{ if eq .Level "devs" }}
+            <div class="page-header2_metatag-icon"><img
+		src="https://cdn.prod.website-files.com/67d76c360ee76ed0c60f7a55/67d8821de1e356e8dfa1bb2e_developers-icon.png"
+		loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+	    <div fs-cmsfilter-field="level" class="text-size-small">Developers</div>
+	  {{ end }}
+          {{ if eq .Level "exp-devs" }}
+	    <div class="page-header2_metatag-icon"><img
+		src="https://cdn.prod.website-files.com/67d76c360ee76ed0c60f7a55/67d89e3e8e7e820a2f9d322c_experienced-icon.png"
+		loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+	    <div fs-cmsfilter-field="level" class="text-size-small">Experienced</div>
+	  {{ end }}
+	  <div class="notabutton is-tertiary is-small is-icon-only">
+	    <div fs-cmsfilter-field="format" class="text-size-small">{{ .CourseFormat }}</div>
+	  </div>
+	</div>
+      </div>
+    </div>
+    <div class="d-none">
+      <div fs-cmssort-field="popular" class="popularity">{{ .Popularity }}</div>
+      <div fs-cmssort-field="price" class="price">{{ .Price }}</div>
+      <div fs-cmssort-field="date" class="date">{{ .DateAdded }}</div>
+      <div fs-cmsfilter-field="topic" class="topic">{{ .Topic }}</div>
+      <div fs-cmsfilter-field="availability" class="availability">{{ .Availability }}</div>
+    </div>
+  </a></div>
+{{ end }}

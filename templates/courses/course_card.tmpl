@@ -1,0 +1,23 @@
+{{ define "course_card" }}
+<a href="courses/{{ .Tag }}" role="listitem" class="grid-list_item w-inline-block"><img sizes="100vw" srcset="/static/img/courses/{{ .Tag }}-500.png 500w, static/img/courses/{{ .Tag }}.png 1024w" alt="" src="/static/img/courses/{{ .Tag }}.png" loading="lazy" class="courses_lightbox-image">
+  <div class="grid-list_content-bottom">
+  <div class="grid-list_title-wrapper">
+    <div class="margin-bottom margin-xxsmall">
+      <div fs-cmssort-field="name" fs-cmsfilter-field="name" class="heading-style-h6-4">{{ .Title }}</div>
+    </div>
+    <p fs-cmsfilter-field="description">{{ .Flavor }}</p>
+  </div>
+  <div class="margin-top margin-small">
+    <div class="grid-list10_details-wrapper">
+      <div class="grid-list10_metatag">
+        <div class="page-header2_metatag-icon"><img src="/static/img/courses/{{ .Difficulty }}-icon.png" loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+        <div fs-cmsfilter-field="level" class="text-size-small">{{ .Difficulty }}</div>
+      </div>
+      <div class="button-10 is-tertiary is-small is-icon-only">
+        <div fs-cmsfilter-field="format" class="text-size-small">{{ index .Format 0 }}</div>
+      </div>
+    </div>
+  </div>
+  </div>
+</a>
+{{ end }}

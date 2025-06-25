@@ -1,0 +1,956 @@
+<!DOCTYPE html><!--  Last Published: Tue Apr 08 2025 21:31:31 GMT+0000 (Coordinated Universal Time)  -->
+<html data-wf-page="67dc4de4ec187bfc9994d4ce" data-wf-site="67d76c360ee76ed0c60f7a0e">
+<head>
+  <meta charset="utf-8">
+  <title>Base58⛓️🔓 | The world&#x27;s best Bitcoin protocol school</title>
+  <meta content="Base58⛓️🔓 | The world&#x27;s best Bitcoin protocol school" property="og:title">
+  <meta content="Base58⛓️🔓 | The world&#x27;s best Bitcoin protocol school" property="twitter:title">
+  <meta content="width=device-width, initial-scale=1" name="viewport">
+  <link href="css/normalize.css" rel="stylesheet" type="text/css">
+  <link href="css/webflow.css" rel="stylesheet" type="text/css">
+  <link href="css/base58-staging-site-02.webflow.css" rel="stylesheet" type="text/css">
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin="anonymous">
+  <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js" type="text/javascript"></script>
+  <script type="text/javascript">WebFont.load({  google: {    families: ["Inter:regular,500,600,700,800,italic,500italic,600italic,700italic,800italic"]  }});</script>
+  <script src="https://use.typekit.net/yrr4gue.js" type="text/javascript"></script>
+  <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
+  <script type="text/javascript">!function(o,c){var n=c.documentElement,t=" w-mod-";n.className+=t+"js",("ontouchstart"in o||o.DocumentTouch&&c instanceof DocumentTouch)&&(n.className+=t+"touch")}(window,document);</script>
+  <link href="images/favicon.png" rel="shortcut icon" type="image/x-icon">
+  <link href="images/webclip.webp" rel="apple-touch-icon"><!--  Keep this css code to improve the font quality -->
+  <style>
+  * {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -o-font-smoothing: antialiased;
+  -webkit-appearance:none;
+}
+</style>
+  <style>
+.no-scroll {overflow:hidden;}
+</style>
+  <link rel="stylesheet" href="https://use.typekit.net/yrr4gue.css">
+</head>
+<body class="body">
+  <div class="page-wrapper">
+    <div class="global-styles w-embed">
+      <style>
+/* Set color style to inherit */
+.inherit-color * {
+    color: inherit;
+}
+/* Focus state style for keyboard navigation for the focusable elements */
+*[tabindex]:focus-visible,
+  input[type="file"]:focus-visible {
+   outline: 0.125rem solid #4d65ff;
+   outline-offset: 0.125rem;
+}
+/* Get rid of top margin on first element in any rich text element */
+.w-richtext > :not(div):first-child, .w-richtext > div:first-child > :first-child {
+  margin-top: 0 !important;
+}
+/* Get rid of bottom margin on last element in any rich text element */
+.w-richtext>:last-child, .w-richtext ol li:last-child, .w-richtext ul li:last-child {
+	margin-bottom: 0 !important;
+}
+/* Prevent all click and hover interaction with an element */
+.pointer-events-off {
+	pointer-events: none;
+}
+/* Enables all click and hover interaction with an element */
+.pointer-events-on {
+  pointer-events: auto;
+}
+/* Create a class of .div-square which maintains a 1:1 dimension of a div */
+.div-square::after {
+	content: "";
+	display: block;
+	padding-bottom: 100%;
+}
+/* Make sure containers never lose their center alignment */
+.container-medium,.container-small, .container-large {
+	margin-right: auto !important;
+  margin-left: auto !important;
+}
+/* 
+Make the following elements inherit typography styles from the parent and not have hardcoded values. 
+Important: You will not be able to style for example "All Links" in Designer with this CSS applied.
+Uncomment this CSS to use it in the project. Leave this message for future hand-off.
+*/
+/*
+a,
+.w-input,
+.w-select,
+.w-tab-link,
+.w-nav-link,
+.w-dropdown-btn,
+.w-dropdown-toggle,
+.w-dropdown-link {
+  color: inherit;
+  text-decoration: inherit;
+  font-size: inherit;
+}
+*/
+/* Apply "..." after 3 lines of text */
+.text-style-3lines {
+	display: -webkit-box;
+	overflow: hidden;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+}
+/* Apply "..." after 2 lines of text */
+.text-style-2lines {
+	display: -webkit-box;
+	overflow: hidden;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+}
+/* Adds inline flex display */
+.display-inlineflex {
+  display: inline-flex;
+}
+/* These classes are never overwritten */
+.hide {
+  display: none !important;
+}
+@media screen and (max-width: 991px) {
+    .hide, .hide-tablet {
+        display: none !important;
+    }
+}
+  @media screen and (max-width: 767px) {
+    .hide-mobile-landscape{
+      display: none !important;
+    }
+}
+  @media screen and (max-width: 479px) {
+    .hide-mobile{
+      display: none !important;
+    }
+}
+.margin-0 {
+  margin: 0rem !important;
+}
+.padding-0 {
+  padding: 0rem !important;
+}
+.spacing-clean {
+padding: 0rem !important;
+margin: 0rem !important;
+}
+.margin-top {
+  margin-right: 0rem !important;
+  margin-bottom: 0rem !important;
+  margin-left: 0rem !important;
+}
+.padding-top {
+  padding-right: 0rem !important;
+  padding-bottom: 0rem !important;
+  padding-left: 0rem !important;
+}
+.margin-right {
+  margin-top: 0rem !important;
+  margin-bottom: 0rem !important;
+  margin-left: 0rem !important;
+}
+.padding-right {
+  padding-top: 0rem !important;
+  padding-bottom: 0rem !important;
+  padding-left: 0rem !important;
+}
+.margin-bottom {
+  margin-top: 0rem !important;
+  margin-right: 0rem !important;
+  margin-left: 0rem !important;
+}
+.padding-bottom {
+  padding-top: 0rem !important;
+  padding-right: 0rem !important;
+  padding-left: 0rem !important;
+}
+.margin-left {
+  margin-top: 0rem !important;
+  margin-right: 0rem !important;
+  margin-bottom: 0rem !important;
+}
+.padding-left {
+  padding-top: 0rem !important;
+  padding-right: 0rem !important;
+  padding-bottom: 0rem !important;
+}
+.margin-horizontal {
+  margin-top: 0rem !important;
+  margin-bottom: 0rem !important;
+}
+.padding-horizontal {
+  padding-top: 0rem !important;
+  padding-bottom: 0rem !important;
+}
+.margin-vertical {
+  margin-right: 0rem !important;
+  margin-left: 0rem !important;
+}
+.padding-vertical {
+  padding-right: 0rem !important;
+  padding-left: 0rem !important;
+}
+/* Apply "..." at 100% width */
+.truncate-width { 
+		width: 100%; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}
+/* Removes native scrollbar */
+.no-scrollbar {
+    -ms-overflow-style: none;
+    overflow: -moz-scrollbars-none; 
+}
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+</style>
+    </div>
+    <div data-animation="default" class="navbar_section w-nav" data-easing2="ease" fs-scrolldisable-element="smart-nav" data-easing="ease" data-collapse="all" data-w-id="25fbdeb2-68b0-dd58-0945-f6c6bb6053d3" role="banner" data-duration="0">
+      <div class="navbar_container">
+        <a href="index.html" aria-current="page" class="navbar_logo-link w-nav-brand w--current"><img loading="lazy" src="images/chainlogo.avif" alt="" class="image-3"><img loading="lazy" src="images/locklogo.avif" alt="" class="image-3"></a>
+        <div class="navbar_wrapper">
+          <nav role="navigation" class="navbar_menu w-nav-menu">
+            <div class="navbar_menu-wrapper">
+              <div class="navbar_links-wrapper">
+                <a href="courses.html" class="navbar_link w-nav-link">Courses</a>
+                <div id="w-node-_25fbdeb2-68b0-dd58-0945-f6c6bb6053de-bb6053d3"><img id="w-node-_25fbdeb2-68b0-dd58-0945-f6c6bb6053df-bb6053d3" loading="lazy" alt="" src="https://d3e54v103j8qbb.cloudfront.net/plugins/Basic/assets/placeholder.60f9b1840c.svg" class="image _2"></div>
+                <a href="about.html" class="navbar_link w-nav-link">About Base58</a>
+                <a href="bitcoin-at-workshop.html" class="navbar_link w-nav-link">Bitcoin at Work(shop)</a>
+              </div>
+              <div class="navbar_bottom">
+                <a href="mailto:hello@base58.info" class="text-size-large menu">hello@base58.info</a>
+                <div class="w-layout-grid navbar_social-list">
+                  <a href="#" class="navbar_social-link w-inline-block"><img sizes="100vw" srcset="images/discord-white_1discord-white.avif 500w, images/discord-white_1-p-800.png 800w, images/discord-white_1-p-1080.png 1080w, images/discord-white_1.avif 3337w" alt="" src="images/discord-white_1.avif" loading="lazy" class="menu-image"></a>
+                  <a href="#" class="navbar_social-link w-inline-block"><img src="images/youtubeicon-white_1.avif" loading="lazy" alt="" class="menu-image"></a>
+                  <a href="#" class="navbar_social-link w-inline-block"><img src="images/x-icon-white.avif" loading="lazy" alt="" class="menu-image"></a>
+                  <a href="#" class="navbar_social-link w-inline-block"><img src="images/gh-white.avif" loading="lazy" alt="" class="menu-image"></a>
+                </div>
+              </div>
+            </div>
+          </nav>
+          <div class="navbar18_menu-button w-nav-button">
+            <div class="menu-icon4">
+              <div class="menu-icon_wrapper">
+                <div class="menu-icon4_line-top"></div>
+                <div class="menu-icon4_line-middle">
+                  <div class="menu-icon4_line-middle-top"></div>
+                  <div class="menu-icon4_line-middle-base"></div>
+                </div>
+                <div class="menu-icon4_line-bottom"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <header class="hero_section hero_bg">
+      <div class="padding-global">
+        <div class="container-large">
+          <div class="padding-section-large">
+            <div class="header1_container">
+              <div class="w-layout-grid header1_content">
+                <div id="w-node-_4ecb0e53-d97c-1502-666d-befc70da2f2b-9994d4ce" class="header1_content-left">
+                  <div class="margin-bottom margin-small">
+                    <h1 class="heading-1 white">Base58⛓️🔓 is the world&#x27;s best Bitcoin protocol school.</h1>
+                    <p class="hero-subheading">Let us take you from zero to timechain hero.</p>
+                  </div>
+                  <div class="margin-top margin-medium">
+                    <div class="button-group">
+                      <a href="courses.html" class="primary-button w-button">Explore Our Courses</a>
+                      <a href="about.html" class="arrow-button is-link is-icon dark-bg w-inline-block">
+                        <div class="text-block">About Base58</div>
+                        <div class="icon-embed-xxsmall w-embed"><svg width="16" height="16" viewbox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M6 3L11 8L6 13" stroke="CurrentColor" stroke-width="1.5"></path>
+                          </svg></div>
+                      </a>
+                    </div>
+                    <section class="featured-section">
+                      <div>
+                        <div class="container-large">
+                          <div class="div-block">
+                            <div class="logo1_component">
+                              <div class="logo1_content">
+                                <div class="margin-bottom">
+                                  <div class="text-align-center-4">
+                                    <div class="max-width-large align-center">
+                                      <h6 class="heading-6 white">As featured in:</h6>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div class="logo1_list"><img width="180" loading="lazy" alt="" src="images/bitcoinMagazine.webp" class="logo1_logo"><img loading="lazy" src="images/thrillerBitcoin.webp" alt="" class="logo1_logo"><img loading="lazy" src="images/replit_1.avif" alt="" class="logo1_logo"><img width="130" height="Auto" alt="" src="images/tftc.webp" loading="lazy" class="logo1_logo"><img sizes="(max-width: 1663px) 100vw, 1663px" srcset="images/coindesk-logo-white-p-500.png 500w, images/coindesk-logo-white-p-800.png 800w, images/coindesk-logo-white-p-1080.png 1080w, images/coindesk-logo-white-p-1600.png 1600w, images/coindesk-logo-white.png 1663w" alt="" src="images/coindesk-logo-white.png" loading="lazy" class="logo1_logo"></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+                <div class="header1_image-wrapper"><img sizes="(max-width: 1376px) 100vw, 1376px" srcset="images/imagetest_1imagetest.avif 500w, images/imagetest_1.avif 1376w" alt="" src="images/imagetest_1.avif" loading="eager" class="header1_image _2">
+                  <section class="featured-section _2">
+                    <div>
+                      <div class="container-large">
+                        <div class="div-block">
+                          <div class="logo1_component">
+                            <div class="logo1_content">
+                              <div class="margin-bottom">
+                                <div class="text-align-center-4">
+                                  <div class="max-width-large align-center">
+                                    <h2 class="heading-style-h7">As featured in:</h2>
+                                  </div>
+                                </div>
+                              </div>
+                              <div class="logo1_list"><img loading="lazy" src="images/bitcoinMagazine.webp" alt="" class="logo1_logo"><img loading="lazy" src="images/thrillerBitcoin.webp" alt="" class="logo1_logo"><img loading="lazy" src="images/replit_1.avif" alt="" class="logo1_logo"><img loading="lazy" src="images/tftc.webp" alt="" class="logo1_logo"><img sizes="(max-width: 1663px) 100vw, 1663px" srcset="images/coindesk-logo-white-p-500.png 500w, images/coindesk-logo-white-p-800.png 800w, images/coindesk-logo-white-p-1080.png 1080w, images/coindesk-logo-white-p-1600.png 1600w, images/coindesk-logo-white.png 1663w" alt="" src="images/coindesk-logo-white.png" loading="lazy" class="logo1_logo"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <section class="courses_section">
+      <div class="padding-global">
+        <div class="container-large">
+          <div class="padding-section-large">
+            <div class="courses_container">
+              <div class="margin-bottom margin-xxlarge">
+                <div class="text-align-center-3">
+                  <div class="max-width-large align-center">
+                    <div class="margin-bottom margin-xsmall">
+                      <div class="callout-text">Start Learning</div>
+                    </div>
+                    <div class="margin-bottom margin-small">
+                      <div class="cta39_card-content-top">
+                        <div class="margin-bottom margin-small">
+                          <h2 class="heading-2">Bitcoin dynanism starts with you</h2>
+                        </div>
+                        <p class="text-size-medium">Our online and in-person courses are the perfect starting place for anyone looking to dive deeper into bitcoin—from beginners to seasoned devs. Wherever you are on your journey into the technical side of bitcoin, we&#x27;re here to level you up.</p>
+                      </div>
+                    </div>
+                    <p class="explore-paragraph">Ready to get started? Here&#x27;s a preview of sonething something.</p>
+                  </div>
+                </div>
+              </div>
+              <div data-duration-in="400" data-duration-out="200" data-current="Tab 2" data-easing="ease" class="courses_tabs w-tabs">
+                <div id="w-node-_4ecb0e53-d97c-1502-666d-befc70da2f5b-9994d4ce" class="courses_tabs-menu w-tab-menu">
+                  <a data-w-tab="Tab 1" class="courses_tab-link w-inline-block w-tab-link">
+                    <h3 class="featured-course-tab">Beginners &amp;<br> Fundamentals</h3>
+                  </a>
+                  <a data-w-tab="Tab 2" class="courses_tab-link w-inline-block w-tab-link w--current">
+                    <h3 class="featured-course-tab">App Developers &amp; <br>Transactors</h3>
+                  </a>
+                  <a data-w-tab="Tab 4" class="courses_tab-link w-inline-block w-tab-link">
+                    <h3 class="featured-course-tab">Research &amp;<br>Advanced Topics</h3>
+                  </a>
+                </div>
+                <div class="courses_tabs-content w-tab-content">
+                  <div data-w-tab="Tab 1" class="courses_tab-pane w-tab-pane">
+                    <div class="courses_card">
+                      <div class="courses_grid_list">
+                        <div class="courses_grid_list-wrapper">
+                          <div class="grid-list">
+                            <a href="courses/bitcoin-dev-basics-01.html" role="listitem" class="grid-list_item w-inline-block"><img sizes="100vw" srcset="images/bitdevbasics_1bitdevbasics.avif 500w, images/bitdevbasics_1.avif 1024w" alt="" src="images/bitdevbasics_1.avif" loading="lazy" class="courses_lightbox-image">
+                              <div class="grid-list_content-bottom">
+                                <div class="grid-list_title-wrapper">
+                                  <div class="margin-bottom margin-xxsmall">
+                                    <div fs-cmssort-field="name" fs-cmsfilter-field="name" class="heading-style-h6-4">Bitcoin Developer Basics 01</div>
+                                  </div>
+                                  <p fs-cmsfilter-field="description">Start your Bitcoin dev journey. Learn the basics of Bitcoin’s protocol, scripting, and key concepts to build a strong foundation.</p>
+                                </div>
+                                <div class="margin-top margin-small">
+                                  <div class="grid-list10_details-wrapper">
+                                    <div class="grid-list10_metatag">
+                                      <div class="page-header2_metatag-icon"><img src="images/entrylevel-icon.avif" loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+                                      <div fs-cmsfilter-field="level" class="text-size-small">Entry-level</div>
+                                    </div>
+                                    <div class="button-10 is-tertiary is-small is-icon-only">
+                                      <div fs-cmsfilter-field="format" class="text-size-small">Self-paced</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </a>
+                            <a href="courses/bitcoin-dev-basics-02.html" role="listitem" class="grid-list_item w-inline-block"><img sizes="100vw" srcset="images/bitdevbasics02_1bitdevbasics02.avif 500w, images/bitdevbasics02_1.avif 1024w" alt="" src="images/bitdevbasics02_1.avif" loading="lazy" class="courses_lightbox-image">
+                              <div class="grid-list_content-bottom">
+                                <div class="grid-list_title-wrapper">
+                                  <div class="margin-bottom margin-xxsmall">
+                                    <div fs-cmssort-field="name" fs-cmsfilter-field="name" class="heading-style-h6-4">Bitcoin Developer Basics 02</div>
+                                  </div>
+                                  <p fs-cmsfilter-field="description">Level up your Bitcoin dev skills. Dive deeper into transactions, UTXOs, and scripting to strengthen your technical foundation.</p>
+                                </div>
+                                <div class="margin-top margin-small">
+                                  <div class="grid-list10_details-wrapper">
+                                    <div class="grid-list10_metatag">
+                                      <div class="page-header2_metatag-icon"><img src="images/entrylevel-icon.avif" loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+                                      <div fs-cmsfilter-field="level" class="text-size-small">Entry-level</div>
+                                    </div>
+                                    <div class="button-10 is-tertiary is-small is-icon-only">
+                                      <div fs-cmsfilter-field="format" class="text-size-small">Self-paced</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div data-w-tab="Tab 2" class="courses_tab-pane w-tab-pane w--tab-active">
+                    <div class="courses_card">
+                      <div class="courses_grid_list">
+                        <div class="courses_grid_list-wrapper">
+                          <div class="grid-list">
+                            <a href="courses/wallets.html" role="listitem" class="grid-list_item w-inline-block"><img sizes="(max-width: 1024px) 100vw, 1024px" srcset="images/wallets_1wallets.avif 500w, images/wallets_1.avif 1024w" alt="" src="images/wallets_1.avif" loading="lazy" class="courses_lightbox-image">
+                              <div class="grid-list_content-bottom">
+                                <div class="grid-list_title-wrapper">
+                                  <div class="margin-bottom margin-xxsmall">
+                                    <div fs-cmssort-field="name" fs-cmsfilter-field="name" class="heading-style-h6-4">Wallets for Devs</div>
+                                  </div>
+                                  <p fs-cmsfilter-field="description">Build Bitcoin wallets from the ground up. Learn key management, security best practices, and transaction construction.</p>
+                                </div>
+                                <div class="margin-top margin-small">
+                                  <div class="grid-list10_details-wrapper">
+                                    <div class="grid-list10_metatag">
+                                      <div class="page-header2_metatag-icon"><img src="images/developers-icon.avif" loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+                                      <div fs-cmsfilter-field="level" class="text-size-small">Developers</div>
+                                    </div>
+                                    <div class="button-10 is-tertiary is-small is-icon-only">
+                                      <div fs-cmsfilter-field="format" class="text-size-small">Self-paced</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </a>
+                            <a href="courses/mempools.html" role="listitem" class="grid-list_item w-inline-block"><img sizes="(max-width: 1024px) 100vw, 1024px" srcset="images/mempools_1mempools.avif 500w, images/mempools_1.avif 1024w" alt="" src="images/mempools_1.avif" loading="lazy" class="courses_lightbox-image">
+                              <div class="grid-list_content-bottom">
+                                <div class="grid-list_title-wrapper">
+                                  <div class="margin-bottom margin-xxsmall">
+                                    <div fs-cmssort-field="name" fs-cmsfilter-field="name" class="heading-style-h6-4">Mempools: Diving In</div>
+                                  </div>
+                                  <p fs-cmsfilter-field="description">Dive deep into the Bitcoin mempool. Learn how transactions are prioritized, propagated, and optimized for fee efficiency.</p>
+                                </div>
+                                <div class="margin-top margin-small">
+                                  <div class="grid-list10_details-wrapper">
+                                    <div class="grid-list10_metatag">
+                                      <div class="page-header2_metatag-icon"><img src="images/developers-icon.avif" loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+                                      <div fs-cmsfilter-field="level" class="text-size-small">Developers</div>
+                                    </div>
+                                    <div class="button-10 is-tertiary is-small is-icon-only">
+                                      <div fs-cmsfilter-field="format" class="text-size-small">Self-paced</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </a>
+                            <a href="courses/ordinal-theory.html" role="listitem" class="grid-list_item w-inline-block"><img sizes="(max-width: 1024px) 100vw, 1024px" srcset="images/bots_1bots.avif 500w, images/bots_1.avif 1024w" alt="" src="images/bots_1.avif" loading="lazy" class="courses_lightbox-image">
+                              <div class="grid-list_content-bottom">
+                                <div class="grid-list_title-wrapper">
+                                  <div class="margin-bottom margin-xxsmall">
+                                    <div fs-cmssort-field="name" fs-cmsfilter-field="name" class="heading-style-h6-4">Bitcoin Builders: Bots Edition</div>
+                                  </div>
+                                  <p fs-cmsfilter-field="description">Automate Bitcoin interactions with hands-on scripting. Build bots for transactions, monitoring, and more using Python.</p>
+                                </div>
+                                <div class="margin-top margin-small">
+                                  <div class="grid-list10_details-wrapper">
+                                    <div class="grid-list10_metatag">
+                                      <div class="page-header2_metatag-icon"><img src="images/developers-icon.avif" loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+                                      <div fs-cmsfilter-field="level" class="text-size-small">Developers</div>
+                                    </div>
+                                    <div class="button-10 is-tertiary is-small is-icon-only">
+                                      <div fs-cmsfilter-field="format" class="text-size-small">Self-paced</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div data-w-tab="Tab 4" class="courses_tab-pane w-tab-pane">
+                    <div class="courses_card">
+                      <div class="courses_grid_list">
+                        <div class="courses_grid_list-wrapper">
+                          <div class="grid-list">
+                            <a href="courses/covenants.html" role="listitem" class="grid-list_item w-inline-block"><img sizes="100vw" srcset="images/convenants_1convenants.avif 500w, images/convenants_1convenants.avif 800w, images/convenants_1.avif 1024w" alt="" src="images/convenants_1.avif" loading="lazy" class="courses_lightbox-image">
+                              <div class="grid-list_content-bottom">
+                                <div class="grid-list_title-wrapper">
+                                  <div class="margin-bottom margin-xxsmall">
+                                    <div fs-cmssort-field="name" fs-cmsfilter-field="name" class="heading-style-h6-4">Covering Covenants (Beta)</div>
+                                  </div>
+                                  <p fs-cmsfilter-field="description">Master Bitcoin covenants to enforce spending conditions on-chain. Learn advanced scripting techniques for secure, programmable Bitcoin</p>
+                                </div>
+                                <div class="margin-top margin-small">
+                                  <div class="grid-list10_details-wrapper">
+                                    <div class="grid-list10_metatag">
+                                      <div class="page-header2_metatag-icon"><img src="images/experienced-icon.avif" loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+                                      <div fs-cmsfilter-field="level" class="text-size-small">Experienced</div>
+                                    </div>
+                                    <div class="button-10 is-tertiary is-small is-icon-only">
+                                      <div fs-cmsfilter-field="format" class="text-size-small">Self-paced</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </a>
+                            <a href="courses/lightning.html" role="listitem" class="grid-list_item w-inline-block"><img sizes="100vw" srcset="images/lightning_1lightning.avif 500w, images/lightning_1.avif 1024w" alt="" src="images/lightning_1.avif" loading="lazy" class="courses_lightbox-image">
+                              <div class="grid-list_content-bottom">
+                                <div class="grid-list_title-wrapper">
+                                  <div class="margin-bottom margin-xxsmall">
+                                    <div fs-cmssort-field="name" fs-cmsfilter-field="name" class="heading-style-h6-4">Lightning: BOLTs in a Flash</div>
+                                  </div>
+                                  <p fs-cmsfilter-field="description">Explore the Lightning Network&#x27;s BOLTs. Learn how routing, channels, and payments work to enable fast, low-cost Bitcoin transactions.</p>
+                                </div>
+                                <div class="margin-top margin-small">
+                                  <div class="grid-list10_details-wrapper">
+                                    <div class="grid-list10_metatag">
+                                      <div class="page-header2_metatag-icon"><img src="images/experienced-icon.avif" loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+                                      <div fs-cmsfilter-field="level" class="text-size-small">Experienced</div>
+                                    </div>
+                                    <div class="button-10 is-tertiary is-small is-icon-only">
+                                      <div fs-cmsfilter-field="format" class="text-size-small">Self-paced</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </a>
+                            <a href="courses/taproot.html" role="listitem" class="grid-list_item w-inline-block"><img sizes="100vw" srcset="images/taproot_1taproot.avif 500w, images/taproot_1.avif 1024w" alt="" src="images/taproot_1.avif" loading="lazy" class="courses_lightbox-image">
+                              <div class="grid-list_content-bottom">
+                                <div class="grid-list_title-wrapper">
+                                  <div class="margin-bottom margin-xxsmall">
+                                    <div fs-cmssort-field="name" fs-cmsfilter-field="name" class="heading-style-h6-4">Taproot Intensive</div>
+                                  </div>
+                                  <p fs-cmsfilter-field="description">Unlock Taproot’s potential. Learn how to enhance Bitcoin privacy, efficiency, and smart contract capabilities with this upgrade.</p>
+                                </div>
+                                <div class="margin-top margin-small">
+                                  <div class="grid-list10_details-wrapper">
+                                    <div class="grid-list10_metatag">
+                                      <div class="page-header2_metatag-icon"><img src="images/experienced-icon.avif" loading="lazy" alt="" class="icon-1x1-xsmall"></div>
+                                      <div fs-cmsfilter-field="level" class="text-size-small">Experienced</div>
+                                    </div>
+                                    <div class="button-10 is-tertiary is-small is-icon-only">
+                                      <div fs-cmsfilter-field="format" class="text-size-small">Self-paced</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="courses_cta">
+              <div class="button-group vertical">
+                <div class="text-size-medium">See what else we have to offer.</div>
+                <a href="courses.html" class="primary-button w-button">Explore All Courses</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="product_section terminal">
+      <div class="padding-global">
+        <div class="container-large">
+          <div class="padding-section-medium">
+            <div class="w-layout-grid product_grid">
+              <div class="product_content">
+                <div class="margin-bottom margin-small"><img src="images/baae58-buildskills_1.avif" loading="lazy" alt="" class="product_image"></div>
+              </div>
+              <div class="product_content btc-workshop">
+                <div class="margin-bottom margin-small">
+                  <p class="callout-text dark-bg">Bitcoin is for boardrooms and STEM classrooms</p>
+                  <h2 class="heading-2 white">Build your skills offline<br></h2>
+                </div>
+                <div class="margin-bottom margin-medium">
+                  <p class="cta-text neutral">Bitcoin at Work(shop) is Base58&#x27;s flagship hands-on workshop. Whether you’re a developer, educator, or community builder, Bitcoin at Work(shop) makes complex concepts tangible. Use the Bitcoin protocol in a way you&#x27;ve never experienced it before. <br></p>
+                </div>
+                <div class="button-group">
+                  <a href="bitcoin-at-workshop.html" class="secondary-button dark-bg w-button">Get Hands-On</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="features_section">
+      <div class="padding-global">
+        <div class="container-large">
+          <div class="padding-section-large">
+            <div class="features_layout">
+              <div class="features_layout-content">
+                <div class="features_linner-wrapper">
+                  <div class="features-header">
+                    <div class="margin-bottom margin-xsmall">
+                      <div class="callout-text">Our Approach</div>
+                    </div>
+                    <div class="margin-bottom margin-small">
+                      <h2 class="heading-2">Learn Bitcoin, No Shortcuts. No Black Boxes.</h2>
+                    </div>
+                  </div>
+                  <div data-duration-in="400" data-duration-out="200" data-current="Tab 3" data-easing="ease" class="features-tabs w-tabs">
+                    <div class="features_tabs-content w-tab-content">
+                      <div data-w-tab="Tab 1" class="features_tab-pane w-tab-pane">
+                        <div class="features_image-wrapper"><img sizes="100vw" srcset="images/features-protocol-first-p-500.webp 500w, images/features-protocol-first-p-800.webp 800w, images/features-protocol-first.webp 1024w" alt="" src="images/features-protocol-first.webp" loading="lazy" class="features_image"></div>
+                      </div>
+                      <div data-w-tab="Tab 2" class="features_tab-pane w-tab-pane">
+                        <div class="features_image-wrapper"><img sizes="100vw" srcset="images/testimonial-highlight-p-500.webp 500w, images/testimonial-highlight-p-800.webp 800w, images/testimonial-highlight-p-1080.webp 1080w, images/testimonial-highlight-p-1600.webp 1600w, images/testimonial-highlight.webp 1670w" alt="" src="images/testimonial-highlight.webp" loading="lazy" class="features_image"></div>
+                      </div>
+                      <div data-w-tab="Tab 3" class="features_tab-pane w-tab-pane w--tab-active">
+                        <div class="features_image-wrapper"><img sizes="(max-width: 1024px) 100vw, 1024px" srcset="images/features-expert-p-500.webp 500w, images/features-expert-p-800.webp 800w, images/features-expert.webp 1024w" alt="" src="images/features-expert.webp" loading="lazy" class="features_image"></div>
+                      </div>
+                      <div data-w-tab="Tab 4" class="features_tab-pane w-tab-pane">
+                        <div class="features_image-wrapper"><img sizes="100vw" srcset="images/features-interactive2_1features-interactive2.avif 500w, images/features-interactive2_1features-interactive2.avif 800w, images/features-interactive2_1features-interactive2.avif 1080w, images/features-interactive2_1.avif 2048w" alt="" src="images/features-interactive2_1.avif" loading="lazy" class="features_image"></div>
+                      </div>
+                      <div data-w-tab="Tab 5" class="features_tab-pane w-tab-pane">
+                        <div class="features_image-wrapper"><img sizes="100vw" srcset="images/features-learningpaths2_1features-learningpaths2.avif 500w, images/features-learningpaths2_1features-learningpaths2.avif 800w, images/features-learningpaths2_1features-learningpaths2.avif 1080w, images/features-learningpaths2_1.avif 1800w" alt="" src="images/features-learningpaths2_1.avif" loading="lazy" class="features_image"></div>
+                      </div>
+                    </div>
+                    <div id="w-node-b6f801ec-5257-689f-b1d5-a82521d9d1d4-9994d4ce" class="features_tabs-menu w-tab-menu">
+                      <a data-w-tab="Tab 1" id="w-node-b6f801ec-5257-689f-b1d5-a82521d9d1d5-9994d4ce" class="features_tab-link w-inline-block w-tab-link">
+                        <div class="features_tab-title">
+                          <h3 class="features-title">Protocol-first learning</h3>
+                          <div class="features_paragraph">
+                            <div class="margin-top margin-xxsmall">
+                              <p class="paragraph">We teach Bitcoin from the ground up. You&#x27;ll learn how transactions, nodes, and consensus work at the protocol level so you can code with confidence.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                      <a data-w-tab="Tab 2" class="features_tab-link w-inline-block w-tab-link">
+                        <div class="features_tab-title">
+                          <h3 class="features-title">Real-world applications</h3>
+                          <div class="features_paragraph">
+                            <div class="margin-top margin-xxsmall">
+                              <p>Turn knowledge into impact. Our curriculum is designed for developers who want to apply their knowledge, whether you&#x27;re contributing to open-source, building tools, or auditing code.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                      <a data-w-tab="Tab 3" class="features_tab-link w-inline-block w-tab-link w--current">
+                        <div class="features_tab-title">
+                          <h3 class="features-title">Expert-led courses</h3>
+                          <div class="features_paragraph">
+                            <div class="margin-top margin-xxsmall">
+                              <p>Learn from Bitcoin engineers who have built, broken, and improved real systems. Our instructors bring deep protocol experience and guide you through the technical details that matter.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                      <a data-w-tab="Tab 4" id="w-node-cc8b9671-ed6b-f513-f3c7-4b7b027d583e-9994d4ce" class="features_tab-link w-inline-block w-tab-link">
+                        <div class="features_tab-title">
+                          <h3 class="features-title">Interactive learning</h3>
+                          <div class="features_paragraph">
+                            <div class="margin-top margin-xxsmall">
+                              <p>Get hands-on with Bitcoin. From coding challenges to our world-famous Bitcoin at Work(shop), we make learning active, engaging, and designed to stick.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                      <a data-w-tab="Tab 5" id="w-node-_1179bfa5-e8fa-0c24-694a-aa33e2b3a9c9-9994d4ce" class="features_tab-link w-inline-block w-tab-link">
+                        <div class="features_tab-title">
+                          <h3 class="features-title">Flexible learning paths</h3>
+                          <div class="features_paragraph">
+                            <div class="margin-top margin-xxsmall">
+                              <p>No matter your starting point, we meet you where you are. Whether you&#x27;re new to Bitcoin or leveling up as a developer, our courses let you learn at your own pace.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="div-block-2">
+        <div class="button-group">
+          <a href="courses.html" class="primary-button w-button">Explore All Courses</a>
+          <a href="about.html" class="arrow-button is-link is-icon w-inline-block">
+            <div>Get to know us</div>
+            <div class="icon-embed-xxsmall w-embed"><svg width="16" height="16" viewbox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 3L11 8L6 13" stroke="CurrentColor" stroke-width="1.5"></path>
+              </svg></div>
+          </a>
+        </div>
+      </div>
+      <section class="section_testimonial">
+        <div class="padding-global">
+          <div class="container-large">
+            <div class="padding-section-large">
+              <div class="testimonial7_component">
+                <div data-delay="4000" data-animation="slide" class="testimonial7_slider w-slider" data-autoplay="false" data-easing="ease" data-hide-arrows="false" data-disable-swipe="false" data-autoplay-limit="0" data-nav-spacing="3" data-duration="500" data-infinite="true">
+                  <div class="testimonial7_mask w-slider-mask">
+                    <div class="testimonial7_slide w-slide">
+                      <div class="testimonial7_content">
+                        <h3 class="heading-style-h6-3">&quot;As a junior developer it&#x27;s a daunting task jumping into Bitcoin development for the first time, I&#x27;ve tried on my own and failed multiple times in the past. Base58 gave me a new opportunity to dive in again guided by a real expert in the industry along side a class of likeminded students. This has been invaluable for my understanding of the Bitcoin protocol and has given me examples and actionable next steps for developing my skills and starting to build on Bitcoin for real. Thank you Base58!&quot;</h3>
+                        <div class="margin-top margin-medium">
+                          <div class="testimonial7_client">
+                            <div class="margin-bottom margin-xsmall">
+                              <div class="testimonial7_client-image-wrapper"><img loading="lazy" src="images/placeholder-image.svg" alt="" class="testimonial7_client-image"></div>
+                            </div>
+                            <div class="text-size-medium semi-bold">PlebDev</div>
+                            <div class="text-size-small">Front End Engineer @ Fold</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="testimonial7_slide w-slide">
+                      <div class="testimonial7_content">
+                        <div class="margin-bottom margin-medium"></div>
+                        <h3 class="heading-style-h6-3">&quot;Phenomenal course. Came into it with limited technical knowledge of bitcoin. They make it super accessible (no dev experience needed, interactive and fun) and I&#x27;m now sooo much more comfortable with the technical side of the bitcoin fundamentals. In fact, some of the things I learnt helped me while interviewing at bitcoin companies! If you&#x27;re interested in bitcoin and want to learn about how it works - highly recommend taking this course!&quot;</h3>
+                        <div class="margin-top margin-medium">
+                          <div class="testimonial7_client">
+                            <div class="margin-bottom margin-xsmall">
+                              <div class="testimonial7_client-image-wrapper"><img loading="lazy" src="images/placeholder-image.svg" alt="" class="testimonial7_client-image"></div>
+                            </div>
+                            <div class="text-size-medium semi-bold">Super Coder</div>
+                            <div class="text-size-small">Sr. Software Engineer @ Swan Bitcoin</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="testimonial7_slide w-slide">
+                      <div class="testimonial7_content">
+                        <div class="margin-bottom margin-medium"></div>
+                        <h3 class="heading-style-h6-3">&quot;I thought I knew how transactions worked in bitcoin up until I took the class. It is a deep, byte by byte dive into the different types of transactions, understandable for non-coding people. Just have an open mindset, let yourself be taught the most basic bitcoin-cli and python commands, and you are good to go. I was afraid it would be too technical, and don&#x27;t get me wrong, it does get into the roots of how the transaction protocols work, but nifty managed to keep it simple and clear enough for someone with a basic bitcoin knowledge to follow.&quot;</h3>
+                        <div class="margin-top margin-medium">
+                          <div class="testimonial7_client">
+                            <div class="margin-bottom margin-xsmall">
+                              <div class="testimonial7_client-image-wrapper"><img loading="lazy" src="images/placeholder-image.svg" alt="" class="testimonial7_client-image"></div>
+                            </div>
+                            <div class="text-size-medium semi-bold">Based Anon</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="slider-arrow is-centre-previous hide-mobile-landscape w-slider-arrow-left">
+                    <div class="slider-arrow-icon_default w-embed"><svg width="100%" height="100%" viewbox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3.31066 8.75001L9.03033 14.4697L7.96967 15.5303L0.439339 8.00001L7.96967 0.469676L9.03033 1.53034L3.31066 7.25001L15.5 7.25L15.5 8.75L3.31066 8.75001Z" fill="currentColor"></path>
+                      </svg></div>
+                  </div>
+                  <div class="slider-arrow is-centre-next hide-mobile-landscape w-slider-arrow-right">
+                    <div class="slider-arrow-icon_default w-embed"><svg width="100%" height="100%" viewbox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12.6893 7.25L6.96967 1.53033L8.03033 0.469666L15.5607 8L8.03033 15.5303L6.96967 14.4697L12.6893 8.75H0.5V7.25H12.6893Z" fill="currentColor"></path>
+                      </svg></div>
+                  </div>
+                  <div class="testimonial7_slide-nav w-slider-nav w-slider-nav-invert w-round"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+    <section class="section_faq">
+      <div class="padding-global">
+        <div class="container-large">
+          <div class="padding-section-large">
+            <div class="faq_container">
+              <div class="w-layout-grid faq_content">
+                <div class="faq_content-left">
+                  <div class="margin-bottom margin-small">
+                    <h2 class="heading-2 white">FAQ</h2>
+                  </div>
+                  <p class="text-size-medium white"><span class="orange-text">We&#x27;ve answered the most common questions here. </span><br>‍<br><span class="question_cta">Question not answered?</span></p>
+                  <div class="margin-top margin-medium">
+                    <div class="button-group">
+                      <a href="contact.html" class="tertiary-button dark-bg w-button">Get in Touch</a>
+                    </div>
+                  </div>
+                </div>
+                <div class="faq_list">
+                  <div class="w-layout-grid faq_list-grid">
+                    <div class="faq_accordion">
+                      <div class="faq_question">
+                        <div class="text-size-medium text-weight-bold">What payment methods do you accept?</div>
+                        <div class="faq_icon-wrapper">
+                          <div class="icon-embed-small w-embed"><svg width="100%" height="100%" viewbox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M25.3333 15.667V16.3336C25.3333 16.7018 25.0349 17.0003 24.6667 17.0003H17V24.667C17 25.0351 16.7015 25.3336 16.3333 25.3336H15.6667C15.2985 25.3336 15 25.0351 15 24.667V17.0003H7.3333C6.96511 17.0003 6.66663 16.7018 6.66663 16.3336V15.667C6.66663 15.2988 6.96511 15.0003 7.3333 15.0003H15V7.33365C15 6.96546 15.2985 6.66699 15.6667 6.66699H16.3333C16.7015 6.66699 17 6.96546 17 7.33365V15.0003H24.6667C25.0349 15.0003 25.3333 15.2988 25.3333 15.667Z" fill="currentColor"></path>
+                            </svg></div>
+                        </div>
+                      </div>
+                      <div class="faq_answer">
+                        <div class="margin-bottom margin-small">
+                          <div class="max-width-large">
+                            <p class="text-size-small">You can checkout with Bitcoin (onchain + lightning) or with a credit card (fiat)</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="faq_accordion">
+                      <div class="faq_question">
+                        <div class="text-size-medium text-weight-bold">What if I&#x27;m not satisfied with the course?</div>
+                        <div class="faq_icon-wrapper">
+                          <div class="icon-embed-small w-embed"><svg width="100%" height="100%" viewbox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M25.3333 15.667V16.3336C25.3333 16.7018 25.0349 17.0003 24.6667 17.0003H17V24.667C17 25.0351 16.7015 25.3336 16.3333 25.3336H15.6667C15.2985 25.3336 15 25.0351 15 24.667V17.0003H7.3333C6.96511 17.0003 6.66663 16.7018 6.66663 16.3336V15.667C6.66663 15.2988 6.96511 15.0003 7.3333 15.0003H15V7.33365C15 6.96546 15.2985 6.66699 15.6667 6.66699H16.3333C16.7015 6.66699 17 6.96546 17 7.33365V15.0003H24.6667C25.0349 15.0003 25.3333 15.2988 25.3333 15.667Z" fill="currentColor"></path>
+                            </svg></div>
+                        </div>
+                      </div>
+                      <div class="faq_answer">
+                        <div class="margin-bottom margin-small">
+                          <div class="max-width-large">
+                            <p class="text-size-small">You can get a full refund within the first week of the course. No questions asked.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="faq_accordion">
+                      <div class="faq_question">
+                        <div class="text-size-medium text-weight-bold">Are there any options for team training?</div>
+                        <div class="faq_icon-wrapper">
+                          <div class="icon-embed-small w-embed"><svg width="100%" height="100%" viewbox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M25.3333 15.667V16.3336C25.3333 16.7018 25.0349 17.0003 24.6667 17.0003H17V24.667C17 25.0351 16.7015 25.3336 16.3333 25.3336H15.6667C15.2985 25.3336 15 25.0351 15 24.667V17.0003H7.3333C6.96511 17.0003 6.66663 16.7018 6.66663 16.3336V15.667C6.66663 15.2988 6.96511 15.0003 7.3333 15.0003H15V7.33365C15 6.96546 15.2985 6.66699 15.6667 6.66699H16.3333C16.7015 6.66699 17 6.96546 17 7.33365V15.0003H24.6667C25.0349 15.0003 25.3333 15.2988 25.3333 15.667Z" fill="currentColor"></path>
+                            </svg></div>
+                        </div>
+                      </div>
+                      <div class="faq_answer">
+                        <div class="margin-bottom margin-small">
+                          <div class="max-width-large">
+                            <p class="text-size-small">Yes! Please contact us at <a href="mailto:base58.info">hello@base58.info</a>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="cta_section">
+      <div class="padding-global">
+        <div class="container-small">
+          <div class="padding-section-large">
+            <div class="text-align-center">
+              <div class="margin-bottom margin-small">
+                <h3 class="heading-3">Ready to get started?</h3>
+              </div>
+              <p class="text-size-medium">Whether you&#x27;re new to Bitcoin development or looking to go deeper, our courses give you the technical foundation to build, verify, and contribute with confidence.</p>
+              <div class="margin-top margin-medium">
+                <div class="button-group is-center">
+                  <a href="courses.html" class="primary-button w-button">Explore Our Courses</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <footer class="footer_section">
+      <div class="padding-global">
+        <div class="container-large">
+          <div class="padding-vertical padding-xxlarge">
+            <div class="padding-bottom padding-xxlarge">
+              <div class="w-layout-grid footer2_top-wrapper">
+                <div class="w-layout-grid footer2_left-wrapper">
+                  <a href="index.html" aria-current="page" class="navbar_logo-link w-nav-brand w--current"><img loading="lazy" src="images/chainlogo.avif" alt="" class="image-3"><img loading="lazy" src="images/locklogo.avif" alt="" class="image-3"></a>
+                  <div class="footer2_link-column">
+                    <div class="margin-bottom margin-xsmall">
+                      <div class="bold-text">Courses</div>
+                    </div>
+                    <div class="footer2_link-list">
+                      <a href="#" class="footer2_link">Link One</a>
+                      <a href="#" class="footer2_link">Link Two</a>
+                      <a href="#" class="footer2_link">Link Three</a>
+                      <a href="#" class="footer2_link">Link Four</a>
+                      <a href="#" class="footer2_link">Link Five</a>
+                    </div>
+                  </div>
+                  <div class="footer2_link-column">
+                    <div class="margin-bottom margin-xsmall">
+                      <div class="bold-text">Workshops</div>
+                    </div>
+                    <div class="footer2_link-list">
+                      <a href="#" class="footer2_link">Link Six</a>
+                      <a href="#" class="footer2_link">Link Seven</a>
+                      <a href="#" class="footer2_link">Link Eight</a>
+                      <a href="#" class="footer2_link">Link Nine</a>
+                      <a href="#" class="footer2_link">Link Ten</a>
+                    </div>
+                  </div>
+                  <div class="footer2_link-column">
+                    <div class="margin-bottom margin-xsmall">
+                      <div class="bold-text">Company</div>
+                    </div>
+                    <div class="footer2_link-list">
+                      <a href="#" class="footer2_link">Link Eleven</a>
+                      <a href="#" class="footer2_link">Link Twelve</a>
+                      <a href="#" class="footer2_link">Link Thirteen</a>
+                      <a href="#" class="footer2_link">Link Fourteen</a>
+                      <a href="#" class="footer2_link">Link Fifteen</a>
+                    </div>
+                  </div>
+                </div>
+                <div class="footer2_right-wrapper">
+                  <div class="margin-bottom margin-xsmall">
+                    <div class="text-weight-semibold">Subscribe</div>
+                  </div>
+                  <div class="margin-bottom margin-xsmall"></div>
+                  <div class="footer2_form-block w-form">
+                    <form id="email-form" name="email-form" data-name="Email Form" method="get" class="footer9_form" data-wf-page-id="67dc4de4ec187bfc9994d4ce" data-wf-element-id="b28bcbf7-dd0f-a837-ba65-18a319b91d17"><input class="form_input w-input" maxlength="256" name="email-2" data-name="Email 2" placeholder="nym@email.com" type="email" id="email-2" required=""><input type="submit" data-wait="Please wait..." class="tertiary-button is-light w-button" value="Subscribe"></form>
+                    <div class="text-size-tiny neutral">By subscribing you agree to receive updates from Base58. No spam, just the good stuff.</div>
+                    <div class="form_message-success-wrapper w-form-done">
+                      <div class="form_message-success-4">
+                        <div>Thank you! Your submission has been received!</div>
+                      </div>
+                    </div>
+                    <div class="form_message-error-wrapper w-form-fail">
+                      <div class="form_message-error-2">
+                        <div>Oops! Something went wrong while submitting the form.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="line-divider"></div>
+            <div class="padding-top padding-medium">
+              <div class="footer2_bottom-wrapper">
+                <div class="w-layout-grid footer2_legal-list">
+                  <div id="w-node-b28bcbf7-dd0f-a837-ba65-18a319b91d28-19b91cda" class="footer2_credit-text">© 2025 Base58. All rights reserved.</div>
+                  <a href="#" class="footer2_legal-link white">Privacy Policy</a>
+                  <a href="#" class="footer2_legal-link white">Terms of Service</a>
+                </div>
+                <div class="w-layout-grid footer2_social-list">
+                  <a href="#" class="footer2_social-link w-inline-block"><img src="images/discord-white_1.avif" loading="lazy" width="24" sizes="24px" alt="" srcset="images/discord-white_1discord-white.avif 500w, images/discord-white_1-p-800.png 800w, images/discord-white_1-p-1080.png 1080w, images/discord-white_1.avif 3337w"></a>
+                  <a href="#" class="footer2_social-link w-inline-block"><img src="images/youtubeicon-white_1.avif" loading="lazy" width="24" alt=""></a>
+                  <a href="#" class="footer2_social-link w-inline-block"><img src="images/x-icon-white.avif" loading="lazy" width="22" alt=""></a>
+                  <a href="#" class="footer2_social-link w-inline-block"><img src="images/gh-white.avif" loading="lazy" width="24" alt=""></a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+  <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=67d76c360ee76ed0c60f7a0e" type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+  <script src="js/webflow.js" type="text/javascript"></script>
+</body>
+</html>

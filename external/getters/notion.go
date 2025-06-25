@@ -23,6 +23,16 @@ func fileGetURL(file *notion.File) string {
 	return ""
 }
 
+func parseFormat(options []*notion.SelectOption) []types.CourseFormat {
+	var formats []types.CourseFormat
+
+	for _, opt := range options {
+		formats = append(formats, types.CourseFormat(opt.Name))
+	}
+
+	return formats
+}
+
 func parseAvail(avail []*notion.SelectOption) []types.CourseAvail {
 	var avails []types.CourseAvail
 
@@ -90,30 +100,27 @@ func parseRichText(key string, props map[string]notion.PropertyValue) string {
 }
 
 func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Course {
+
 	course := &types.Course{
 		ID:            pageID,
-		TmplName:      parseRichText("Name", props),
-		PublicName:    parseRichText("PublicName", props),
-		Availability:  parseAvail(props["Availability"].MultiSelect),
+		Tag:           parseRichText("Tag", props),
+		Title:         parseRichText("Title", props),
+		Difficulty:    props["Difficulty"].Select.Name,
+		Format:        parseFormat(props["Format"].MultiSelect),
+		Topic:         props["Topic"].Select.Name,
+		Availability:  props["Availability"].Select.Name,
+		Popularity:    uint(props["Popularity"].Number),
+		PriceUSD:      uint(props["PriceUSD"].Number),
+		Flavor:        parseRichText("Flavor", props),
 		ShortDesc:     parseRichText("ShortDesc", props),
 		LongDesc:      parseRichText("LongDesc", props),
 		PreReqs:       parseRichText("PreReqs", props),
-		ComingSoon:    props["Coming Soon"].Checkbox,
-		AppURL:        props["AppURL"].URL,
-		Level:         parseLevel(props["Difficulty"].Select),
 		Visible:       props["Visible"].Checkbox,
-		ReplitURL:     props["ReplitURL"].URL,
-		UdemyURL:      props["UdemyURL"].URL,
-		WelcomeEmail:  props["WelcomeEmail"].URL,
-		WaitlistEmail: props["WaitlistEmail"].URL,
-	}
+		Feature:       props["Feature"].Checkbox,
 
-	if len(props["HeaderImg"].Files) > 0 {
-		file := props["HeaderImg"].Files[0]
-		course.PromoURL = fileGetURL(file)
-	} else {
-		/* default image */
-		course.PromoURL = "/static/img/at_computer.jpg"
+		//ExtURL:        props["ExternalURL"].URL,
+		//WelcomeEmail:  props["WelcomeEmail"].URL,
+		//WaitlistEmail: props["WaitlistEmail"].URL,
 	}
 
 	return course
@@ -133,7 +140,7 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 		ID:                pageID,
 		ClassRef:          parseRichText("ClassRef", props),
 		Cost:              uint64(props["Cost"].Number),
-    Currency:          parseCurrency(props["Currency"].Select),
+		Currency:          parseCurrency(props["Currency"].Select),
 		TShirt:            props["T-Shirt"].Checkbox,
 		Online:            props["Online"].Checkbox,
 		TotalSeats:        uint(props["TotalSeats"].Number),
@@ -162,27 +169,7 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 	return session
 }
 
-/* Fake list of courses */
-func fakeCourselist() []*types.Course {
-	return []*types.Course{
-		{
-			ID:           "12345",
-			TmplName:     "fake1",
-			PublicName:   "TempCourse",
-			Availability: []types.CourseAvail{types.Replit, types.InPerson},
-			ShortDesc:    "This is a temporary class bullet",
-			ComingSoon:   false,
-			Level:        types.Devs,
-			AppURL:       "",
-			Visible:      true,
-		},
-	}
-}
-
 func ListCourses(n *types.Notion) ([]*types.Course, error) {
-	/* For now, just return the fake courses */
-	//return fakeCourselist(), nil
-
 	/* FIXME: pagination */
 	pages, _, _, _ := n.Client.QueryDatabase(context.Background(),
 		n.Config.CoursesDb, notion.QueryDatabaseParam{})
@@ -201,7 +188,7 @@ func GetCourse(n *types.Notion, classSlug string) (*types.Course, error) {
 	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
 		n.Config.CoursesDb, notion.QueryDatabaseParam{
 			Filter: &notion.Filter{
-				Property: "Name",
+				Property: "Tag",
 				Text: &notion.TextFilterCondition{
 					Equals: classSlug,
 				},
@@ -225,7 +212,8 @@ func GetSessionInfoUUID(n *types.Notion, sessionUUID string) (*types.Course, *ty
 		return nil, nil, err
 	}
 
-	courseID := sessionPage.Properties["course"].Relation[0].ID
+	//courseID := sessionPage.Properties["course"].Relation[0].ID
+	courseID := sessionPage.Properties["new_courses"].Relation[0].ID
 	session := parseSession(sessionPage.ID, sessionPage.Properties)
 
 	page, err := n.Client.RetrievePage(context.Background(), courseID)
@@ -233,7 +221,7 @@ func GetSessionInfoUUID(n *types.Notion, sessionUUID string) (*types.Course, *ty
 		return nil, nil, err
 	}
 	course := parseCourse(page.ID, page.Properties)
-	session.CourseName = course.PublicName
+	session.CourseName = course.Title
 	return course, session, nil
 }
 
@@ -279,7 +267,7 @@ func GetSessionInfo(n *types.Notion, sessionID string) (*types.Course, *types.Co
 		return nil, nil, err
 	}
 	course := parseCourse(page.ID, page.Properties)
-	session.CourseName = course.PublicName
+	session.CourseName = course.Title
 	return course, session, nil
 }
 
@@ -303,7 +291,7 @@ func GetCourseSessions(n *types.Notion, course *types.Course) ([]*types.CourseSe
 	}
 	for _, page := range pages {
 		session := parseSession(page.ID, page.Properties)
-		session.CourseName = course.PublicName
+		session.CourseName = course.Title
 		sessions = append(sessions, session)
 	}
 

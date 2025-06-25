@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    {{ block "head" .Page }} {{ end }}
+    <script src="https://js.stripe.com/v3/"></script>
+  </head>
+  <body>
+   {{ block "nav" . }} {{ end }}
+   <main class="py-24 sm:py-32">
+      <div class="relative isolate">
+        <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+          <div class="bg-gray-900 ring-1 ring-white/10 sm:rounded-3xl">
+	      <div class="mx-auto flex max-w-2xl flex-col gap-16 bg-white/5 px-6 py-16 ring-1 ring-white/10 sm:rounded-3xl sm:p-8 lg:mx-0 lg:max-w-none lg:flex-row lg:items-top lg:py-20 xl:gap-x-20 xl:px-20">
+		<img class="h-32 aspect-video sm:aspect-inherit sm:h-96 w-full flex-none rounded-2xl object-cover shadow-xl lg:aspect-square lg:h-auto lg:max-w-sm" src="{{ .PromoURL }}" alt="">
+		<div class="w-full flex-auto">
+		  <p class="font-semibold leading-7 text-bitcoin">Secure your spot</p>
+		   <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl mb-10">
+		    {{ .CourseName }}
+		   </h2>
+                   <p class="mt-6 text-lg leading-8 text-gray-300">
+		   {{ if eq .Count 1}}
+    		   Registering for <span class="font-semibold">{{ .Count }}</span> seat
+		   {{ else }}
+    		   Registering for <span class="font-semibold">{{ .Count }}</span> seats
+		   {{ end }}
+		   in the {{ .Desc }} course.
+		   </p>
+                   <p class="mt-2 text-lg leading-8 text-gray-300 font-semibold">
+			Total:
+			<span class="text-green-600">${{ .Total }}</span>
+		   </p>
+		   <form id="payment-form" data-secret="{{ .ClientSecret }}"
+			class="max-w-7xl mt-6">
+		     <div id="card-element">
+		      <!-- Elements will create input elements here -->
+		    </div>
+
+		      <!-- We'll put the error messages in this element -->
+		      <div id="card-errors" role="alert"></div>
+		      <div class="w-full items-center">
+		         <button id="card-button" class="mt-6 bg-btcgold hover:bg-btcgold text-white font-bold py-2 px-4 rounded" type="submit" >Submit Payment</button>
+		      </div>
+		    </form>
+	         </div>
+	       </div>
+	     </div>
+	  </div>
+        </div>
+   </main>
+  {{ block "footer" .Page }} {{ end }}
+  </body>
+<script>
+var stripe = Stripe('{{ .PubKey }}');
+
+/* Set up Stripe.js and Elements to use in checkout form */
+const appearance = {
+  theme: 'night'
+};
+const clientSecret = '{{ .ClientSecret }}';
+const elements = stripe.elements({clientSecret, appearance});
+
+var card = elements.create("payment", { 
+	layout: {
+		'type': 'accordion',
+		defaultCollapsed: false,
+		radios: true,
+		spacedAccordionItems: false,
+        }
+});
+card.mount("#card-element");
+
+card.on('change', ({error}) => {
+  let displayError = document.getElementById('card-errors');
+  if (error) {
+    displayError.textContent = error.message;
+  } else {
+    displayError.textContent = '';
+  }
+});
+
+
+/* Submit payment! */
+var form = document.getElementById('payment-form');
+
+form.addEventListener('submit', function(ev) {
+  ev.preventDefault();
+  /* Disable the button */
+  let submit = document.getElementById('card-button')
+  submit.disabled = true;
+
+  if (!stripe) {
+	// Stripe.js hasn't loaded yet.
+	return;
+  }
+
+  elements.submit().then(function(res) {
+    if (res.error) {
+      let displayError = document.getElementById('card-errors');
+      displayError.textContent = res.error.message;
+      submit.disabled = false;
+      return;
+    }
+	  stripe.confirmPayment({
+	    elements,
+	    clientSecret,
+	    confirmParams: {
+	      return_url: '{{ .Page.Callbacks }}/success?sid={{ .SessionID }}',
+	    }, 
+            redirect: 'if_required',
+	  }).then(function(result) {
+	      if (result.error) {
+		// Show error to your customer (for example, insufficient funds)
+		console.log(result.error);
+		let displayError = document.getElementById('card-errors');
+		displayError.textContent = result.error.message;
+                submit.disabled = false;
+	      } else {
+		console.log(result.paymentIntent);
+		if (result.paymentIntent.status === 'succeeded') {
+		  window.location.href = "/success?sid={{ .SessionID }}"
+	      }
+	    }
+	  });
+  });
+
+});
+</script>
+</html>
+

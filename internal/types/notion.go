@@ -7,7 +7,7 @@ import (
 type (
 	NotionConfig struct {
 		Token      string
-		CoursesDb  string `toml:"available_courses"`
+		CoursesDb  string `toml:"courses"`
 		SessionsDb string `toml:"upcoming_sessions"`
 		SessionCartsDb    string `toml:"session_carts"`
 		ItemCartsDb    string `toml:"item_carts"`

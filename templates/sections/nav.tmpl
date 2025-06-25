@@ -1,65 +1,40 @@
 {{ define "nav" }}
-  <header class="bg-white absolute inset-x-0 top-0 z-50">
-    <nav class="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8" aria-label="Global">
-      <div class="flex lg:flex-1">
-        <a href="/" class="-m-1.5 p-1.5">
-          <span class="sr-only">Base58</span>
-	  <img src="/static/img/chains_26d3-fe0f.png" class="inline h-8 w-auto" alt="chains"/>
-	 <img src="/static/img/unlocked_1f513.png" class="inline w-auto h-8" alt="unlocked"/>
-        </a>
-      </div>
-      <div class="flex lg:hidden">
-        <button type="button" onclick="toggleMenu(this)" class="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700">
-          <span class="sr-only">Open main menu</span>
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-          </svg>
-        </button>
-      </div>
-      <div class="hidden lg:flex lg:gap-x-12">
-        <a href="/larp" class="text-sm font-semibold leading-6 text-gray-900">LARP</a>
-        <a href="/#courses" class="text-sm font-semibold leading-6 text-gray-900">Courses</a>
-
-        <a href="/#testimonials" class="text-sm font-semibold leading-6 text-gray-900">Testimonials</a>
-
-        <a href="/#faq" class="text-sm font-semibold leading-6 text-gray-900">FAQ</a>
-
-        <a href="/#team" class="text-sm font-semibold leading-6 text-gray-900">About Us</a>
-      </div>
-    </nav>
-    <!-- Mobile menu, show/hide based on menu open state. -->
-    <div class="hidden lg:hidden" role="nav-dialog" aria-modal="true">
-      <!-- Background backdrop, show/hide based on slide-over state. -->
-      <div class="fixed inset-0 z-50"></div>
-      <div class="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
-        <div class="flex items-center justify-between">
-          <a onclick="toggleMenu(this)" href="/#" class="-m-1.5 p-1.5">
-            <span class="sr-only">Base58</span>
-	    <img src="/static/img/chains_26d3-fe0f.png" class="inline h-8 w-auto" alt="chains"/>
-	    <img src="/static/img/unlocked_1f513.png" class="inline w-auto h-8" alt="unlocked"/>
-          </a>
-          <button type="button" onclick="closeMenu(this)" class="-m-2.5 rounded-md p-2.5 text-gray-700">
-            <span class="sr-only">Close menu</span>
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div class="mt-6 flow-root">
-          <div class="-my-6 divide-y divide-gray-500/10">
-            <div class="space-y-2 py-6">
-              <a onclick="toggleMenu(this)" href="/larp" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">LARP</a>
-              <a onclick="toggleMenu(this)" href="/#courses" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">Courses</a>
-
-              <a onclick="toggleMenu(this)" href="/#testimonials" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">Testimonials</a>
-
-              <a onclick="toggleMenu(this)" href="/#faq" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">FAQ</a>
-
-              <a onclick="toggleMenu(this)" href="/#team" class="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">About Us</a>
+    <div data-animation="default" class="navbar_section w-nav" data-easing2="ease" fs-scrolldisable-element="smart-nav" data-easing="ease" data-collapse="all" data-w-id="25fbdeb2-68b0-dd58-0945-f6c6bb6053d3" role="banner" data-duration="0">
+      <div class="navbar_container">
+        <a href="/" aria-current="page" class="navbar_logo-link w-nav-brand w--current"><img loading="lazy" src="static/img/chainlogo.avif" alt="" class="image-3"><img loading="lazy" src="static/img/locklogo.avif" alt="" class="image-3"></a>
+        <div class="navbar_wrapper">
+          <nav role="navigation" class="navbar_menu w-nav-menu">
+            <div class="navbar_menu-wrapper">
+              <div class="navbar_links-wrapper">
+                <a href="courses" class="navbar_link w-nav-link">Courses</a>
+                <div id="w-node-_25fbdeb2-68b0-dd58-0945-f6c6bb6053de-bb6053d3"><img id="w-node-_25fbdeb2-68b0-dd58-0945-f6c6bb6053df-bb6053d3" loading="lazy" alt="" src="https://d3e54v103j8qbb.cloudfront.net/plugins/Basic/assets/placeholder.60f9b1840c.svg" class="image _2"></div>
+                <a href="/about" class="navbar_link w-nav-link">About Base58</a>
+                <a href="/workshop" class="navbar_link w-nav-link">Bitcoin at Work(shop)</a>
+              </div>
+              <div class="navbar_bottom">
+                <a href="mailto:hello@base58.school" class="text-size-large menu">hello@base58.school</a>
+                <div class="w-layout-grid navbar_social-list">
+                  <a href="https://discord.gg/2rJUZCVnBd" target="_blank" class="navbar_social-link w-inline-block"><img sizes="100vw" srcset="static/img/discord-white_1discord-white.avif 500w, static/img/discord-white_1-p-800.png 800w, static/img/discord-white_1-p-1080.png 1080w, static/img/discord-white_1.avif 3337w" alt="" src="static/img/discord-white_1.avif" loading="lazy" class="menu-image"></a>
+                  <a href="https://www.youtube.com/channel/UCosoJ9ReUBqMIuD4g4IOtyw" target="_blank" class="navbar_social-link w-inline-block"><img src="static/img/youtubeicon-white_1.avif" loading="lazy" alt="" class="menu-image"></a>
+                  <a href="https://x.com/base58btc" target="_blank" class="navbar_social-link w-inline-block"><img src="static/img/x-icon-white.avif" loading="lazy" alt="" class="menu-image"></a>
+                  <a href="https://github.com/base58btc" target="_blank" class="navbar_social-link w-inline-block"><img src="static/img/gh-white.avif" loading="lazy" alt="" class="menu-image"></a>
+                </div>
+              </div>
+            </div>
+          </nav>
+          <div class="navbar18_menu-button w-nav-button">
+            <div class="menu-icon4">
+              <div class="menu-icon_wrapper">
+                <div class="menu-icon4_line-top"></div>
+                <div class="menu-icon4_line-middle">
+                  <div class="menu-icon4_line-middle-top"></div>
+                  <div class="menu-icon4_line-middle-base"></div>
+                </div>
+                <div class="menu-icon4_line-bottom"></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </header>
 {{ end }}

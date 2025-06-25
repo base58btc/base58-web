@@ -30,14 +30,11 @@ import (
 	"github.com/stripe/stripe-go/v74/webhook"
 )
 
+var pages []string = []string{"about", "courses", "404", "401", "workshop", "contact", "index", "workshop/book", "workshop/become"}
+var tools []string = []string{"wif", "keyaddr" }
+
 /* if not in prod, we rebild this every request (expensive, but fast) */
 func BuildTemplateCache(ctx *config.AppContext) error {
-
-	index, err := template.ParseFiles("templates/index.tmpl", "templates/course_desc.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		return err
-	}
-	ctx.TemplateCache["index.tmpl"] = index
 
 	courses, err := template.New("course").Funcs(template.FuncMap{
 		"LastIdx":     LastIdx,
@@ -80,11 +77,22 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 	}
 	ctx.TemplateCache["reserve.tmpl"] = reserve
 
-	summary, err := template.ParseFiles("templates/summary.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		return err
+	for _, page := range pages {
+		templName := fmt.Sprintf("%s.tmpl", page)
+		pageTmpl, err := template.ParseFiles("templates/" + templName, "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl", "templates/courses/small_box.tmpl", "templates/courses/course_card.tmpl", "templates/sections/testimonials.tmpl", "templates/sections/faq.tmpl")
+		if err != nil {
+			return err
+		}
+		ctx.TemplateCache[templName] = pageTmpl
 	}
-	ctx.TemplateCache["summary.tmpl"] = summary
+	for _, page := range tools {
+		templName := fmt.Sprintf("%s.tmpl", page)
+		pageTmpl, err := template.ParseFiles("templates/tools/" + templName, "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
+		if err != nil {
+			return err
+		}
+		ctx.TemplateCache[templName] = pageTmpl
+	}
 
 	waitlist, err := template.New("waitlist").Funcs(template.FuncMap{
 		"FiatPrice": types.FiatPrice,
@@ -103,24 +111,6 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 		return err
 	}
 	ctx.TemplateCache["success.tmpl"] = success
-
-	wif, err := template.New("wif").ParseFiles("templates/tools/wif.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		return err
-	}
-	ctx.TemplateCache["wif.tmpl"] = wif
-
-	keyaddr, err := template.New("keyaddr").ParseFiles("templates/tools/keyaddr.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		return err
-	}
-	ctx.TemplateCache["keyaddr.tmpl"] = keyaddr
-
-	larp, err := template.New("larp").ParseFiles("templates/larp.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		return err
-	}
-	ctx.TemplateCache["larp.tmpl"] = larp
 
 	waitlistS, err := template.New("waitlist_success").Funcs(template.FuncMap{
 		"FiatPrice": types.FiatPrice,
@@ -155,13 +145,6 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 		return r, err
 	}
 
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
-		Home(w, r, ctx)
-	}).Methods("GET")
-
 	/* LNURL hack oof */
 	/* This goes to chain.fail (on nixbox) which then fwds to nodebox */
 	r.HandleFunc("/.well-known/lnurlp/{user:hello|nifty|niftynei|pay|zap}", func(w http.ResponseWriter, r *http.Request) {
@@ -173,19 +156,51 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/lnurl_api/invoice", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://chain.fail/based-lnurl/invoice?" + r.URL.Query().Encode(), http.StatusSeeOther)
 	})
+
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
+		RenderPage(w, r, ctx, "index")
+	}).Methods("GET")
+
+
+	/* List of 'normie' pages */
+	for _, page := range pages {
+		/* Normie Pages */
+		renderPage := page
+		r.HandleFunc("/" + renderPage, func(w http.ResponseWriter, r *http.Request) {
+			if err = maybeRebuildCache(ctx); err != nil {
+				panic(err)
+			}
+			RenderPage(w, r, ctx, renderPage)
+		}).Methods("GET")
+	}
 	/* This is a legacy from last website */
 	r.HandleFunc("/classes", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/#courses", http.StatusSeeOther)
-	})
-	/* This is a legacy from last website */
-	r.HandleFunc("/team", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/#team", http.StatusSeeOther)
+		http.Redirect(w, r, "/courses", http.StatusSeeOther)
 	})
 	r.HandleFunc("/classes/{class}", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/courses", http.StatusSeeOther)
+	})
+	r.HandleFunc("/courses/larp", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/workshop", http.StatusSeeOther)
+	})
+	r.HandleFunc("/courses/{course}", func(w http.ResponseWriter, r *http.Request) {
 		if err = maybeRebuildCache(ctx); err != nil {
 			panic(err)
 		}
 		Courses(w, r, ctx)
+	})
+	/* This is a legacy from last website */
+	r.HandleFunc("/team", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/about", http.StatusSeeOther)
+	})
+	r.HandleFunc("/about", func(w http.ResponseWriter, r *http.Request) {
+		if err = maybeRebuildCache(ctx); err != nil {
+			panic(err)
+		}
+		About(w, r, ctx)
 	})
 	r.HandleFunc("/waitlist", func(w http.ResponseWriter, r *http.Request) {
 		if err = maybeRebuildCache(ctx); err != nil {
@@ -240,13 +255,6 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 			panic(err)
 		}
 		KeyAddr(w, r, ctx)
-	})
-
-	r.HandleFunc("/larp", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
-		LARP(w, r, ctx)
 	})
 
 	/* serve files from the "static" directory */
@@ -306,7 +314,7 @@ func LastIdx(size int) int {
 	return size - 1
 }
 
-type LARPData struct {
+type WorkshopData struct {
 	Page          Page
 	Course        *types.Course
 }
@@ -448,9 +456,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		pageTpl := ctx.TemplateCache["register.tmpl"]
 
 		title := "Course Registration"
-		imgAlt := fmt.Sprintf("Image for Base58's %s course registration", course.PublicName)
-
-		furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, course.PromoURL, imgAlt, nil)
+		furlCard := defaultCard(ctx, r, title)
 
 		/* Filter out anything in the past or happening in the next 1hr */
 		sessions = helpers.FilterSessions(sessions, time.Now())
@@ -483,8 +489,8 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			DefaultSelect: defaultSession,
 			Sessions:      sessionOpts,
 			HasCode:       needsSessionCode(sessions),
-			KeyCode:       keycode,
-      Count:         seatCount,
+			KeyCode:       keycode, 
+			Count:         seatCount,
 			Page:          getPage(ctx, title, furlCard),
 		})
 
@@ -554,8 +560,8 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		Idempotency: idem,
 		SessionID:   sessionUUID,
 		Email:       form.Email,
-		PromoURL:    course.PromoURL,
-		CourseName:  course.PublicName,
+		PromoURL:    course.PromoURL(ctx.Env.Domain),
+		CourseName:  course.Title,
 		Count:       uint64(form.Count),
 		Session:     session,
     /* FIXME: auto matically gives a discount of 1 to 6 seats */
@@ -575,7 +581,8 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 	/* Verify that the code is OK */
 	if session.SignupCode != "" && strings.ToLower(form.SignupCode) != strings.ToLower(session.SignupCode) {
-		errMsg := fmt.Sprintf("You haven't applied yet! Apply here: <a href=\"%s\">%s</a>", course.AppURL, course.AppURL)
+		courseURL := course.PromoURL(ctx.Env.Domain)
+		errMsg := fmt.Sprintf("You haven't applied yet! Apply here: <a href=\"%s\">%s</a>", courseURL, courseURL)
 		http.Error(w, errMsg, http.StatusNotFound)
 		ctx.Err.Printf("/register %s\n", form.CheckoutVia)
 		return
@@ -618,7 +625,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	return
 }
 
-/* Separate checkout for LARP */
+/* Separate checkout for Workshop */
 func Reserve(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	courseID, ok := getSessionKey("c", r)
 
@@ -636,19 +643,16 @@ func Reserve(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
-  reservationOption, _ := getSessionKey("t", r)
-  defaultQty := uint(1)
-  if reservationOption == "table" {
-    defaultQty = uint(6)
-  }
+	reservationOption, _ := getSessionKey("t", r)
+	defaultQty := uint(1)
+	if reservationOption == "table" {
+		defaultQty = uint(6)
+	}
 
 	if r.Method == http.MethodGet {
 		pageTpl := ctx.TemplateCache["reserve.tmpl"]
 
-		title := "LARP Reservation"
-		imgAlt := fmt.Sprintf("Image for Base58's LARP reservations")
-
-		furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, course.PromoURL, imgAlt, nil)
+		furlCard := courseCard(ctx, r, course)
 
 		/* Filter out anything in the past or happening in the next 1hr */
 		sessions = helpers.FilterSessions(sessions, time.Now())
@@ -668,7 +672,7 @@ func Reserve(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
       DefaultQty:    strconv.Itoa(int(defaultQty)),
       SeatOpts:      []string{"1", "2", "3", "4", "5", "6"},
 			Sessions:      sessionOpts,
-			Page:          getPage(ctx, title, furlCard),
+			Page:          getPage(ctx, course.Title, furlCard),
 		})
 
 		if err != nil {
@@ -777,7 +781,7 @@ func Summary(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, car
     }
 
     title := "Checkout Summary"
-    furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "Checkout", "", "", nil)
+    furlCard := defaultCard(ctx, r, title)
 
     err := tmpl.ExecuteTemplate(w, "summary.tmpl", &SummaryData{
       Page:         getPage(ctx, title, furlCard),
@@ -871,30 +875,18 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			ctx.Err.Printf("waitlist.tmpl not in cache %v", ctx.TemplateCache)
 		}
 
-		title := "Course Waitlist"
-		imgAlt := fmt.Sprintf("Image for Base58's %s course registration", course.PublicName)
-		extraData := make([]ExtraData, 2)
-		extraData[0] = ExtraData{
-			Label: "Instructor",
-			Data:  session.Instructor,
-		}
-		extraData[1] = ExtraData{
-			Label: "Location",
-			Data:  session.Location,
-		}
-
-		furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, imgAlt, extraData)
+		furlCard := courseCard(ctx, r, course)
 
 		err = waitlist.ExecuteTemplate(w, "waitlist.tmpl", WaitlistData{
 			Course:  course,
 			Session: session,
-			Page:    getPage(ctx, title, furlCard),
+			Page:    getPage(ctx, course.Title, furlCard),
 			Form: types.WaitList{
 				Idempotency: idemToken,
 				SessionUUID: session.ID,
 				Timestamp:   strconv.FormatInt(now, 10),
-				PromoURL:    course.PromoURL,
-				CourseName:  course.PublicName,
+				PromoURL:    course.PromoURL(ctx.Env.Domain),
+				CourseName:  course.Title,
 			}})
 		if err != nil {
 			http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -954,7 +946,6 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	title := "You're on the Waitlist!"
-	imgAlt := fmt.Sprintf("Image for Base58's %s course", course.PublicName)
 	extraData := make([]ExtraData, 2)
 	extraData[0] = ExtraData{
 		Label: "Instructor",
@@ -965,7 +956,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		Data:  session.Location,
 	}
 
-	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, imgAlt, extraData)
+	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, extraData)
 
 	/* Show waitlist success */
 	tmpl, ok := ctx.TemplateCache["waitlist_success.tmpl"]
@@ -1020,9 +1011,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 	pi, _ := paymentintent.New(params)
 
 	title := fmt.Sprintf("Checkout for %s", cart.Items[0].GetDisplayName())
-	imgAlt := fmt.Sprintf("Image for Base58's %s course", cart.Items[0].GetDisplayName())
-	extraData := make([]ExtraData, 0)
-	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", cart.Items[0].GetImgURL(), imgAlt, extraData)
+	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", cart.Items[0].GetImgURL(), nil)
 
 	tmpl, ok := ctx.TemplateCache["checkout.tmpl"]
 	if !ok {
@@ -1088,7 +1077,7 @@ func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 	mail := &emails.Mail{
 		JobKey:   "testkey" + strconv.Itoa(int(time.Now().UTC().Unix())),
 		Email:    "niftynei@gmail.com",
-		Title:    fmt.Sprintf("Your Registration for Base58's %s", course.PublicName),
+		Title:    fmt.Sprintf("Your Registration for Base58's %s", course.Title),
 		SendAt:   time.Now(),
 		HTMLBody: welcomeEmail,
 		TextBody: welcomeText,
@@ -1119,7 +1108,6 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	title := "You're Going!"
-	imgAlt := fmt.Sprintf("Image for Base58's %s course", course.PublicName)
 	extraData := make([]ExtraData, 2)
 	extraData[0] = ExtraData{
 		Label: "Instructor",
@@ -1130,7 +1118,7 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		Data:  session.Location,
 	}
 
-	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, imgAlt, extraData)
+	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, extraData)
 
 	success, ok := ctx.TemplateCache["success.tmpl"]
 	if !ok {
@@ -1347,20 +1335,21 @@ func OpenNodeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	w.WriteHeader(http.StatusOK)
 }
 
-func Home(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+func RenderPage(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, page string) {
 	data, err := getHomeData(ctx, ctx.Notion)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("/index home data fetch failed %s\n", err.Error())
+		ctx.Err.Printf("/%s data fetch failed %s\n", page, err.Error())
 		return
 	}
 
 	// Render the template with the data
-	tmpl := ctx.TemplateCache["index.tmpl"]
-	err = tmpl.ExecuteTemplate(w, "index.tmpl", data)
+	template := fmt.Sprintf("%s.tmpl", page)
+	tmpl := ctx.TemplateCache[template]
+	err = tmpl.ExecuteTemplate(w, template, data)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("/index home exec template failed %s\n", err.Error())
+		ctx.Err.Printf("/%s exec template failed %s\n", template, err.Error())
 		return
 	}
 }
@@ -1404,15 +1393,17 @@ func countSeats(s sessionList) uint {
 	return acc
 }
 
+func About(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+
+}
 func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* If there's no class-key, redirect to the front page */
 	params := mux.Vars(r)
-	clss := params["class"]
+	clss := params["course"]
 
 	if clss == "" {
-		/* redirect to "/". A lot of hard coded links exist pointing
-		 * at "/classes", so we redirect! */
-		http.Redirect(w, r, "/#courses", http.StatusSeeOther)
+		/* Return the courses page */
+		RenderPage(w, r, ctx, "courses")
 		return
 	}
 
@@ -1437,8 +1428,6 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Sort sessions by date, soonest first */
 	sort.Sort(sessions)
 
-	imgAlt := fmt.Sprintf("Image for Base58's %s course", course.PublicName)
-	title := fmt.Sprintf("Experience Base58's %s", course.PublicName)
 	extraData := make([]ExtraData, 0)
 	if len(sessions) > 0 {
 		extraData = append(extraData, ExtraData{
@@ -1450,14 +1439,15 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 			Data:  string(sessions[0].SeatsAvail),
 		})
 	}
-	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, course.PromoURL, imgAlt, extraData)
+	
+	furlCard := courseCardWithExtras(ctx, r, course, extraData)
 
 	t := ctx.TemplateCache["course.tmpl"]
 	err = t.ExecuteTemplate(w, "course.tmpl", CourseData{
 		Course:     course,
 		SeatsAvail: countSeats(sessions),
 		Sessions:   sessions,
-		Page:       getPage(ctx, course.PublicName, furlCard),
+		Page:       getPage(ctx, course.Title, furlCard),
 	})
 
 	if err != nil {
@@ -1479,6 +1469,7 @@ type Page struct {
 	Domain    string
 	Callbacks string
 	Card      types.FurlCard
+	Year      uint
 }
 
 type pageData struct {
@@ -1493,14 +1484,31 @@ type ExtraData struct {
 	Data  string
 }
 
-func buildCard(domain, title, URL, desc, imageURL, imageAlt string, extraData []ExtraData) types.FurlCard {
+func defaultCard(ctx *config.AppContext, r *http.Request, title string) types.FurlCard {
+	return buildCard(ctx.Env.Domain, title, r.URL.String(), "default_card.png", "", nil)
+}
+
+
+func courseCard(ctx *config.AppContext, r *http.Request, course *types.Course) types.FurlCard {
+	return courseCardWithExtras(ctx, r, course, nil)
+}
+
+func courseCardWithExtras(ctx *config.AppContext, r *http.Request, course *types.Course, extras []ExtraData) types.FurlCard {
+
+	domain := ctx.Env.Domain
+	imgName := course.FurlImg()
+	imgURL := fmt.Sprintf("https://%s/static/img/%s", domain, imgName)
+
+	return buildCard(domain, course.Title, r.URL.String(), imgURL, course.Flavor, extras)
+}
+
+func buildCard(domain, title, URL, imgName, desc string, extraData []ExtraData) types.FurlCard {
 	card := types.FurlCard{
 		URL:         URL, /* Of the page we're on */
 		Domain:      domain,
 		Title:       title,
 		Description: desc,
-		ImageURL:    imageURL,
-		ImageAlt:    imageAlt,
+		ImageURL:    fmt.Sprintf("https://%s/static/img/%s", domain, imgName),
 	}
 
 	for i, extra := range extraData {
@@ -1537,30 +1545,9 @@ func getHomeData(ctx *config.AppContext, n *types.Notion) (pageData, error) {
 	if err != nil {
 		return pageData{}, err
 	}
-
-	/* FIXME: come back here */
-	title := "Base58"
-	imgAlt := "Base58's is the world's best bitcoin protocol school"
-	imgPath := ctx.SitePath() + "/static/img/base58_purple.png"
-	desc := "Base58⛓️🔓 is a bitcoin protocol school. Our online and in-person courses are the perfect starting place for technical beginners looking to scratch the surface to even the most experienced devs looking to challenge themselves with a dive deep into the bitcoin protocol itself."
-	extraData := make([]ExtraData, 0)
-
-	furlCard := buildCard(ctx.Env.Domain, title, ctx.SitePath(), desc, imgPath, imgAlt, extraData)
-	var current, coming []*types.Course
-	for _, course := range courses {
-		if course.ComingSoon {
-			coming = append(coming, course)
-		} else {
-			current = append(current, course)
-		}
-
-    ctx.Infos.Printf("course %s id %s", course.TmplName, course.ID)
-	}
 	return pageData{
-		Page:    getPage(ctx, "", furlCard),
+		Page:    getPage(ctx, "", types.FurlCard{}),
 		Courses: courses,
-		Current: current,
-		Coming:  coming,
 	}, nil
 }
 
@@ -1602,7 +1589,7 @@ type KeyAddrData struct {
 func KeyAddr(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Show a address from scriptPubkey page! */
 	title := "Base58 Address calculator"
-	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", "", "", nil)
+	furlCard := defaultCard(ctx, r, title)
 
 	var data KeyAddrData 
 	var err error
@@ -1654,7 +1641,7 @@ func WIF(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Show a WIF calc page! */
 
 	title := "Base58 WIF calculator"
-	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", "", "", nil)
+	furlCard := defaultCard(ctx, r, "Base58 WIF calculator")
 
 	var data WIFData
 	var err error
@@ -1687,30 +1674,5 @@ func WIF(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/tools/wif execute template failed %s\n", err.Error())
-	}
-}
-
-func LARP(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-  /* FIXME: sort through list of courses? */
-	courseID := "eb477a1b-3964-4765-950d-34f1656edfd2"
-	course, _, err := getters.GetCourseInfo(ctx.Notion, courseID)
-
-	/* landing page for the base58 bitcoin LARP! */
-	title := "Base58 World Famous Bitcoin Live Action Role Play"
-	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", "", "", nil)
-
-	larpTmpl, ok := ctx.TemplateCache["larp.tmpl"]
-	if !ok {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("larp.tmpl not in cache %v", ctx.TemplateCache)
-	}
-  data := LARPData{
-	  Page:     getPage(ctx, title, furlCard),
-    Course:   course,
-  }
-	err = larpTmpl.ExecuteTemplate(w, "larp.tmpl", &data)
-	if err != nil {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("/larp execute template failed %s\n", err.Error())
 	}
 }

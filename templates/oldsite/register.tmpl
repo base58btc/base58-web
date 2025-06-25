@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  {{ block "head" .Page }} {{ end }}
+  </head>
+  <body class="bg-white">
+   {{ block "nav" . }} {{ end }}
+   <main class="py-24 sm:py-32">
+	  <div class="relative isolate">
+	    <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+	      <div class="bg-gray-900 ring-1 ring-white/10 sm:rounded-3xl">
+	      <div class="mx-auto flex max-w-2xl flex-col gap-16 bg-white/5 px-6 py-16 ring-1 ring-white/10 sm:rounded-3xl sm:p-8 lg:mx-0 lg:max-w-none lg:flex-row lg:items-top lg:py-20 xl:gap-x-20 xl:px-20">
+		<img class="h-96 w-full flex-none rounded-2xl object-cover shadow-xl lg:aspect-square lg:h-auto lg:max-w-sm" src="{{ .Course.PromoURL }}" alt="">
+		<div class="w-full flex-auto">
+		  <p class="font-semibold leading-7 text-bitcoin">Registration For Base58's</p>
+		  <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+		  {{ .Course.PublicName }}</h2>
+                  <p class="mt-6 text-lg leading-8 text-gray-300">
+    		   {{ .Course.ShortDesc }}
+		 </p>
+	<div class="mt-10 flex">
+	    <form method="POST" class="grid grid-cols-1 gap-x-8 text-base w-full sm:w-2xl">
+		<!-- pick an available session! -->
+		<label class="text-gray-300 mt-4 mb-2">
+		  Select a class session
+		</label>
+
+		<div class="grid grid-cols-1 gap-6 justify-center place-items-stretch">
+		{{ range .Sessions }}
+		<label for="{{ .UUID }}">
+			<input type="radio" name="Session" value="{{ .UUID }}" id="{{ .UUID }}" class="hidden peer"
+			{{ if eq $.DefaultSelect .UUID }} checked {{end}} 
+			{{ if eq .AvailSeats 0 }} disabled {{end}} 
+		     />
+		     <div class="text-white ring-2 ring-blue-600 
+				 peer-checked:bg-blue-600
+				 flex flex-cols items-center justify-content
+			         rounded-md p-6 h-full">
+			  <ul role="list" class="grid grid-cols-1 gap-x-8 gap-y-3 text-base leading-7 text-white">
+			    <li class="flex gap-x-3">
+				 <div class="text-lg leading-8 text-gray-300">
+					<p class="font-semibold">{{ .Location }}</p>
+					<p>{{ .OptionDesc }}</p>
+				  <p> 
+            <span class="text-green-600">${{ FiatPrice .Cost }}</span> |
+            <span class="text-btcgold">${{ BtcPrice .Cost }}</span>
+          </p> 
+				 </div>
+			    </li>
+			    <li class="flex gap-x-3">
+			      <svg class="h-7 w-5 flex-none" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+				<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+			      </svg>
+			      <span class="font-semibold">When</span> 
+			  {{ $lastidx := LastIdx (len .Date) }}
+			  {{ if gt $lastidx 0 }}
+				{{ index .Date 0 }} - {{ index .Date $lastidx }}
+			  {{ else }}
+				{{ index .Date 0 }}
+			  {{ end }} @ {{ .TimeDesc }}
+			    </li>
+			    <li class="flex gap-x-3">
+			      <svg class="h-7 w-5 flex-none" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+				<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+			      </svg>
+			      <span class="font-semibold">Where</span> 
+				{{ .Location }}
+			    </li>
+			    <li class="flex gap-x-3">
+			      <svg class="h-7 w-5 flex-none" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+				<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+			      </svg>
+			      <span class="font-semibold">Taught By</span> 
+				{{ .Instructor }}
+			    </li>
+			  </ul>
+		     </div>
+		</label>
+		{{end}}
+		</div>
+		<input class="rounded-md" type="hidden" name="Count" 
+        value="{{ .Count }}" required>
+
+		<label class="text-gray-300 mt-4 mb-2">
+			Email
+		</label>
+		<input class="rounded-md" type="email" name="Email" placeholder="hello@example.com" required>
+
+		{{ if .HasCode }}
+		<label class="text-gray-300 mt-4 mb-2">
+			Registration Code
+		</label>
+		<input class="rounded-md" name="SignupCode" type="text" placeholder="From your registration email" required
+		{{ if .KeyCode }}
+		value="{{ .KeyCode }}"
+		{{ end }} />
+		{{ end }}
+
+		<div class="grid grid-cols-2 gap-6 mt-8 justify-center place-items-stretch">
+		<label for="checkout-fiat">
+			<input type="radio" name="CheckoutVia" value="fiat" id="checkout-fiat" class="hidden peer"/>
+		     <div class="text-white ring-2 ring-green-600 
+				 peer-checked:bg-green-600
+				 flex flex-cols items-center justify-content
+			         text-center rounded-md p-6 h-full">
+			  <div class="h-fit w-full text-center">Pay with Fiat</div>
+		     </div>
+		</label>
+		<label for="checkout-btc">
+			<input type="radio" name="CheckoutVia" 
+				value="btc" id="checkout-btc" 
+				class="hidden peer" checked/>
+		     <div class="text-white ring-2 ring-bitcoin 
+				 peer-checked:bg-bitcoin
+				 flex flex-cols items-center justify-content
+			         text-center rounded-md p-6 h-full">
+			  <div class="h-fit w-full text-center">Pay with 
+				<span class="font-bitcoin">bitcoin</span></div>
+		      </div>
+		      </label>
+		</div>
+	      <button class="mt-6 bg-btcgold hover:bg-btcgold text-white font-bold py-8 px-4 rounded" type="submit" >
+		Checkout
+	    </button>
+	   </form>
+	</div>
+	</div>
+	</div>
+	</div>
+	</div>
+  </main>
+  {{ block "footer" .Page }} {{ end }}
+  </body>
+</html>

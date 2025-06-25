@@ -1,21 +1,89 @@
 {{ define "footer" }}
-    <footer class="flex flex-col sm:flex-row justify-between my-20 mx-10">
-        <h3 class="flex text-gray font-arial">
-            © {{ .Copyright }} Base58⛓️🔓. All rights reserved.
-        </h3>
-        <div class="flex gap-2 items-center justify-center">
-            <a target="_blank" href="https://discord.gg/2rJUZCVnBd" class="flex">
-                <img src="/static/img/icons/discord.svg" class="w-5 grayscale">
-            </a>
-            <a target="_blank" href="https://www.youtube.com/channel/UCosoJ9ReUBqMIuD4g4IOtyw" class="flex">
-                <img src="/static/img/icons/yt.png" class="w-5 invert">
-            </a>
-            <a target="_blank" href="https://twitter.com/base58btc" class="flex">
-                <img src="/static/img/icons/twitter.svg">
-            </a>
-            <a target="_blank" href="https://github.com/base58btc" class="flex">
-                <img src="/static/img/icons/gh.svg">
-            </a>
+    <footer class="footer_section">
+      <div class="padding-global">
+        <div class="container-large">
+          <div class="padding-vertical padding-xxlarge">
+            <div class="padding-bottom padding-xxlarge">
+              <div class="w-layout-grid footer2_top-wrapper">
+                <div class="w-layout-grid footer2_left-wrapper">
+                  <a href="/" aria-current="page" class="navbar_logo-link w-nav-brand w--current"><img loading="lazy" src="static/img/chainlogo.avif" alt="" class="image-3"><img loading="lazy" src="static/img/locklogo.avif" alt="" class="image-3"></a>
+                  <div class="footer2_link-column">
+                    <div class="margin-bottom margin-xsmall">
+                      <div class="bold-text">Courses</div>
+                    </div>
+                    <div class="footer2_link-list">
+                      <a href="#" class="footer2_link">Link One</a>
+                      <a href="#" class="footer2_link">Link Two</a>
+                      <a href="#" class="footer2_link">Link Three</a>
+                      <a href="#" class="footer2_link">Link Four</a>
+                      <a href="#" class="footer2_link">Link Five</a>
+                    </div>
+                  </div>
+                  <div class="footer2_link-column">
+                    <div class="margin-bottom margin-xsmall">
+                      <div class="bold-text">Workshops</div>
+                    </div>
+                    <div class="footer2_link-list">
+                      <a href="#" class="footer2_link">Link Six</a>
+                      <a href="#" class="footer2_link">Link Seven</a>
+                      <a href="#" class="footer2_link">Link Eight</a>
+                      <a href="#" class="footer2_link">Link Nine</a>
+                      <a href="#" class="footer2_link">Link Ten</a>
+                    </div>
+                  </div>
+                  <div class="footer2_link-column">
+                    <div class="margin-bottom margin-xsmall">
+                      <div class="bold-text">Company</div>
+                    </div>
+                    <div class="footer2_link-list">
+                      <a href="#" class="footer2_link">Link Eleven</a>
+                      <a href="#" class="footer2_link">Link Twelve</a>
+                      <a href="#" class="footer2_link">Link Thirteen</a>
+                      <a href="#" class="footer2_link">Link Fourteen</a>
+                      <a href="#" class="footer2_link">Link Fifteen</a>
+                    </div>
+                  </div>
+                </div>
+                <div class="footer2_right-wrapper">
+                  <div class="margin-bottom margin-xsmall">
+                    <div class="text-weight-semibold">Subscribe</div>
+                  </div>
+                  <div class="margin-bottom margin-xsmall"></div>
+                  <div class="footer2_form-block">
+                    <form id="email-form" name="email-form" data-name="Email Form" method="get" class="footer9_form" data-wf-page-id="67dc4de4ec187bfc9994d4ce" data-wf-element-id="b28bcbf7-dd0f-a837-ba65-18a319b91d17"><input class="form_input w-input" maxlength="256" name="email-2" data-name="Email 2" placeholder="nym@email.com" type="email" id="email-2" required=""><input type="submit" data-wait="Please wait..." class="tertiary-button is-light w-button" value="Subscribe"></form>
+                    <div class="text-size-tiny neutral">By subscribing you agree to receive updates from Base58. No spam, just the good stuff.</div>
+                    <div class="form_message-success-wrapper w-form-done">
+                      <div class="form_message-success-4">
+                        <div>Thank you! Your submission has been received!</div>
+                      </div>
+                    </div>
+                    <div class="form_message-error-wrapper w-form-fail">
+                      <div class="form_message-error-2">
+                        <div>Oops! Something went wrong while submitting the form.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="line-divider"></div>
+            <div class="padding-top padding-medium">
+              <div class="footer2_bottom-wrapper">
+                <div class="w-layout-grid footer2_legal-list">
+                  <div id="w-node-b28bcbf7-dd0f-a837-ba65-18a319b91d28-19b91cda" class="footer2_credit-text">© {{ .Copyright }} Base58. All rights reserved.</div>
+                  <a href="#" class="footer2_legal-link white">Privacy Policy</a>
+                  <a href="#" class="footer2_legal-link white">Terms of Service</a>
+                </div>
+                <div class="w-layout-grid footer2_social-list">
+                  <a target="_blank" href="https://discord.gg/2rJUZCVnBd" class="footer2_social-link w-inline-block"><img src="static/img/discord-white_1.avif" loading="lazy" width="24" sizes="24px" alt="" srcset="static/img/discord-white_1discord-white.avif 500w, static/img/discord-white_1-p-800.png 800w, static/img/discord-white_1-p-1080.png 1080w, static/img/discord-white_1.avif 3337w"></a>
+                  <a target="_blank" href="https://www.youtube.com/channel/UCosoJ9ReUBqMIuD4g4IOtyw" class="footer2_social-link w-inline-block"><img src="static/img/youtubeicon-white_1.avif" loading="lazy" width="24" alt=""></a>
+                  <a href="https://x.com/base58btc" target="_blank" class="footer2_social-link w-inline-block"><img src="static/img/x-icon-white.avif" loading="lazy" width="22" alt=""></a>
+                  <a href="https://github.com/base58btc" target="_blank" class="footer2_social-link w-inline-block"><img src="static/img/gh-white.avif" loading="lazy" width="24" alt=""></a>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
     </footer>
 {{ end }}
