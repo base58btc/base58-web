@@ -1726,8 +1726,12 @@ figcaption {
   line-height: 1.2;
 }
 
+.w-nav-link.w--current{
+  color: #ffffff;
+}
+
 .navbar_link.w--current {
-  color: var(--black);
+  color: #ffffff;
 }
 
 .image {
