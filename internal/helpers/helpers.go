@@ -17,8 +17,8 @@ import (
 
 func blockRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
 	if anchor, ok := node.(*ast.Link); ok && entering {
-		styleAttr := `style="text-underline-offset:4px; text-decoration-line:underline; text-underline-offset:4px; font-weight:400;"`
-		anchor.AdditionalAttributes = append(anchor.AdditionalAttributes, styleAttr)
+		targetAttr := `target="_blank"`
+		anchor.AdditionalAttributes = append(anchor.AdditionalAttributes, targetAttr)
 	}
 	if head, ok := node.(*ast.Heading); ok && entering {
 		styleAttr := ""
@@ -37,30 +37,19 @@ func blockRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus,
 		}
 	}
 	if list, ok := node.(*ast.List); ok && entering {
-		classList := `mt-4 space-y-3`
+		classList := `list`
 		list.Attribute = &ast.Attribute{
 			Attrs: make(map[string][]byte),
 		}
-		list.Attribute.Attrs["class"] = []byte(classList)
-	}
-	if paragraph, ok := node.(*ast.Paragraph); ok && entering {
-		classList := `mt-4`
-		paragraph.Attribute = &ast.Attribute{
-			Attrs: make(map[string][]byte),
-		}
-		paragraph.Attribute.Attrs["class"] = []byte(classList)
+		list.Attribute.Attrs["role"] = []byte(classList)
 	}
 	if listItem, ok := node.(*ast.ListItem); ok {
 		var toWrite string
-		/* Add cute svgs for bulleted lists */
 		if entering {
-			toWrite = `<li style="display:flex; column-gap: 0.75rem; margin-top:0.5rem;">
-			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="rgb(255 126 1)" style="flex:none;height:1.25rem;width:1.25rem;margin-top:0.25rem;color:rgb(255 126 1)" >
-  <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
-</svg>
-			<span>`
+			toWrite = `<li>
+			<p class="pre-requisites">`
 		} else {
-			toWrite = `</span></li>`
+			toWrite = `</p></li>`
 		}
 		listItem.Tight = true
 		io.WriteString(w, toWrite)
@@ -73,9 +62,10 @@ func blockRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus,
 func newBlockRenderer() *html.Renderer {
 	htmlFlags := html.CommonFlags | html.HrefTargetBlank
 	opts := html.RendererOptions{
-		RenderNodeHook: blockRenderHook,
 		Flags:          htmlFlags,
+		RenderNodeHook: blockRenderHook,
 	}
+
 	return html.NewRenderer(opts)
 }
 
@@ -103,7 +93,7 @@ func ConvertMdToHTML(ctx *config.AppContext, mdContent string) []byte {
 		ctx.DocCache = make(map[string][]byte)
 	}
 
-	/* Fetch the email template */
+	/* Fetch the md template */
 	tag := hashContent(mdContent)
 	htmlOut, ok := ctx.DocCache[tag]
 

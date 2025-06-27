@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 )
@@ -30,6 +31,11 @@ type (
 	CheckoutOpt  string
 	Currency     string
 
+	ChapterInfo struct {
+		Title         string
+		Desc          string
+	}
+
 	Course struct {
 		ID            string
 		Tag           string
@@ -46,9 +52,13 @@ type (
 		PreReqs       string
 		Visible       bool
 		Feature       bool
-		ExtURL        string
+		CourseURL     string
+		CourseHost    string
+		Rating        float32
 		WelcomeEmail  string
 		WaitlistEmail string
+		Includes      []string
+		Chapters      []ChapterInfo
 	}
 
 	CourseSession struct {
@@ -182,6 +192,24 @@ func (c Course) PromoURL(domain string) string {
 
 func (c Course) Featured(difficulty string) bool {
 	return difficulty == c.Difficulty && c.Visible && c.Feature
+}
+
+func (c Course) Stars() []string {
+	stars := []string {"empty", "empty", "empty", "empty", "empty"}
+	rating := c.Rating * 100
+
+	half := math.Mod(float64(rating), 100) > 0
+	fulls := int(rating / 100)
+	for i := 0; i < 5; i++ {
+		if i < fulls {
+			stars[i] = "full"
+		}
+		if i == fulls && half {
+			stars[i] = "half"
+		}
+	}
+
+	return stars;
 }
 
 func (c CourseSession) Dates() []time.Time {

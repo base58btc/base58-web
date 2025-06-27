@@ -1,4 +1,6 @@
 {{ define "footer" }}
+    <!-- version 2.0.6 -->
+    <script src="/static/js/htmx-206.min.js" type="text/javascript"></script>
     <footer class="footer_section">
       <div class="padding-global">
         <div class="container-large">
@@ -50,18 +52,25 @@
                   </div>
                   <div class="margin-bottom margin-xsmall"></div>
                   <div class="footer2_form-block">
-                    <form id="email-form" name="email-form" data-name="Email Form" method="get" class="footer9_form" data-wf-page-id="67dc4de4ec187bfc9994d4ce" data-wf-element-id="b28bcbf7-dd0f-a837-ba65-18a319b91d17"><input class="form_input w-input" maxlength="256" name="email-2" data-name="Email 2" placeholder="nym@email.com" type="email" id="email-2" required=""><input type="submit" data-wait="Please wait..." class="tertiary-button is-light w-button" value="Subscribe"></form>
+                    <div id="email-form" name="email-signup" class="footer9_form"> 
+                      <input class="form_input w-input" maxlength="256" 
+		        name="newsletter-email"
+		        id="newsletter-email" type="email" 
+			required
+                        autoComplete="on" autoCorrect="off" 
+			autoCapitalize="off" spellCheck="false"
+                        placeholder="you@base58.school"
+                        />
+		      <button id="subscribe-btn" 
+		      class="tertiary-button is-light w-button"
+		      hx-post="/newsletter/subscribe"
+		      hx-include="#newsletter-email"
+		      hx-trigger="click"
+                      hx-target="#news_subscribe_result">Subscribe</button>
+		    </div>
                     <div class="text-size-tiny neutral">By subscribing you agree to receive updates from Base58. No spam, just the good stuff.</div>
-                    <div class="form_message-success-wrapper w-form-done">
-                      <div class="form_message-success-4">
-                        <div>Thank you! Your submission has been received!</div>
-                      </div>
-                    </div>
-                    <div class="form_message-error-wrapper w-form-fail">
-                      <div class="form_message-error-2">
-                        <div>Oops! Something went wrong while submitting the form.</div>
-                      </div>
-                    </div>
+		    <div id="news_subscribe_result">
+		    </div>
                   </div>
                 </div>
               </div>

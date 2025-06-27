@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/mail"
 	"os"
 	"path/filepath"
 	"sort"
@@ -164,6 +165,18 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/check-email", func(w http.ResponseWriter, r *http.Request) {
 		CheckEmail(w, r, ctx)
 	})
+	r.HandleFunc("/newsletter/subscribe", func(w http.ResponseWriter, r *http.Request) {
+		SubscribeEmail(w, r, ctx)
+	}).Methods("POST")
+
+	r.HandleFunc("/newsletter/confirm/{token}", func(w http.ResponseWriter, r *http.Request) {
+		ConfirmEmail(w, r, ctx)
+	}).Methods("GET")
+
+	r.HandleFunc("/newsletter/unsubscribe/{token}", func(w http.ResponseWriter, r *http.Request) {
+		UnsubscribeEmail(w, r, ctx)
+	}).Methods("GET")
+
 	r.HandleFunc("/stripe-hook", func(w http.ResponseWriter, r *http.Request) {
 		StripeHook(w, r, ctx)
 	}).Methods("POST")
@@ -760,6 +773,141 @@ func Summary(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, car
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 	return
 
+}
+
+func getSubscribeToken(sec []byte, email string) string {
+	/* Make a lil hash using the sessionUUID + timestamp */
+	h := sha256.New()
+	h.Write(sec)
+	h.Write([]byte(email))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func SubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	r.ParseForm()
+	email := r.Form.Get("newsletter-email")
+	/* Validate email */
+	if _, err := mail.ParseAddress(email); err != nil {
+		w.Write([]byte(fmt.Sprintf(`
+        	<div class="form_message-error-wrapper w-form-fail" style="display:block;">
+                <div class="form_message-error-2">
+                <div>"%s" not a valid email. Please try again.</div>
+                </div>
+                </div>
+		`, email)))
+		return
+	}
+
+	token := getSubscribeToken(ctx.Env.SecretBytes(), email)
+	subsCache[token] = email
+	ctx.Infos.Printf("%s subscribe token is %s. sending confirmation email", email, token)
+	//err := helpers.SendSubscribeEmail(email, token)
+	var err error
+	if err != nil {
+		w.Write([]byte(fmt.Sprintf(`
+        	<div class="form_message-error-wrapper w-form-fail" style="display:block;">
+                <div class="form_message-error-2">
+                <div>Unable to subscribe %s. Please try again.</div>
+                </div>
+                </div>
+		`, email)))
+		return
+	}
+	w.Write([]byte(fmt.Sprintf(`
+        	<div class="form_message-error-wrapper w-form-done" style="display:block;">
+                <div class="form_message-success-4">
+                <div>Confirmation email sent to %s. Check your inbox.</div>
+                </div>
+                </div>
+	`, email)))
+}
+
+func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	/* If there's no token-key, redirect to the front page */
+	params := mux.Vars(r)
+	token := params["token"]
+
+	if token == "" {
+		ctx.Infos.Printf("No token found for newsletter confirmation request")
+		/* Return the homepage page */
+		RenderPage(w, r, ctx, "index")
+		return
+	}
+
+	/* Look up in cache and add to email list */
+	email, ok := subsCache[token]
+	if !ok {
+		ctx.Infos.Printf("No email found for newsletter confirmation request %s", token)
+		/* FIXME: show an error banner or something */
+		/* Return the homepage page */
+		RenderPage(w, r, ctx, "index")
+		return
+	}
+
+	/* Add to email list */
+	_, err := getters.SubscribeEmail(ctx.Notion, email, token)
+	if err != nil {
+		ctx.Infos.Printf("Subscribe failed for newsletter confirmation request %s (%s): %s", token, email, err)
+		/* FIXME: show an error banner or something */
+		/* Return the homepage page */
+		RenderPage(w, r, ctx, "index")
+		return
+	}
+	
+	/* FIXME: show a success banner or something */
+	RenderPage(w, r, ctx, "index")
+}
+
+type UnsubscribePage struct {
+	Page    Page
+	Email   string
+}
+
+func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	/* If there's no token-key, redirect to the front page */
+	params := mux.Vars(r)
+	token := params["token"]
+
+	if token == "" {
+		ctx.Infos.Printf("No token found for newsletter confirmation request")
+		/* Return the homepage page */
+		RenderPage(w, r, ctx, "index")
+		return
+	}
+
+	/* Find record for that token */
+	email, pages, err := getters.FindSubscriber(ctx.Notion, token)
+	if err != nil || len(pages) == 0 {
+		ctx.Infos.Printf("No subscriber found for token %s: %s", token, err)
+		/* Return the homepage page */
+		RenderPage(w, r, ctx, "index")
+		return
+	}
+
+	for _, page := range pages {
+		err := getters.UnsubscribeEmail(ctx.Notion, page)
+		if err != nil {
+			ctx.Infos.Printf("Error unsubscribing %s: %s", page, err)
+		}
+	}
+
+	if err == nil {
+		ctx.Infos.Printf("Unsubscribe successful %s", token)
+	}
+
+	// Render the template with the data
+	title := "Unsubscribe | Base58"
+	furlCard := defaultCard(ctx, r, title)
+	err = ctx.TemplateCache.ExecuteTemplate(w, "emails/unsubscribe.tmpl", &UnsubscribePage{
+		Page: getPage(ctx, title, furlCard),
+		Email: email,
+	})
+
+	if err != nil {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/emails/unsubscribe exec template failed %s\n", err.Error())
+		return
+	}
 }
 
 func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {

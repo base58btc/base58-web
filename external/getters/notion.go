@@ -99,6 +99,31 @@ func parseRichText(key string, props map[string]notion.PropertyValue) string {
 	return builder.String()
 }
 
+func parseChapterInfo(key string, props map[string]notion.PropertyValue) []types.ChapterInfo {
+	input := parseRichText(key, props)
+	items := strings.Split(input, "|")
+
+	cis := make([]types.ChapterInfo, len(items))
+	for i, item := range items {
+		for j := 0; j < len(item); j++ {
+			if string(item[j]) == ":" {
+				cis[i] = types.ChapterInfo {
+					Title: item[:j],
+					Desc: item[j+1:],
+				}
+				break
+			}
+		}
+	}
+
+	return cis
+}
+
+func parseStrSlice(key string, props map[string]notion.PropertyValue) []string {
+	input := parseRichText(key, props)
+	return strings.Split(input, ",")
+}
+
 func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Course {
 
 	course := &types.Course{
@@ -117,8 +142,16 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Co
 		PreReqs:      parseRichText("PreReqs", props),
 		Visible:      *props["Visible"].Checkbox,
 		Feature:      *props["Feature"].Checkbox,
+		Chapters:     parseChapterInfo("Chapters", props),
+		Includes:     parseStrSlice("Includes", props),
+		CourseURL:    props["CourseURL"].URL,
+		Rating:       float32(props["Rating"].Number),
 		//WelcomeEmail:  props["WelcomeEmail"].URL,
 		//WaitlistEmail: props["WaitlistEmail"].URL,
+	}
+
+	if props["CourseHost"].Select != nil {
+		course.CourseHost = props["CourseHost"].Select.Name
 	}
 
 	return course
@@ -361,6 +394,88 @@ func SaveRegistration(n *types.Notion, idem string, seshUUID string, r *types.Cl
 		return "", err
 	}
 	return page.ID, err
+}
+
+func SubscribeEmail(n *types.Notion, email, token string) (string, error) {
+	/* Flip back to true an unsubscribed instead of adding new */
+	_, pages, err := FindSubscriber(n, token)
+	if err != nil {
+		return "", err
+	}
+	unsubscribe := false
+	if len(pages) > 0 {
+		for _, page := range pages {
+			err = setSubscribe(n, page, &unsubscribe)
+			if err != nil {
+				panic(fmt.Sprintf("oops, %s: %s", page, err))
+				return "", err
+			}
+		}
+		return pages[0], nil
+	}
+
+	parent := notion.NewDatabaseParent(n.Config.NewsletterDb)
+	props := map[string]*notion.PropertyValue{
+		"Email": notion.NewTitlePropertyValue(
+			[]*notion.RichText{
+				{
+					Type: notion.RichTextText,
+					Text: &notion.Text{Content: email},
+				},
+			}...),
+		"Token": notion.NewRichTextPropertyValue(
+			[]*notion.RichText{
+				{
+					Type: notion.RichTextText,
+					Text: &notion.Text{Content: token},
+				},
+			}...),
+	}
+
+	page, err := n.Client.CreatePage(context.Background(), parent, props)
+	if err != nil {
+		return "", err
+	}
+	return page.ID, err
+}
+
+func FindSubscriber(n *types.Notion, token string) (string, []string, error) {
+	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
+		n.Config.NewsletterDb, notion.QueryDatabaseParam{
+			Filter: &notion.Filter{
+				Property: "Token",
+				Text: &notion.TextFilterCondition{
+					Equals: token,
+				},
+			},
+		})
+
+	pageIds := make([]string, len(pages))
+	if err != nil {
+		return "", pageIds, err
+	}
+
+	var email string
+	for i, page := range pages {
+		pageIds[i] = page.ID
+		email = parseRichText("Email", page.Properties)
+	}
+	return email, pageIds, err
+}
+
+func setSubscribe(n *types.Notion, pageId string, subscribe *bool) (error) {
+	/* Set the Unsubscribed property to bool */
+	_, err := n.Client.UpdatePageProperties(context.Background(), pageId,
+		map[string]*notion.PropertyValue{
+			"Unsubscribed": notion.NewCheckboxPropertyValue(subscribe),
+		})
+
+	return err
+}
+
+func UnsubscribeEmail(n *types.Notion, pageId string) (error) {
+	unsubscribe := true
+	return setSubscribe(n, pageId, &unsubscribe)
 }
 
 /*

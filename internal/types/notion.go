@@ -13,6 +13,7 @@ type (
 		ItemCartsDb    string `toml:"item_carts"`
 		SignupsDb      string `toml:"signups"`
 		WaitlistDb     string `toml:"class_waitlist"`
+		NewsletterDb   string `toml:"newsletter"`
 	}
 
 	Notion struct {

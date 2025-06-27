@@ -49,6 +49,7 @@ func loadConfig() (*types.EnvConfig, bool) {
 		ItemCartsDb:    os.Getenv("NOTION_ITEM_CARTS"),
 		SignupsDb:      os.Getenv("NOTION_SIGNUPS"),
 		WaitlistDb:     os.Getenv("NOTION_WAITLIST"),
+		NewsletterDb:   os.Getenv("NOTION_NEWSLETTER"),
 	}
 
 	config.OpenNode = types.OpenNodeConfig{
