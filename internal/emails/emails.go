@@ -82,7 +82,7 @@ func mdToHTML(md []byte) []byte {
 
 func Build(ctx *config.AppContext, tmplURL string, course *types.Course, session *types.CourseSession) ([]byte, []byte, error) {
 	/* Fetch the email template */
-	t, ok := ctx.TemplateCache[tmplURL]
+	t, ok := ctx.EmailCache[tmplURL]
 
 	if !ok {
 		ctx.Infos.Printf("cache miss for %s", tmplURL)
@@ -103,7 +103,7 @@ func Build(ctx *config.AppContext, tmplURL string, course *types.Course, session
 		}
 
 		t = template.Must(template.New("").Parse(string(tmpl)))
-		ctx.TemplateCache[tmplURL] = t
+		ctx.EmailCache[tmplURL] = t
 	}
 
 	/* Swap in the tokens */
@@ -120,19 +120,8 @@ func Build(ctx *config.AppContext, tmplURL string, course *types.Course, session
 	htmlOut := mdToHTML(buf.Bytes())
 
 	/* Embed into our email wrapper template */
-	et, ok := ctx.TemplateCache["email.tmpl"]
-	if !ok {
-		ctx.Infos.Println("cache miss for email.tmpl")
-		et = template.Must(template.New("tmp.tmpl").Funcs(template.FuncMap{
-			"ishtml": func(s string) template.HTML {
-				return template.HTML(s)
-			},
-		}).ParseFiles("templates/emails/tmp.tmpl"))
-		ctx.TemplateCache["email.tmpl"] = et
-	}
-
 	var email bytes.Buffer
-	err = et.ExecuteTemplate(&email, "tmp.tmpl", &EmailContent{
+	err = ctx.TemplateCache.ExecuteTemplate(&email, "emails/tmp.tmpl", &EmailContent{
 		Content: string(htmlOut),
 		URI:     ctx.CallbackPath(),
 	})

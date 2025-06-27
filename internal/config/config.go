@@ -14,17 +14,13 @@ type AppContext struct {
 	IsProd        bool
 	Infos         *log.Logger
 	Err           *log.Logger
-	Redraw        bool
 	Session       *scs.SessionManager
-	TemplateCache map[string]*template.Template
+	TemplateCache *template.Template
+	EmailCache    map[string]*template.Template
 	DocCache      map[string][]byte
 	Notion        *types.Notion
 
 	Env *types.EnvConfig
-}
-
-func (ctx *AppContext) ReloadCache() bool {
-	return !ctx.IsProd && ctx.Redraw
 }
 
 func (ctx *AppContext) SitePath() string {

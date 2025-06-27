@@ -80,7 +80,7 @@ func main() {
 	handlers.RegisterCheckoutTypes()
 
 	// Start the server
-	app.TemplateCache = make(map[string]*template.Template)
+	app.EmailCache = make(map[string]*template.Template)
 	routes, err := handlers.Routes(&app)
 	if err != nil {
 		log.Fatal(err)
@@ -115,7 +115,6 @@ func main() {
 func run(env *types.EnvConfig) error {
 	// Initialize the application configuration
 	app.IsProd = false // change to true in production
-	app.Redraw = false // reload the draw cache by default
 	app.Infos = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	app.Err = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 	app.Env = env

@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,106 +32,61 @@ import (
 	"github.com/stripe/stripe-go/v74/webhook"
 )
 
-var pages []string = []string{"about", "courses", "404", "401", "workshop", "contact", "index", "workshop/book", "workshop/become"}
+var webpages []string = []string{"about", "courses", "404", "401", "workshop", "contact", "index", "workshop/book", "workshop/become"}
 var tools []string = []string{"wif", "keyaddr"}
+var subsCache map[string]string = make(map[string]string, 0)
 
-/* if not in prod, we rebild this every request (expensive, but fast) */
+/* Thank you StackOverflow https://stackoverflow.com/a/50581032 */
+func findAndParseTemplates(rootDir string, funcMap template.FuncMap) (*template.Template, error) {
+    cleanRoot := filepath.Clean(rootDir)
+    pfx := len(cleanRoot)+1
+    root := template.New("")
+
+    err := filepath.Walk(cleanRoot, func(path string, info os.FileInfo, e1 error) error {
+        if !info.IsDir() && strings.HasSuffix(path, ".tmpl") {
+            if e1 != nil {
+                return e1
+            }
+
+            b, e2 := ioutil.ReadFile(path)
+            if e2 != nil {
+                return e2
+            }
+
+            name := path[pfx:]
+            t := root.New(name).Funcs(funcMap)
+            _, e2 = t.Parse(string(b))
+            if e2 != nil {
+                return e2
+            }
+        }
+
+        return nil
+    })
+
+    return root, err
+}
+
 func BuildTemplateCache(ctx *config.AppContext) error {
 
-	courses, err := template.New("course").Funcs(template.FuncMap{
+	var err error
+	funcMap := template.FuncMap{
 		"LastIdx":     LastIdx,
 		"FiatPrice":   types.FiatPrice,
 		"BtcPrice":    types.BtcPrice,
 		"AvailOnline": AvailOnline,
+		"ShirtOpts": ShirtOptions,
+		"TixCount":  TixCount,
 		"toHTML": func(s string) template.HTML {
 			b := helpers.ConvertMdToHTML(ctx, s)
 			return template.HTML(string(b))
 		},
-	}).ParseFiles("templates/course.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
-	if err != nil {
-		return err
+		"ishtml": func(s string) template.HTML {
+			return template.HTML(s)
+		},
 	}
-	ctx.TemplateCache["course.tmpl"] = courses
-
-	register, err := template.New("register.tmpl").Funcs(template.FuncMap{
-		"ShirtOpts": ShirtOptions,
-		"TixCount":  TixCount,
-		"LastIdx":   LastIdx,
-		"FiatPrice": types.FiatPrice,
-		"BtcPrice":  types.BtcPrice,
-	}).ParseFiles("templates/register.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
-	if err != nil {
-		return err
-	}
-	ctx.TemplateCache["register.tmpl"] = register
-
-	checkout, err := template.ParseFiles("templates/checkout.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		return err
-	}
-	ctx.TemplateCache["checkout.tmpl"] = checkout
-
-	reserve, err := template.New("reserve.tmpl").Funcs(template.FuncMap{
-		"LastIdx": LastIdx,
-	}).ParseFiles("templates/reserve.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
-	if err != nil {
-		return err
-	}
-	ctx.TemplateCache["reserve.tmpl"] = reserve
-
-	for _, page := range pages {
-		templName := fmt.Sprintf("%s.tmpl", page)
-		pageTmpl, err := template.ParseFiles("templates/"+templName, "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl", "templates/courses/small_box.tmpl", "templates/courses/course_card.tmpl", "templates/sections/testimonials.tmpl", "templates/sections/faq.tmpl")
-		if err != nil {
-			return err
-		}
-		ctx.TemplateCache[templName] = pageTmpl
-	}
-	for _, page := range tools {
-		templName := fmt.Sprintf("%s.tmpl", page)
-		pageTmpl, err := template.ParseFiles("templates/tools/"+templName, "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-		if err != nil {
-			return err
-		}
-		ctx.TemplateCache[templName] = pageTmpl
-	}
-
-	waitlist, err := template.New("waitlist").Funcs(template.FuncMap{
-		"FiatPrice": types.FiatPrice,
-		"BtcPrice":  types.BtcPrice,
-		"LastIdx":   LastIdx,
-	}).ParseFiles("templates/waitlist.tmpl", "templates/sections/head.tmpl", "templates/sections/footer.tmpl", "templates/sections/nav.tmpl")
-	if err != nil {
-		return err
-	}
-	ctx.TemplateCache["waitlist.tmpl"] = waitlist
-
-	success, err := template.New("success").Funcs(template.FuncMap{
-		"LastIdx": LastIdx,
-	}).ParseFiles("templates/success.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		return err
-	}
-	ctx.TemplateCache["success.tmpl"] = success
-
-	waitlistS, err := template.New("waitlist_success").Funcs(template.FuncMap{
-		"FiatPrice": types.FiatPrice,
-		"BtcPrice":  types.BtcPrice,
-	}).ParseFiles("templates/waitlist_success.tmpl", "templates/sections/head.tmpl", "templates/sections/nav.tmpl", "templates/sections/footer.tmpl")
-	if err != nil {
-		panic(err)
-	}
-	ctx.TemplateCache["waitlist_success.tmpl"] = waitlistS
-
-	return nil
-}
-
-func maybeRebuildCache(ctx *config.AppContext) error {
-	if !ctx.ReloadCache() {
-		return nil
-	}
-
-	return BuildTemplateCache(ctx)
+	ctx.TemplateCache, err = findAndParseTemplates("templates", funcMap)
+	return err
 }
 
 func RegisterCheckoutTypes() {
@@ -158,20 +115,14 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	})
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
 		RenderPage(w, r, ctx, "index")
 	}).Methods("GET")
 
 	/* List of 'normie' pages */
-	for _, page := range pages {
+	for _, page := range webpages {
 		/* Normie Pages */
 		renderPage := page
 		r.HandleFunc("/"+renderPage, func(w http.ResponseWriter, r *http.Request) {
-			if err = maybeRebuildCache(ctx); err != nil {
-				panic(err)
-			}
 			RenderPage(w, r, ctx, renderPage)
 		}).Methods("GET")
 	}
@@ -186,9 +137,6 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 		http.Redirect(w, r, "/workshop", http.StatusSeeOther)
 	})
 	r.HandleFunc("/courses/{course}", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
 		Courses(w, r, ctx)
 	})
 	/* This is a legacy from last website */
@@ -196,39 +144,21 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 		http.Redirect(w, r, "/about", http.StatusSeeOther)
 	})
 	r.HandleFunc("/about", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
 		About(w, r, ctx)
 	})
 	r.HandleFunc("/waitlist", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
 		Waitlist(w, r, ctx)
 	})
 	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
 		Register(w, r, ctx)
 	})
 	r.HandleFunc("/reserve", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
 		Reserve(w, r, ctx)
 	})
 	r.HandleFunc("/summary", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
 		Summary(w, r, ctx, nil)
 	})
 	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
 		Success(w, r, ctx)
 	})
 	r.HandleFunc("/check-email", func(w http.ResponseWriter, r *http.Request) {
@@ -243,16 +173,10 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	}).Methods("POST")
 
 	r.HandleFunc("/tools/wif", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
 		WIF(w, r, ctx)
 	})
 
 	r.HandleFunc("/tools/keyaddr", func(w http.ResponseWriter, r *http.Request) {
-		if err = maybeRebuildCache(ctx); err != nil {
-			panic(err)
-		}
 		KeyAddr(w, r, ctx)
 	})
 
@@ -452,8 +376,6 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	registerType, _ := getSessionKey("t", r)
 
 	if r.Method == http.MethodGet {
-		pageTpl := ctx.TemplateCache["register.tmpl"]
-
 		title := "Course Registration"
 		furlCard := defaultCard(ctx, r, title)
 
@@ -483,7 +405,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		if len(sessionOpts) > 0 {
 			defaultSession = sessionOpts[0].UUID
 		}
-		err = pageTpl.Execute(w, RegistrationData{
+		err = ctx.TemplateCache.ExecuteTemplate(w, "course.tmpl", RegistrationData{
 			Course:        course,
 			DefaultSelect: defaultSession,
 			Sessions:      sessionOpts,
@@ -649,8 +571,6 @@ func Reserve(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	if r.Method == http.MethodGet {
-		pageTpl := ctx.TemplateCache["reserve.tmpl"]
-
 		furlCard := courseCard(ctx, r, course)
 
 		/* Filter out anything in the past or happening in the next 1hr */
@@ -665,7 +585,7 @@ func Reserve(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		w.Header().Set("Content-Type", "text/html")
 		sessionOpts := makeSessionOptions(ctx, sessions)
 
-		err = pageTpl.Execute(w, ReservationData{
+		err = ctx.TemplateCache.ExecuteTemplate(w, "reserve.tmpl", ReservationData{
 			Course:        course,
 			DefaultSelect: sessionOpts[0].UUID,
 			DefaultQty:    strconv.Itoa(int(defaultQty)),
@@ -773,16 +693,11 @@ func Summary(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, car
 	}
 
 	if r.Method == http.MethodGet {
-		tmpl, ok := ctx.TemplateCache["summary.tmpl"]
-		if !ok {
-			http.Error(w, "Unable to load page", http.StatusInternalServerError)
-			ctx.Err.Printf("summary.tmpl not in cache %v", ctx.TemplateCache)
-		}
 
 		title := "Checkout Summary"
 		furlCard := defaultCard(ctx, r, title)
 
-		err := tmpl.ExecuteTemplate(w, "summary.tmpl", &SummaryData{
+		err := ctx.TemplateCache.ExecuteTemplate(w, "summary.tmpl", &SummaryData{
 			Page:     getPage(ctx, title, furlCard),
 			Cart:     *cart,
 			SubTotal: cart.SubTotal(checkout.USD),
@@ -867,15 +782,9 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		/* token! */
 		now := time.Now().UTC().UnixNano()
 		idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, uint64(0))
-		waitlist, ok := ctx.TemplateCache["waitlist.tmpl"]
-		if !ok {
-			http.Error(w, "Unable to load page", http.StatusInternalServerError)
-			ctx.Err.Printf("waitlist.tmpl not in cache %v", ctx.TemplateCache)
-		}
-
 		furlCard := courseCard(ctx, r, course)
 
-		err = waitlist.ExecuteTemplate(w, "waitlist.tmpl", WaitlistData{
+		err = ctx.TemplateCache.ExecuteTemplate(w, "waitlist.tmpl", WaitlistData{
 			Course:  course,
 			Session: session,
 			Page:    getPage(ctx, course.Title, furlCard),
@@ -957,12 +866,7 @@ func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, extraData)
 
 	/* Show waitlist success */
-	tmpl, ok := ctx.TemplateCache["waitlist_success.tmpl"]
-	if !ok {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("waitlist_success.tmpl not in cache %v", ctx.TemplateCache)
-	}
-	err = tmpl.ExecuteTemplate(w, "waitlist_success.tmpl", &SuccessData{
+	err = ctx.TemplateCache.ExecuteTemplate(w, "waitlist_success.tmpl", &SuccessData{
 		Course:  course,
 		Session: session,
 		Page:    getPage(ctx, title, furlCard),
@@ -1011,12 +915,7 @@ func FiatCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 	title := fmt.Sprintf("Checkout for %s", cart.Items[0].GetDisplayName())
 	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), "", cart.Items[0].GetImgURL(), nil)
 
-	tmpl, ok := ctx.TemplateCache["checkout.tmpl"]
-	if !ok {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("checkout.tmpl not in cache %v", ctx.TemplateCache)
-	}
-	err := tmpl.ExecuteTemplate(w, "checkout.tmpl", &StripeCheckout{
+	err := ctx.TemplateCache.ExecuteTemplate(w, "checkout.tmpl", &StripeCheckout{
 		ClientSecret: pi.ClientSecret,
 		PubKey:       ctx.Env.Stripe.Pubkey,
 		Email:        cart.Infos.Email,
@@ -1118,12 +1017,7 @@ func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, extraData)
 
-	success, ok := ctx.TemplateCache["success.tmpl"]
-	if !ok {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("success.tmpl not in cache %v", ctx.TemplateCache)
-	}
-	err = success.ExecuteTemplate(w, "success.tmpl", &SuccessData{
+	err = ctx.TemplateCache.ExecuteTemplate(w, "success.tmpl", &SuccessData{
 		Course:  course,
 		Session: session,
 		Page:    getPage(ctx, title, furlCard),
@@ -1341,8 +1235,7 @@ func RenderPage(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, 
 
 	// Render the template with the data
 	template := fmt.Sprintf("%s.tmpl", page)
-	tmpl := ctx.TemplateCache[template]
-	err = tmpl.ExecuteTemplate(w, template, data)
+	err = ctx.TemplateCache.ExecuteTemplate(w, template, data)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/%s exec template failed %s\n", template, err.Error())
@@ -1392,6 +1285,7 @@ func countSeats(s sessionList) uint {
 func About(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 }
+
 func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* If there's no class-key, redirect to the front page */
 	params := mux.Vars(r)
@@ -1438,8 +1332,7 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
 	furlCard := courseCardWithExtras(ctx, r, course, extraData)
 
-	t := ctx.TemplateCache["course.tmpl"]
-	err = t.ExecuteTemplate(w, "course.tmpl", CourseData{
+	err = ctx.TemplateCache.ExecuteTemplate(w, "courses/course.tmpl", CourseData{
 		Course:     course,
 		SeatsAvail: countSeats(sessions),
 		Sessions:   sessions,
@@ -1608,13 +1501,8 @@ func KeyAddr(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		data.Value = form.Value
 	}
 
-	keyAddrTmpl, ok := ctx.TemplateCache["keyaddr.tmpl"]
-	if !ok {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("keyaddr.tmpl not in cache %v", ctx.TemplateCache)
-	}
 	data.Page = getPage(ctx, title, furlCard)
-	err = keyAddrTmpl.ExecuteTemplate(w, "keyaddr.tmpl", &data)
+	err = ctx.TemplateCache.ExecuteTemplate(w, "tools/keyaddr.tmpl", &data)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/tools/keyaddr execute template failed %s\n", err.Error())
@@ -1659,13 +1547,8 @@ func WIF(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		data.Value = form.Value
 	}
 
-	wifTmpl, ok := ctx.TemplateCache["wif.tmpl"]
-	if !ok {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("wif.tmpl not in cache %v", ctx.TemplateCache)
-	}
 	data.Page = getPage(ctx, title, furlCard)
-	err = wifTmpl.ExecuteTemplate(w, "wif.tmpl", &data)
+	err = ctx.TemplateCache.ExecuteTemplate(w, "tools/wif.tmpl", &data)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/tools/wif execute template failed %s\n", err.Error())
