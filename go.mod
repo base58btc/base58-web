@@ -8,16 +8,16 @@ require (
 	github.com/base58btc/mailer v0.0.0-20230510213939-04e8f45514b5
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/gomarkdown/markdown v0.0.0-20231222211730-1d6d20845b47
+	github.com/google/go-cmp v0.6.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/schema v1.2.0
 	github.com/joho/godotenv v1.5.1
 	github.com/rs/cors v1.10.1
-	github.com/sorcererxw/go-notion v0.2.4
+	github.com/sorcererxw/go-notion v0.2.5-0.20210804123730-2ca5a8ead963
 	github.com/stripe/stripe-go/v74 v74.12.0
 )
 
 require (
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/jmoiron/sqlx v1.3.5 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/mailgun/mailgun-go/v4 v4.8.2 // indirect
@@ -30,4 +30,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/sorcererxw/go-notion v0.2.4 => github.com/niftynei/go-notion v0.0.0-20230323155332-a2c93bab119e
+replace github.com/sorcererxw/go-notion v0.2.5-0.20210804123730-2ca5a8ead963 => github.com/niftynei/go-notion v0.0.0-20250627233033-feafba0d8cce

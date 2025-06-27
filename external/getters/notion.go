@@ -115,10 +115,8 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Co
 		ShortDesc:    parseRichText("ShortDesc", props),
 		LongDesc:     parseRichText("LongDesc", props),
 		PreReqs:      parseRichText("PreReqs", props),
-		Visible:      props["Visible"].Checkbox,
-		Feature:      props["Feature"].Checkbox,
-
-		//ExtURL:        props["ExternalURL"].URL,
+		Visible:      *props["Visible"].Checkbox,
+		Feature:      *props["Feature"].Checkbox,
 		//WelcomeEmail:  props["WelcomeEmail"].URL,
 		//WaitlistEmail: props["WaitlistEmail"].URL,
 	}
@@ -141,8 +139,8 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 		ClassRef:          parseRichText("ClassRef", props),
 		Cost:              uint64(props["Cost"].Number),
 		Currency:          parseCurrency(props["Currency"].Select),
-		TShirt:            props["T-Shirt"].Checkbox,
-		Online:            props["Online"].Checkbox,
+		TShirt:            *props["T-Shirt"].Checkbox,
+		Online:            *props["Online"].Checkbox,
 		TotalSeats:        uint(props["TotalSeats"].Number),
 		SeatsAvail:        uint(props["SeatsAvail"].Number),
 		TimeDesc:          parseRichText("Time", props),
