@@ -801,8 +801,7 @@ func SubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 	token := getSubscribeToken(ctx.Env.SecretBytes(), email)
 	subsCache[token] = email
 	ctx.Infos.Printf("%s subscribe token is %s. sending confirmation email", email, token)
-	//err := helpers.SendSubscribeEmail(email, token)
-	var err error
+	_, err := emails.SendNewsletterSubEmail(ctx, email, token)
 	if err != nil {
 		w.Write([]byte(fmt.Sprintf(`
         	<div class="form_message-error-wrapper w-form-fail" style="display:block;">
@@ -811,6 +810,7 @@ func SubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
                 </div>
                 </div>
 		`, email)))
+		ctx.Infos.Printf("Unable to send mail to %s: %s", email, err)
 		return
 	}
 	w.Write([]byte(fmt.Sprintf(`
@@ -854,13 +854,28 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		return
 	}
 	
-	/* FIXME: show a success banner or something */
-	RenderPage(w, r, ctx, "index")
+	// Render the template with the data
+	title := "Subscribed Success"
+	furlCard := defaultCard(ctx, r, title + " | Base58")
+	err = ctx.TemplateCache.ExecuteTemplate(w, "emails/subscribe.tmpl", &SubscribePage{
+		Page: getPage(ctx, title + " | Base58", furlCard),
+		Text: title,
+		ActionText: "subscribed to",
+		Email: email,
+	})
+
+	if err != nil {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/emails/unsubscribe exec template failed %s\n", err.Error())
+		return
+	}
 }
 
-type UnsubscribePage struct {
-	Page    Page
-	Email   string
+type SubscribePage struct {
+	Page        Page
+	Email       string
+	Text        string
+	ActionText  string
 }
 
 func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -898,14 +913,16 @@ func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 	// Render the template with the data
 	title := "Unsubscribe | Base58"
 	furlCard := defaultCard(ctx, r, title)
-	err = ctx.TemplateCache.ExecuteTemplate(w, "emails/unsubscribe.tmpl", &UnsubscribePage{
+	err = ctx.TemplateCache.ExecuteTemplate(w, "emails/subscribe.tmpl", &SubscribePage{
 		Page: getPage(ctx, title, furlCard),
 		Email: email,
+		Text: "Sorry to see you go",
+		ActionText: "unsubscribed from",
 	})
 
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("/emails/unsubscribe exec template failed %s\n", err.Error())
+		ctx.Err.Printf("/emails/subscribe exec template failed %s\n", err.Error())
 		return
 	}
 }
@@ -1207,7 +1224,8 @@ func (ci CourseItem) OnCallback(appCtx interface{}, cart *checkout.Cart, payment
 		Idempotency: cart.Token,
 		Email:       cart.Infos.Email,
 	}
-	return emails.SendRegistrationEmail(ctx, course, session, confirmed)
+	_, err = emails.SendRegistrationEmail(ctx, course, session, confirmed)
+	return err
 }
 
 func completeCheckout(ctx *config.AppContext, cartID, paymentID string) error {

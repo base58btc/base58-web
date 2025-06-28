@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kodylow/base58-website/internal/config"
@@ -34,9 +35,62 @@ type EmailContent struct {
 	URI     string
 }
 
+var globalctx *config.AppContext
+
 func emailRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+	if blockquote, ok := node.(*ast.BlockQuote); ok && entering {
+		var attr *ast.Attribute
+		if c := blockquote.AsContainer(); c != nil {
+			if c.Attribute != nil {
+				attr = c.Attribute
+			} else {
+				attr = &ast.Attribute{
+					Attrs: make(map[string][]byte, 0),
+				}
+				c.Attribute = attr
+			}
+		}
+		if attr == nil {
+			return ast.GoToNext, false
+		}
+
+		styleValue := `
+			border: none;
+			margin: 0;
+			justify-content: center;
+			align-items: center;
+			margin-bottom: auto;
+			padding-bottom: 1rem;
+			padding-top: 1rem;
+			display: flex;
+		`
+		attr.Attrs["style"] = []byte(styleValue)
+	}
 	if anchor, ok := node.(*ast.Link); ok && entering {
-		styleAttr := `style="text-underline-offset:4px; text-decoration-line:underline; text-underline-offset:4px; font-weight:400;"`
+		var styleAttr string
+		dest := string(anchor.Destination)
+		if strings.HasPrefix(dest, "button#") {
+			trimmed := strings.TrimPrefix(dest, "button#")
+			anchor.Destination = []byte(trimmed)
+
+			styleAttr = `style="
+				color: #2d2d2d;
+				background-color: #f7931a;
+				border: 1.5px solid #000;
+				border-radius: 6px;
+				cursor: pointer;
+				display: inline-block;
+				line-height: inherit;
+				padding: .75rem 1.5rem;
+				font-family: tenon, sans-serif;
+				font-size: 1.1rem;
+				font-weight: 500;
+				text-align: center;
+				text-decoration: none;n
+			"`
+		} else {
+			styleAttr = `style="text-underline-offset:4px; text-decoration-line:underline; text-underline-offset:4px; font-weight:400;"`
+		}
 		anchor.AdditionalAttributes = append(anchor.AdditionalAttributes, styleAttr)
 	}
 	if head, ok := node.(*ast.Heading); ok && entering {
@@ -80,57 +134,51 @@ func mdToHTML(md []byte) []byte {
 	return markdown.Render(doc, renderer)
 }
 
-func Build(ctx *config.AppContext, tmplURL string, course *types.Course, session *types.CourseSession) ([]byte, []byte, error) {
-	/* Fetch the email template */
+func findEmailMarkdown(ctx *config.AppContext, tmplURL string) (*template.Template, error) {
 	t, ok := ctx.EmailCache[tmplURL]
-
 	if !ok {
 		ctx.Infos.Printf("cache miss for %s", tmplURL)
 		req, _ := http.NewRequest("GET", tmplURL, nil)
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		defer resp.Body.Close()
 		tmpl, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		if resp.StatusCode != 200 {
-			return nil, nil, fmt.Errorf("error returned from %s: %s", tmplURL, err.Error())
+			return nil, fmt.Errorf("error returned from %s: %s", tmplURL, err.Error())
 		}
 
 		t = template.Must(template.New("").Parse(string(tmpl)))
 		ctx.EmailCache[tmplURL] = t
 	}
 
-	/* Swap in the tokens */
-	var buf bytes.Buffer
-	err := t.Execute(&buf, &EmailInfos{
-		Course:  course,
-		Session: session,
-	})
-	if err != nil {
-		return nil, nil, err
-	}
+	return t, nil
+}
 
+func BuildHTMLEmail(ctx *config.AppContext, markdown []byte) ([]byte, error) {
+
+	globalctx = ctx
 	/* Convert markdown to HTML */
-	htmlOut := mdToHTML(buf.Bytes())
+	htmlOut := mdToHTML(markdown)
 
 	/* Embed into our email wrapper template */
 	var email bytes.Buffer
-	err = ctx.TemplateCache.ExecuteTemplate(&email, "emails/tmp.tmpl", &EmailContent{
+	err := ctx.TemplateCache.ExecuteTemplate(&email, "emails/tmp.tmpl", &EmailContent{
 		Content: string(htmlOut),
 		URI:     ctx.CallbackPath(),
 	})
 
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return email.Bytes(), buf.Bytes(), nil
+	return email.Bytes(), nil
 }
 
 func makeAuthStamp(secret string, timestamp string, r *http.Request) string {
@@ -157,6 +205,47 @@ type EmailFile struct {
 	Name string
 }
 
+type SubConfirmEmail struct {
+	Email      string
+	ConfirmURL string
+}
+
+func buildConfirmURL(ctx *config.AppContext, token string) string {
+	return fmt.Sprintf("%s/newsletter/confirm/%s", ctx.SitePath(), token)
+}
+
+func SendNewsletterSubEmail(ctx *config.AppContext, email, token string) ([]byte, error) {
+
+	timestamp := strconv.Itoa(int(time.Now().Unix()))
+	jobkey := "subscribe-" + token + "-" + timestamp
+	mail := &Mail{
+		JobKey: jobkey,
+		Email:  email,
+		Title:  "[Action Required] Confirm Base58 Newsletter Subscription",
+		SendAt: time.Now(),
+	}
+
+	/* Swap in the tokens */
+	var buf bytes.Buffer
+	err := ctx.TemplateCache.ExecuteTemplate(&buf, "emails/confirm-sub.tmpl", &SubConfirmEmail{
+		Email:      email,
+		ConfirmURL: buildConfirmURL(ctx, token),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	mail.TextBody = buf.Bytes()
+
+	mail.HTMLBody, err = BuildHTMLEmail(ctx, buf.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	return mail.TextBody, ComposeAndSendMail(ctx, mail)
+}
+
 func SendWaitlistEmail(ctx *config.AppContext, idem string, email string, course *types.Course, session *types.CourseSession) error {
 
 	var err error
@@ -168,7 +257,21 @@ func SendWaitlistEmail(ctx *config.AppContext, idem string, email string, course
 		SendAt: time.Now(),
 	}
 
-	mail.HTMLBody, mail.TextBody, err = Build(ctx, course.WaitlistEmail, course, session)
+	emailTmpl, err := findEmailMarkdown(ctx, course.WaitlistEmail)
+
+	/* Swap in the tokens */
+	var buf bytes.Buffer
+	err = emailTmpl.Execute(&buf, &EmailInfos{
+		Course:  course,
+		Session: session,
+	})
+	if err != nil {
+		return err
+	}
+
+	mail.TextBody = buf.Bytes()
+
+	mail.HTMLBody, err = BuildHTMLEmail(ctx, buf.Bytes())
 	if err != nil {
 		return err
 	}
@@ -176,7 +279,7 @@ func SendWaitlistEmail(ctx *config.AppContext, idem string, email string, course
 	return ComposeAndSendMail(ctx, mail)
 }
 
-func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session *types.CourseSession, confirm *types.Confirmed) error {
+func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session *types.CourseSession, confirm *types.Confirmed) ([]byte, error) {
 	var err error
 	mail := &Mail{
 		JobKey: confirm.Idempotency,
@@ -184,9 +287,24 @@ func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session
 		Title:  fmt.Sprintf("Your Registration for Base58's %s", course.Title),
 		SendAt: time.Now(),
 	}
-	mail.HTMLBody, mail.TextBody, err = Build(ctx, course.WelcomeEmail, course, session)
+
+	emailTmpl, err := findEmailMarkdown(ctx, course.WelcomeEmail)
+
+	/* Swap in the tokens */
+	var buf bytes.Buffer
+	err = emailTmpl.Execute(&buf, &EmailInfos{
+		Course:  course,
+		Session: session,
+	})
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	mail.TextBody = buf.Bytes()
+
+	mail.HTMLBody, err = BuildHTMLEmail(ctx, buf.Bytes())
+	if err != nil {
+		return nil, err
 	}
 
 	/* FIXME: if ticked event, send a ticket PDF too! x confirm.Count */
@@ -194,7 +312,7 @@ func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session
 
 	/* FIXME: add a receipt PDF */
 
-	return ComposeAndSendMail(ctx, mail)
+	return mail.HTMLBody, ComposeAndSendMail(ctx, mail)
 }
 
 func ComposeAndSendMail(ctx *config.AppContext, mail *Mail) error {
@@ -211,7 +329,7 @@ func ComposeAndSendMail(ctx *config.AppContext, mail *Mail) error {
 
 	/* Build a mail to send */
 	mailReq := &mailer.MailRequest{
-		JobKey:      mail.JobKey,
+		JobKey:      "base58:" + mail.JobKey,
 		ToAddr:      mail.Email,
 		FromAddr:    "hello@base58.school",
 		FromName:    "Base58⛓️ 🔓",
