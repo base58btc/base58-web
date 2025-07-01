@@ -143,9 +143,6 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/team", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/about", http.StatusSeeOther)
 	})
-	r.HandleFunc("/about", func(w http.ResponseWriter, r *http.Request) {
-		About(w, r, ctx)
-	})
 	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
 		Register(w, r, ctx)
 	})
@@ -1420,10 +1417,6 @@ func countSeats(s sessionList) uint {
 	}
 
 	return acc
-}
-
-func About(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-
 }
 
 func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
