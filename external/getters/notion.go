@@ -416,13 +416,13 @@ func parseSubs(options *[]*notion.SelectOption) []*types.Subscription {
 	return subs
 }
 
-func FindSubscriber(n *types.Notion, token string) (*types.Subscriber, error) {
+func FindSubscriber(n *types.Notion, email string) (*types.Subscriber, error) {
 	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
 		n.Config.NewsletterDb, notion.QueryDatabaseParam{
 			Filter: &notion.Filter{
-				Property: "Token",
+				Property: "Email",
 				Text: &notion.TextFilterCondition{
-					Equals: token,
+					Equals: email,
 				},
 			},
 		})
@@ -443,7 +443,7 @@ func FindSubscriber(n *types.Notion, token string) (*types.Subscriber, error) {
 	return sub, err
 }
 
-func SubscribeEmail(n *types.Notion, email, token, newsletter string) (*types.Subscriber, error) {
+func SubscribeEmail(n *types.Notion, email, newsletter string) (*types.Subscriber, error) {
 	parent := notion.NewDatabaseParent(n.Config.NewsletterDb)
 	props := map[string]*notion.PropertyValue{
 		"Email": notion.NewTitlePropertyValue(
@@ -451,13 +451,6 @@ func SubscribeEmail(n *types.Notion, email, token, newsletter string) (*types.Su
 				{
 					Type: notion.RichTextText,
 					Text: &notion.Text{Content: email},
-				},
-			}...),
-		"Token": notion.NewRichTextPropertyValue(
-			[]*notion.RichText{
-				{
-					Type: notion.RichTextText,
-					Text: &notion.Text{Content: token},
 				},
 			}...),
 		"Subs": notion.NewMultiSelectPropertyValue(

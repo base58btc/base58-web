@@ -35,7 +35,6 @@ import (
 
 var webpages []string = []string{"about", "courses", "404", "401", "workshop", "contact", "index", "workshop/book", "workshop/become"}
 var tools []string = []string{"wif", "keyaddr"}
-var subsCache map[string]string = make(map[string]string, 0)
 
 /* Thank you StackOverflow https://stackoverflow.com/a/50581032 */
 func findAndParseTemplates(rootDir string, funcMap template.FuncMap) (*template.Template, error) {
@@ -775,12 +774,63 @@ func Summary(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, car
 
 }
 
-func getSubscribeToken(sec []byte, email string) string {
-	/* Make a lil hash using the sessionUUID + timestamp */
+func getSubscribeToken(sec []byte, email, newsletter string, timestamp uint64) (string, string) {
+	/* Make a lil hash using the email + timestamp + newsletter */
 	h := sha256.New()
 	h.Write(sec)
 	h.Write([]byte(email))
-	return hex.EncodeToString(h.Sum(nil))
+	h.Write([]byte(newsletter))
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, timestamp)
+	h.Write(b)
+
+	/* Token is 8-bytes hash prefix, hex of email,
+	 * hex of newsletter, hex of timestamp 
+	 */
+
+	hashB := h.Sum(nil)
+	hash := hex.EncodeToString(hashB[:8])
+	emailHex := hex.EncodeToString([]byte(email))
+	subHex := hex.EncodeToString([]byte(newsletter))
+	timeHex := hex.EncodeToString(b)
+	return hash, fmt.Sprintf("%s-%s-%s-%s", hash, emailHex, subHex, timeHex)
+}
+
+type SubToken struct {
+	Time       time.Time
+	Email      string
+	Newsletter string
+}
+
+func parseSubscribeToken(sec []byte, token string) (*SubToken, error) {
+	parts := strings.Split(token, "-")
+	if len(parts) != 4 {
+		return nil, fmt.Errorf("Invalid token format %s", token)
+	}
+	
+	emailB, err := hex.DecodeString(parts[1])
+	if err != nil {
+		return nil, err
+	}
+	subB, err := hex.DecodeString(parts[2])
+	if err != nil {
+		return nil, err
+	}
+	timeB, err := hex.DecodeString(parts[3])
+	if err != nil {
+		return nil, err
+	}
+	timestamp := binary.LittleEndian.Uint64(timeB)
+	hash, _ := getSubscribeToken(sec, string(emailB), string(subB), timestamp)
+	if hash != parts[0] {
+		return nil, fmt.Errorf("Invalid token %s", token)
+	}
+
+	return &SubToken{ 
+		Time: time.Unix(0, int64(timestamp)),
+		Email: string(emailB),
+		Newsletter: string(subB),
+	}, nil
 }
 
 func SubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -798,8 +848,10 @@ func SubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 		return
 	}
 
-	token := getSubscribeToken(ctx.Env.SecretBytes(), email)
-	subsCache[token] = email
+	newsletter := "newsletter"
+	timestamp := uint64(time.Now().UTC().UnixNano())
+	_, token := getSubscribeToken(ctx.Env.SecretBytes(), email, newsletter, timestamp)
+
 	ctx.Infos.Printf("%s subscribe token is %s. sending confirmation email", email, token)
 	_, err := emails.SendNewsletterSubEmail(ctx, email, token)
 	if err != nil {
@@ -834,20 +886,28 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		return
 	}
 
-	/* Look up in cache and add to email list */
-	email, ok := subsCache[token]
-	if !ok {
-		ctx.Infos.Printf("No email found for newsletter confirmation request %s", token)
+	subToken, err := parseSubscribeToken(ctx.Env.SecretBytes(), token)
+	if err != nil {
+		ctx.Infos.Printf("Email subscribe token validation failed. %s", err)
 		/* Return the homepage page */
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
+	/* Expiry time is one week */
+	expiryTime := subToken.Time.AddDate(0, 0, 7)
+	if expiryTime.Before(time.Now()) {
+		ctx.Infos.Printf("Email subscribe token too old.")
+		/* Return the homepage page */
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+
+	}
+
 	/* Add to email list */
-	newsletter := "newsletter"
-	subscriber, err := getters.FindSubscriber(ctx.Notion, token)
+	subscriber, err := getters.FindSubscriber(ctx.Notion, subToken.Email)
 	if err != nil {
-		ctx.Infos.Printf("Subscribe failed for newsletter confirmation request %s (%s): %s", token, email, err)
+		ctx.Infos.Printf("Subscribe failed for newsletter confirmation request %s: %s", subToken.Email, err)
 		/* FIXME: show an error banner or something */
 		/* Return the homepage page */
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -855,9 +915,9 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	}
 
 	if subscriber == nil {
-		subscriber, err = getters.SubscribeEmail(ctx.Notion, email, token, newsletter)
+		subscriber, err = getters.SubscribeEmail(ctx.Notion, subToken.Email, subToken.Newsletter)
 		if err != nil {
-			ctx.Infos.Printf("Subscribe failed for newsletter confirmation request %s (%s): %s", token, email, err)
+			ctx.Infos.Printf("Subscribe failed for newsletter confirmation request %s: %s", subToken.Email, err)
 			/* FIXME: show an error banner or something */
 			/* Return the homepage page */
 			http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -865,13 +925,13 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		}
 	}
 
-	changed := subscriber.AddSubscription(newsletter)
+	changed := subscriber.AddSubscription(subToken.Newsletter)
 	if changed {
 		err = getters.UpdateSubs(ctx.Notion, subscriber)
 	}
 
 	if err != nil {
-		ctx.Infos.Printf("Subscribe failed for newsletter confirmation request %s (%s): %s", token, email, err)
+		ctx.Infos.Printf("Subscribe failed for newsletter confirmation request %s: %s", subToken.Email, err)
 		/* FIXME: show an error banner or something */
 		/* Return the homepage page */
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -885,7 +945,7 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		Page: getPage(ctx, title + " | Base58", furlCard),
 		Text: title,
 		ActionText: "subscribed to",
-		Email: email,
+		Email: subToken.Email,
 	})
 
 	if err != nil {
@@ -907,15 +967,16 @@ func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 	params := mux.Vars(r)
 	token := params["token"]
 
-	if token == "" {
-		ctx.Infos.Printf("No token found for newsletter confirmation request")
+	subToken, err := parseSubscribeToken(ctx.Env.SecretBytes(), token)
+	if err != nil {
+		ctx.Infos.Printf("Invalid token %s for unsubscribe: %s", token, err)
 		/* Return the homepage page */
 		RenderPage(w, r, ctx, "index")
 		return
 	}
 
 	/* Find record for that token */
-	subscriber, err := getters.FindSubscriber(ctx.Notion, token)
+	subscriber, err := getters.FindSubscriber(ctx.Notion, subToken.Email)
 	if err != nil || subscriber == nil {
 		ctx.Infos.Printf("No subscriber found for token %s: %s", token, err)
 		/* Return the homepage page */
@@ -923,17 +984,16 @@ func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 		return
 	}
 
-	subscription := "newsletter"
-	changed := subscriber.RmSubscription(subscription)
+	changed := subscriber.RmSubscription(subToken.Newsletter)
 	if changed {
 		err := getters.UpdateSubs(ctx.Notion, subscriber)
 		if err != nil {
-			ctx.Infos.Printf("Error unsubscribing %s from %s: %s", subscriber.Email, subscription, err)
+			ctx.Infos.Printf("Error unsubscribing %s from %s: %s", subscriber.Email, subToken.Newsletter, err)
 		} else {
-			ctx.Infos.Printf("Unsubscribed %s from %s", subscriber.Email, subscription)
+			ctx.Infos.Printf("Unsubscribed %s from %s", subscriber.Email, subToken.Newsletter)
 		}
 	} else {
-		ctx.Infos.Printf("Subscriber %s already unsubscribed from %s", subscriber.Email, subscription)
+		ctx.Infos.Printf("Subscriber %s already unsubscribed from %s", subscriber.Email, subToken.Newsletter)
 	}
 
 
