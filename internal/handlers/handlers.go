@@ -845,12 +845,37 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	}
 
 	/* Add to email list */
-	_, err := getters.SubscribeEmail(ctx.Notion, email, token)
+	newsletter := "newsletter"
+	subscriber, err := getters.FindSubscriber(ctx.Notion, token)
 	if err != nil {
 		ctx.Infos.Printf("Subscribe failed for newsletter confirmation request %s (%s): %s", token, email, err)
 		/* FIXME: show an error banner or something */
 		/* Return the homepage page */
-		RenderPage(w, r, ctx, "index")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	if subscriber == nil {
+		subscriber, err = getters.SubscribeEmail(ctx.Notion, email, token, newsletter)
+		if err != nil {
+			ctx.Infos.Printf("Subscribe failed for newsletter confirmation request %s (%s): %s", token, email, err)
+			/* FIXME: show an error banner or something */
+			/* Return the homepage page */
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+	}
+
+	changed := subscriber.AddSubscription(newsletter)
+	if changed {
+		err = getters.UpdateSubs(ctx.Notion, subscriber)
+	}
+
+	if err != nil {
+		ctx.Infos.Printf("Subscribe failed for newsletter confirmation request %s (%s): %s", token, email, err)
+		/* FIXME: show an error banner or something */
+		/* Return the homepage page */
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 	
@@ -891,31 +916,34 @@ func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 	}
 
 	/* Find record for that token */
-	email, pages, err := getters.FindSubscriber(ctx.Notion, token)
-	if err != nil || len(pages) == 0 {
+	subscriber, err := getters.FindSubscriber(ctx.Notion, token)
+	if err != nil || subscriber == nil {
 		ctx.Infos.Printf("No subscriber found for token %s: %s", token, err)
 		/* Return the homepage page */
 		RenderPage(w, r, ctx, "index")
 		return
 	}
 
-	for _, page := range pages {
-		err := getters.UnsubscribeEmail(ctx.Notion, page)
+	subscription := "newsletter"
+	changed := subscriber.RmSubscription(subscription)
+	if changed {
+		err := getters.UpdateSubs(ctx.Notion, subscriber)
 		if err != nil {
-			ctx.Infos.Printf("Error unsubscribing %s: %s", page, err)
+			ctx.Infos.Printf("Error unsubscribing %s from %s: %s", subscriber.Email, subscription, err)
+		} else {
+			ctx.Infos.Printf("Unsubscribed %s from %s", subscriber.Email, subscription)
 		}
+	} else {
+		ctx.Infos.Printf("Subscriber %s already unsubscribed from %s", subscriber.Email, subscription)
 	}
 
-	if err == nil {
-		ctx.Infos.Printf("Unsubscribe successful %s", token)
-	}
 
 	// Render the template with the data
 	title := "Unsubscribe | Base58"
 	furlCard := defaultCard(ctx, r, title)
 	err = ctx.TemplateCache.ExecuteTemplate(w, "emails/subscribe.tmpl", &SubscribePage{
 		Page: getPage(ctx, title, furlCard),
-		Email: email,
+		Email: subscriber.Email,
 		Text: "Sorry to see you go",
 		ActionText: "unsubscribed from",
 	})

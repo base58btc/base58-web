@@ -128,6 +128,17 @@ type (
 		Count       uint
 	}
 
+	Subscriber struct {
+		Email         string
+		Subs          []*Subscription
+		Pages         []string
+	}
+
+	Subscription struct {
+		Name          string
+		ID            string
+	}
+
 	FurlCard struct {
 		URL           string
 		Domain        string
@@ -399,4 +410,43 @@ func (c *Checkout) MakeDesc() string {
 	}
 
 	return fmt.Sprintf("%d %s in Base58's %s class. %s", c.Count, seatStr, c.CourseName, c.Session.GetOptionDesc())
+}
+
+/* Returns true if subscribed is new state */
+func (s *Subscriber) AddSubscription(name string) bool {
+	if s.Subs == nil {
+		s.Subs = make([]*Subscription, 0)
+	}
+
+	for _,sub := range s.Subs {
+		if sub.Name == name {
+			return false 
+		}
+	}
+
+	s.Subs = append(s.Subs, &Subscription{
+		Name: name,
+	})
+	return true
+}
+
+/* Returns true if unsubscribed is new state */
+func (s *Subscriber) RmSubscription(name string) bool {
+	if s.Subs == nil {
+		return false
+	}
+
+	newSubs := make([]*Subscription, 0)
+	unsubscribed := false
+
+	for _,sub := range s.Subs {
+		if sub.Name == name {
+			unsubscribed = true
+			continue
+		}
+		newSubs = append(newSubs, sub)
+	}
+
+	s.Subs = newSubs
+	return unsubscribed
 }

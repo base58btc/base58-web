@@ -400,24 +400,50 @@ func SaveRegistration(n *types.Notion, idem string, seshUUID string, r *types.Cl
 	return page.ID, err
 }
 
-func SubscribeEmail(n *types.Notion, email, token string) (string, error) {
-	/* Flip back to true an unsubscribed instead of adding new */
-	_, pages, err := FindSubscriber(n, token)
-	if err != nil {
-		return "", err
-	}
-	unsubscribe := false
-	if len(pages) > 0 {
-		for _, page := range pages {
-			err = setSubscribe(n, page, &unsubscribe)
-			if err != nil {
-				panic(fmt.Sprintf("oops, %s: %s", page, err))
-				return "", err
-			}
-		}
-		return pages[0], nil
+func parseSubs(options *[]*notion.SelectOption) []*types.Subscription {
+	var subs []*types.Subscription
+
+	if options == nil {
+		return subs
 	}
 
+	for _, opt := range *options {
+		subs = append(subs, &types.Subscription{
+			Name: opt.Name,
+			ID:   opt.ID,
+		})
+	}
+	return subs
+}
+
+func FindSubscriber(n *types.Notion, token string) (*types.Subscriber, error) {
+	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
+		n.Config.NewsletterDb, notion.QueryDatabaseParam{
+			Filter: &notion.Filter{
+				Property: "Token",
+				Text: &notion.TextFilterCondition{
+					Equals: token,
+				},
+			},
+		})
+
+	if err != nil || len(pages) == 0 {
+		return nil, err
+	}
+
+	sub := &types.Subscriber {
+		Pages: make([]string, len(pages)),
+	}
+
+	for i, page := range pages {
+		sub.Pages[i] = page.ID
+		sub.Email = parseRichText("Email", page.Properties)
+		sub.Subs = parseSubs(page.Properties["Subs"].MultiSelect)
+	}
+	return sub, err
+}
+
+func SubscribeEmail(n *types.Notion, email, token, newsletter string) (*types.Subscriber, error) {
 	parent := notion.NewDatabaseParent(n.Config.NewsletterDb)
 	props := map[string]*notion.PropertyValue{
 		"Email": notion.NewTitlePropertyValue(
@@ -434,52 +460,51 @@ func SubscribeEmail(n *types.Notion, email, token string) (string, error) {
 					Text: &notion.Text{Content: token},
 				},
 			}...),
+		"Subs": notion.NewMultiSelectPropertyValue(
+			[]*notion.SelectOption{
+				{
+					Name: newsletter,
+				},
+			}...),
 	}
 
 	page, err := n.Client.CreatePage(context.Background(), parent, props)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return page.ID, err
+	subscriber := &types.Subscriber{
+		Pages:  []string { page.ID },
+		Email: email,
+	}
+	subscriber.AddSubscription(newsletter)
+	return subscriber, err
 }
 
-func FindSubscriber(n *types.Notion, token string) (string, []string, error) {
-	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
-		n.Config.NewsletterDb, notion.QueryDatabaseParam{
-			Filter: &notion.Filter{
-				Property: "Token",
-				Text: &notion.TextFilterCondition{
-					Equals: token,
-				},
-			},
-		})
-
-	pageIds := make([]string, len(pages))
-	if err != nil {
-		return "", pageIds, err
+func makeSubList(sub *types.Subscriber) []*notion.SelectOption {
+	subList := make([]*notion.SelectOption, len(sub.Subs))
+	for i, subscription := range sub.Subs {
+		subList[i] = &notion.SelectOption {
+			Name: subscription.Name,
+			ID:   subscription.ID,
+		}
 	}
-
-	var email string
-	for i, page := range pages {
-		pageIds[i] = page.ID
-		email = parseRichText("Email", page.Properties)
-	}
-	return email, pageIds, err
+	return subList
 }
 
-func setSubscribe(n *types.Notion, pageId string, subscribe *bool) (error) {
-	/* Set the Unsubscribed property to bool */
-	_, err := n.Client.UpdatePageProperties(context.Background(), pageId,
-		map[string]*notion.PropertyValue{
-			"Unsubscribed": notion.NewCheckboxPropertyValue(subscribe),
-		})
+func UpdateSubs(n *types.Notion, sub *types.Subscriber) (error) {
+	subList := makeSubList(sub)
+	
+	for _, pageID := range sub.Pages {
+		_, err := n.Client.UpdatePageProperties(context.Background(), pageID,
+			map[string]*notion.PropertyValue{
+				"Subs": notion.NewMultiSelectPropertyValue(subList...),
+			})
+		if err != nil {
+			return err
+		}
+	}
 
-	return err
-}
-
-func UnsubscribeEmail(n *types.Notion, pageId string) (error) {
-	unsubscribe := true
-	return setSubscribe(n, pageId, &unsubscribe)
+	return nil
 }
 
 /*
