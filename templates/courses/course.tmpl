@@ -230,6 +230,7 @@ margin: 0rem !important;
               <div class="individualcourse_content-left">
                 <div class="margin-bottom margin-xsmall">
                   <h1 class="course-title lower-line">{{ .Course.Title }}: Transactions, Scripts + SegWit</h1>
+		  {{ if ne .Course.Availability "Coming Soon" }}
                   <div class="product-header9_price-wrapper">
                     <div class="heading-style-h4">
 		      {{ if eq .Course.PriceUSD 0 }}
@@ -263,12 +264,32 @@ margin: 0rem !important;
                       <div class="text-size-small">({{ .Course.Rating}} stars)</div>
                     </div>
                   </div>
+		  {{ end }}
                 </div>
                 <p class="text-size-medium margin-bottom margin-medium">{{ .Course.ShortDesc }}</p>
                 <div class="margin-bottom margin-medium">
                   <div class="product-header9_add-to-cart">
 		    {{ if eq .Course.Availability "Coming Soon" }}
-                    <a href="/courses/{{ .Course.Tag }}/waitlist" target="_blank" class="secondary-button course-page w-button">Join the Waitlist</a>
+                    <div class="footer2_form-block">
+                      <div id="email-form" name="email-signup" class="footer9_form"> 
+                      <input class="form_input w-input" maxlength="256" 
+		        name="newsletter-email"
+		        id="newsletter-email" type="email" 
+			required
+                        autoComplete="on" autoCorrect="off" 
+			autoCapitalize="off" spellCheck="false"
+                        placeholder="you@base58.school"
+                        />
+		      <button id="subscribe-btn" 
+		        class="secondary-button course-page w-button"
+		        hx-post="/{{ .Course.Tag }}/subscribe"
+		        hx-include="#newsletter-email"
+		        hx-trigger="click"
+                        hx-target="#subscribe_result">Join the Waitlist</button>
+		      </div>
+		      <div id="subscribe_result">
+		      </div>
+		    </div>
 		    {{ else }}
                     <a href="{{ .Course.CourseURL }}" target="_blank" class="secondary-button course-page w-button">Join Course on {{ .Course.CourseHost }}</a>
 		    {{ end }}

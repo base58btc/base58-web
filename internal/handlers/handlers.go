@@ -146,9 +146,6 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/about", func(w http.ResponseWriter, r *http.Request) {
 		About(w, r, ctx)
 	})
-	r.HandleFunc("/waitlist", func(w http.ResponseWriter, r *http.Request) {
-		Waitlist(w, r, ctx)
-	})
 	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
 		Register(w, r, ctx)
 	})
@@ -164,11 +161,11 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/check-email", func(w http.ResponseWriter, r *http.Request) {
 		CheckEmail(w, r, ctx)
 	})
-	r.HandleFunc("/newsletter/subscribe", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/{newsletter}/subscribe", func(w http.ResponseWriter, r *http.Request) {
 		SubscribeEmail(w, r, ctx)
 	}).Methods("POST")
 
-	r.HandleFunc("/newsletter/confirm/{token}", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/confirm/{token}", func(w http.ResponseWriter, r *http.Request) {
 		ConfirmEmail(w, r, ctx)
 	}).Methods("GET")
 
@@ -834,6 +831,9 @@ func parseSubscribeToken(sec []byte, token string) (*SubToken, error) {
 }
 
 func SubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	params := mux.Vars(r)
+	newsletter := params["newsletter"]
+
 	r.ParseForm()
 	email := r.Form.Get("newsletter-email")
 	/* Validate email */
@@ -848,7 +848,6 @@ func SubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 		return
 	}
 
-	newsletter := "newsletter"
 	timestamp := uint64(time.Now().UTC().UnixNano())
 	_, token := getSubscribeToken(ctx.Env.SecretBytes(), email, newsletter, timestamp)
 
@@ -946,6 +945,7 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		Text: title,
 		ActionText: "subscribed to",
 		Email: subToken.Email,
+		Newsletter: subToken.Newsletter,
 	})
 
 	if err != nil {
@@ -960,6 +960,7 @@ type SubscribePage struct {
 	Email       string
 	Text        string
 	ActionText  string
+	Newsletter  string
 }
 
 func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -1005,127 +1006,13 @@ func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 		Email: subscriber.Email,
 		Text: "Sorry to see you go",
 		ActionText: "unsubscribed from",
+		Newsletter: subToken.Newsletter,
 	})
 
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/emails/subscribe exec template failed %s\n", err.Error())
 		return
-	}
-}
-
-func Waitlist(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-	sessionRef, ok := getSessionKey("s", r)
-	if !ok {
-		/* If there's no session-key, redirect to the front page */
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-	}
-	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionRef)
-	if err != nil {
-		http.Error(w, "Unable to fetch session info", http.StatusInternalServerError)
-		ctx.Err.Printf("/register get session info failed  %s\n", err.Error())
-		return
-	}
-
-	switch r.Method {
-	case http.MethodGet:
-
-		/* token! */
-		now := time.Now().UTC().UnixNano()
-		idemToken := getSessionToken(ctx.Env.SecretBytes(), session.ID, now, uint64(0))
-		furlCard := courseCard(ctx, r, course)
-
-		err = ctx.TemplateCache.ExecuteTemplate(w, "waitlist.tmpl", WaitlistData{
-			Course:  course,
-			Session: session,
-			Page:    getPage(ctx, course.Title, furlCard),
-			Form: types.WaitList{
-				Idempotency: idemToken,
-				SessionUUID: session.ID,
-				Timestamp:   strconv.FormatInt(now, 10),
-				PromoURL:    course.PromoURL(ctx.Env.Domain),
-				CourseName:  course.Title,
-			}})
-		if err != nil {
-			http.Error(w, "Unable to load page", http.StatusInternalServerError)
-			ctx.Err.Printf("/waitlist tmpl exec failed %s\n", err.Error())
-		}
-		return
-	case http.MethodPost:
-		/* Goes to the bottom! */
-	default:
-		http.NotFound(w, r)
-		return
-	}
-
-	r.ParseForm()
-	dec := schema.NewDecoder()
-	dec.IgnoreUnknownKeys(true)
-	var form types.WaitList
-	err = dec.Decode(&form, r.PostForm)
-	if err != nil {
-		http.Error(w, "Unable to decode inputs", http.StatusInternalServerError)
-		ctx.Err.Printf("/waitlist form decode failed %s\n", err.Error())
-		return
-	}
-
-	/* Check that the Idempotency token is valid */
-	if !checkToken(form.Idempotency, ctx.Env.SecretBytes(), form.SessionUUID, form.Timestamp, uint64(0)) {
-		http.Error(w, "Invalid session token", http.StatusBadRequest)
-		ctx.Err.Printf("/waitlist invalid session token %s\n", form.Idempotency)
-		return
-	}
-
-	/* Check that not already saved to waitlist */
-	/* FIXME: also check contact info + session UUID? */
-	onlist, err := getters.CheckIdemWaitlist(ctx.Notion, form.Idempotency)
-	if err != nil {
-		http.Error(w, "Unable to check waitlist status", http.StatusInternalServerError)
-		ctx.Err.Printf("/waitlist idem chck failed %s\n", err.Error())
-		return
-	}
-
-	if !onlist {
-		/* Save to waitlist! */
-		err = getters.SaveWaitlist(ctx.Notion, &form)
-		if err != nil {
-			http.Error(w, "Unable to save waitlist", http.StatusInternalServerError)
-			ctx.Err.Printf("/waitlist save failed %s\n", err.Error())
-			return
-		}
-
-		/* Send a confirmation email! */
-		err = emails.SendWaitlistEmail(ctx, form.Idempotency, form.Email, course, session)
-		if err != nil {
-			http.Error(w, "Unable to send waitlist email confirmation", http.StatusInternalServerError)
-			ctx.Err.Printf("/waitlist send confirmation failed %s\n", err.Error())
-			return
-		}
-	}
-
-	title := "You're on the Waitlist!"
-	extraData := make([]ExtraData, 2)
-	extraData[0] = ExtraData{
-		Label: "Instructor",
-		Data:  session.Instructor,
-	}
-	extraData[1] = ExtraData{
-		Label: "Location",
-		Data:  session.Location,
-	}
-
-	furlCard := buildCard(ctx.Env.Domain, title, r.URL.String(), course.ShortDesc, session.PromoURL, extraData)
-
-	/* Show waitlist success */
-	err = ctx.TemplateCache.ExecuteTemplate(w, "waitlist_success.tmpl", &SuccessData{
-		Course:  course,
-		Session: session,
-		Page:    getPage(ctx, title, furlCard),
-	})
-	if err != nil {
-		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("/success execute template failed %s\n", err.Error())
 	}
 }
 

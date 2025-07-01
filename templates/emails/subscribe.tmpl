@@ -19,7 +19,11 @@
     <div class="utility_form-block w-form"><img src="/static/img/notfound.svg" alt="" class="utility_image">
       <h3>{{ .Text }}</h3>
       <div class="padding-xsmall"></div>
+      {{ if eq .Newsletter "newsletter" }}
       <div><strong>{{ .Email }}</strong> has been {{ .ActionText }} the Base58 Protocols mailing list.</div>
+      {{ else }}
+      <div><strong>{{ .Email }}</strong> has been {{ .ActionText }} the Base58 "{{ .Newsletter }}" waitlist.</div>
+      {{ end }}
       <div class="padding-xsmall"></div>
       <a href="/" class="tertiary-button w-button">Go Home</a>
     </div>
