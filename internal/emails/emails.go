@@ -57,12 +57,12 @@ func emailRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus,
 		styleValue := `
 			border: none;
 			margin: 0;
-			justify-content: center;
 			align-items: center;
 			margin-bottom: auto;
 			padding-bottom: 1rem;
 			padding-top: 1rem;
 			display: flex;
+			justify-content: center;
 		`
 		attr.Attrs["style"] = []byte(styleValue)
 	}
@@ -86,7 +86,7 @@ func emailRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus,
 				font-size: 1.1rem;
 				font-weight: 500;
 				text-align: center;
-				text-decoration: none;n
+				text-decoration: none;
 			"`
 		} else {
 			styleAttr = `style="text-underline-offset:4px; text-decoration-line:underline; text-underline-offset:4px; font-weight:400;"`
