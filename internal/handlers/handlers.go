@@ -830,7 +830,7 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	if token == "" {
 		ctx.Infos.Printf("No token found for newsletter confirmation request")
 		/* Return the homepage page */
-		RenderPage(w, r, ctx, "index")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
@@ -838,9 +838,8 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	email, ok := subsCache[token]
 	if !ok {
 		ctx.Infos.Printf("No email found for newsletter confirmation request %s", token)
-		/* FIXME: show an error banner or something */
 		/* Return the homepage page */
-		RenderPage(w, r, ctx, "index")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
