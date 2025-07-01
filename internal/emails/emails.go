@@ -246,39 +246,6 @@ func SendNewsletterSubEmail(ctx *config.AppContext, email, token string) ([]byte
 	return mail.TextBody, ComposeAndSendMail(ctx, mail)
 }
 
-func SendWaitlistEmail(ctx *config.AppContext, idem string, email string, course *types.Course, session *types.CourseSession) error {
-
-	var err error
-
-	mail := &Mail{
-		JobKey: idem,
-		Email:  email,
-		Title:  fmt.Sprintf("You're on the list for Base58's %s", course.Title),
-		SendAt: time.Now(),
-	}
-
-	emailTmpl, err := findEmailMarkdown(ctx, course.WaitlistEmail)
-
-	/* Swap in the tokens */
-	var buf bytes.Buffer
-	err = emailTmpl.Execute(&buf, &EmailInfos{
-		Course:  course,
-		Session: session,
-	})
-	if err != nil {
-		return err
-	}
-
-	mail.TextBody = buf.Bytes()
-
-	mail.HTMLBody, err = BuildHTMLEmail(ctx, buf.Bytes())
-	if err != nil {
-		return err
-	}
-
-	return ComposeAndSendMail(ctx, mail)
-}
-
 func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session *types.CourseSession, confirm *types.Confirmed) ([]byte, error) {
 	var err error
 	mail := &Mail{

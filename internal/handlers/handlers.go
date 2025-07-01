@@ -1093,35 +1093,18 @@ type SuccessData struct {
 }
 
 func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-	sessionRef := "apr23-tx-inperson"
-	course, session, err := getters.GetSessionInfo(ctx.Notion, sessionRef)
-	if err != nil {
-		ctx.Err.Printf("/check-email unable to get sessioninfo from notion %s", sessionRef)
-		return
-	}
 
-	welcomeEmail, welcomeText, err := emails.Build(ctx, course.WelcomeEmail, course, session)
-	if err != nil {
-		ctx.Err.Printf("/check-email unable to build email %v", err)
-		return
-	}
+	email := "nifty@btcpp.dev"
+	newsletter := "newsletter"
+	timestamp := uint64(time.Now().UTC().UnixNano())
 
-	/* FIXME: make a receipt file */
-	mail := &emails.Mail{
-		JobKey:   "testkey" + strconv.Itoa(int(time.Now().UTC().Unix())),
-		Email:    "niftynei@gmail.com",
-		Title:    fmt.Sprintf("Your Registration for Base58's %s", course.Title),
-		SendAt:   time.Now(),
-		HTMLBody: welcomeEmail,
-		TextBody: welcomeText,
-	}
-
-	err = emails.ComposeAndSendMail(ctx, mail)
+	_, token := getSubscribeToken(ctx.Env.SecretBytes(), email, newsletter, timestamp)
+	mail, err := emails.SendNewsletterSubEmail(ctx, email, token)
 	if err != nil {
 		ctx.Err.Printf("/check-email unable to send mail %s", err)
 		return
 	}
-	w.Write(welcomeEmail)
+	w.Write(mail)
 }
 
 func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
