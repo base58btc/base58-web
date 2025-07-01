@@ -13,7 +13,7 @@ require (
 	github.com/gorilla/schema v1.2.0
 	github.com/joho/godotenv v1.5.1
 	github.com/rs/cors v1.10.1
-	github.com/sorcererxw/go-notion v0.2.5-0.20210804123730-2ca5a8ead963
+	github.com/sorcererxw/go-notion v0.2.4
 	github.com/stripe/stripe-go/v74 v74.12.0
 )
 
@@ -30,4 +30,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/sorcererxw/go-notion v0.2.5-0.20210804123730-2ca5a8ead963 => github.com/niftynei/go-notion v0.0.0-20250627233033-feafba0d8cce
+replace github.com/sorcererxw/go-notion v0.2.4 => github.com/niftynei/go-notion v0.0.0-20250701021727-e8f91f2e9b6d

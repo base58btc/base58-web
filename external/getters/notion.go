@@ -23,10 +23,14 @@ func fileGetURL(file *notion.File) string {
 	return ""
 }
 
-func parseFormat(options []*notion.SelectOption) []types.CourseFormat {
+func parseFormat(options *[]*notion.SelectOption) []types.CourseFormat {
 	var formats []types.CourseFormat
 
-	for _, opt := range options {
+	if options == nil {
+		return formats
+	}
+
+	for _, opt := range *options {
 		formats = append(formats, types.CourseFormat(opt.Name))
 	}
 

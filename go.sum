@@ -59,8 +59,8 @@ github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 h1:ZqeYNhU3OH
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 h1:Esafd1046DLDQ0W1YjYsBW+p8U2u7vzgW2SQVmlNazg=
 github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
-github.com/niftynei/go-notion v0.0.0-20250627233033-feafba0d8cce h1:jnYTPyOFnIWvxNADRXROA5uaCr+2dvK3O5hw89etRlU=
-github.com/niftynei/go-notion v0.0.0-20250627233033-feafba0d8cce/go.mod h1:rFZ80laUSIb1JNKIi9WvjCCkuLM1/Wajeqq2FvE0EZM=
+github.com/niftynei/go-notion v0.0.0-20250701021727-e8f91f2e9b6d h1:glJ2ZEGKtLDfoG1VYrwtUb0zcZfTkgOdDUab6j+zxJE=
+github.com/niftynei/go-notion v0.0.0-20250701021727-e8f91f2e9b6d/go.mod h1:rFZ80laUSIb1JNKIi9WvjCCkuLM1/Wajeqq2FvE0EZM=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.7.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/gomega v1.4.3/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
