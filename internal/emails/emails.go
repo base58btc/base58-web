@@ -268,12 +268,20 @@ func SendContactEmail(ctx *config.AppContext, email, message, from, formtype str
 
 	var title string
 	if from != email{
-		title = fmt.Sprintf("New Message from %s: %s a Work(shop)", formtype, from)
+		if formtype == "contact" {
+			title = fmt.Sprintf("New Message from %s: Get In Touch", from)
+		} else {
+			title = fmt.Sprintf("New Message from %s: %s a Work(shop)", formtype, from)
+		}
 		message = fmt.Sprintf("%s\n\nSent from: <%s>", message, from)
 	} else {
-		title = fmt.Sprintf("Your Request to %s a Work(shop)", formtype)
-		message = fmt.Sprintf(`Hey there! We got your inquiry to %s a Work(shop). Here's a copy of the message you sent. We'll be in touch shortly.\n\n %s
-		`, formtype, message)
+		if formtype == "contact" {
+			title = "Your Request to Get In Touch"
+			message = fmt.Sprintf(`Hey there! We got your inquiry.  Here's a copy of the message you sent. We'll be in touch shortly.\n\n %s`, formtype, message)
+		} else {
+			title = fmt.Sprintf("Your Request to %s a Work(shop)", formtype)
+			message = fmt.Sprintf(`Hey there! We got your inquiry to %s a Work(shop). Here's a copy of the message you sent. We'll be in touch shortly.\n\n %s`, formtype, message)
+		}
 	}
 
 	mail := &Mail{

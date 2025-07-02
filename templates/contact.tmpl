@@ -227,16 +227,42 @@ margin: 0rem !important;
                       <p class="text-size-medium">Whether you have a general question, are interested in getting more involved, or have a course suggestion, we&#x27;d love to hear from you.</p>
                     </div>
                     <div class="contact-header_form-block w-form">
-                      <form id="wf-form-Contact-8-Form" name="wf-form-Contact-1-Form" data-name="Contact 1 Form" method="get" class="contact-header_form" data-wf-page-id="67e99e4f3fc532f6719610c5" data-wf-element-id="a24b0eb6-8e32-7f1b-4dab-31c2fde2213f">
-                        <div class="form_field-wrapper"><label for="Contact-8-Name" class="contact-form-field">Nym</label><input class="form_input w-input" maxlength="256" name="Contact-8-Name" data-name="Contact 8 Name" placeholder="" type="text" id="Contact-8-Name" required=""></div>
-                        <div class="form_field-wrapper"><label for="Contact-8-Message" class="contact-form-field">Message</label><textarea placeholder="Type your message..." maxlength="5000" id="Contact-8-Message" name="Contact-8-Message" data-name="Contact 8 Message" required="" class="form_input is-text-area w-input"></textarea></div><input type="submit" data-wait="Please wait..." id="w-node-a24b0eb6-8e32-7f1b-4dab-31c2fde22153-719610c5" class="secondary-button w-button" value="Get in Touch">
+                      <form id="wf-form-Contact-8-Form" name="wf-form-Contact-1-Form" data-name="book_workshop" method="get" class="contact-header_form" data-wf-page-id="67e9aca0324c102df5ee4e18" data-wf-element-id="a24b0eb6-8e32-7f1b-4dab-31c2fde2213f" action="./wf_auth">
+                        <div class="form_field-wrapper">
+			<label for="contact-email" class="contact-form-field">Email</label>
+			  <input 
+			  	class="form_input w-input" 
+				maxlength="256" 
+				name="contact-email" 
+				id="contact-email" 
+				data-name="contact-email" 
+				placeholder="your@example.com" 
+				autoComplete="on"
+				autoCorrect="off"
+				autoCapitalize="off"
+				spellCheck="false"
+				type="email" 
+				required=""></div>
+                        <div class="form_field-wrapper">
+			  <label for="contact-message" class="contact-form-field">Message</label>
+			  <textarea placeholder="Write your message here" 
+			  	maxlength="5000" 
+				id="contact-message" 
+				name="contact-message" 
+				data-name="contact-message" 
+				required="" 
+				class="form_input is-text-area w-input"></textarea>
+			  </div>
+			  <button type="submit" 
+			    id="submit-btn"
+			    hx-post="/contact/ok"
+			    hx-include="#contact-email #contact-message"
+			    hx-trigger="click"
+			    hx-target="#contact_result"
+			    class="secondary-button w-button">
+			    Get In Touch</button>
                       </form>
-                      <div class="success-message w-form-done">
-                        <div class="success-text">Thank you! Your submission has been received!</div>
-                      </div>
-                      <div class="error-message w-form-fail">
-                        <div class="error-text">Oops! Something went wrong while submitting the form.</div>
-                      </div>
+		      <div id="contact_result"></div>
                     </div>
                   </div>
                 </div>

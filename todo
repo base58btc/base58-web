@@ -1,35 +1,22 @@
+  - add subscription field to mailer
+  - add cc capabilities to mailer
+  - why does mailer say "lisa neigut"
+  - automated emails post newsletter signups
+  - cancel subscription jobs on unsubscribe
+
+  - course infrastructure
+	  - notes
+	  - resources
+	  - play next
+	  - quizzes
+	  - jupyter notebooks!
+	  - implementation exercises
+
 - to build:
-  - add a new page for the LARP
-    - get a LARP kit!
-    - build a LARP kit!
-    - how to play
-    - sign up for LARP training!
-    - sign up for a LARP (near you)
-	- v2: session marker (store cart state in browser cookies)
-	- v2: cart??
+  - about page
+    - v2: donations!
   - receipts
   - emails for class/LARP signups
-  - (also create email for person who is running the LARP!
-     include a pin that they'll use to check people in?
-     and include a link to a roster page w/ signup emails
-     and button to download signups as csv!)
-     - also include ticketing system?
-
-	x index
-		- feature upcoming bitcoin++ events!
-		- call-out for taproot class
-   
-	x courses
-		- optional video embed?
-
-	MUST DO'S LAUNCH:
-  - page with nonprofit info + board pics
-	- emails
-		- send receipt with registration
-	- which classes first?
-		- add welcome email info to classes
-		- add pre-reqs + longer desc to classes
-	- affiliate links!
 
 - next up:
 	- blog
@@ -43,7 +30,6 @@
 		- integrate with apple wallet
 		- integrate with google wallet
 	- v2: option to add to calendar
-	- v2: popup for newsletter signup?
 	- v2: custom btc backend
 	- v2: bolt12
 	x BIP21 + BOLT11 payment options 
