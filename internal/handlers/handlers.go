@@ -903,8 +903,8 @@ func WorkshopContact(w http.ResponseWriter, r *http.Request, ctx *config.AppCont
 		return
 	}
 
-	/* Send hello@btcpp.dev + the email the message */
-	_, err := emails.SendContactEmail(ctx, "hello@btcpp.dev", message, email, formtype)	
+	/* Send hello@base58.school + the email the message */
+	_, err := emails.SendContactEmail(ctx, "hello@base58.school", message, email, formtype)	
 	if err != nil {
 		ctx.Err.Printf("Failed sending self message: %s", err)
 		if strings.Contains(err.Error(), "scheduled.idem_key") {
