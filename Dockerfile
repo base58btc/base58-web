@@ -14,4 +14,4 @@ RUN make build
 RUN apk --no-cache add ca-certificates
 # RUN apk --no-cache add chromium
 
-CMD [ "./base58-website" ]
+CMD [ "./target/base58-website" ]
