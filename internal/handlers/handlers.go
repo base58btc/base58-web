@@ -1062,7 +1062,7 @@ func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 
 
 	// Render the template with the data
-	title := "Unsubscribe | Base58"
+	title := "Unsubscribe"
 	furlCard := defaultCard(ctx, r, title)
 	err = ctx.TemplateCache.ExecuteTemplate(w, "emails/subscribe.tmpl", &SubscribePage{
 		Page: getPage(ctx, title, furlCard),
@@ -1624,10 +1624,6 @@ func buildCard(domain, title, URL, imgName, desc string, extraData []ExtraData) 
 }
 
 func getPage(ctx *config.AppContext, title string, card types.FurlCard) Page {
-	if title == "" {
-		title = "Base58"
-	}
-
 	return Page{
 		Title:     title,
 		Copyright: time.Now().Year(),
@@ -1686,7 +1682,7 @@ type KeyAddrData struct {
 
 func KeyAddr(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Show a address from scriptPubkey page! */
-	title := "Base58 Address calculator"
+	title := "Address Calculator"
 	furlCard := defaultCard(ctx, r, title)
 
 	var data KeyAddrData
@@ -1733,8 +1729,8 @@ type WIFData struct {
 func WIF(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Show a WIF calc page! */
 
-	title := "Base58 WIF calculator"
-	furlCard := defaultCard(ctx, r, "Base58 WIF calculator")
+	title := "WIF Calculator"
+	furlCard := defaultCard(ctx, r, title)
 
 	var data WIFData
 	var err error

@@ -1,7 +1,11 @@
 {{ define "head" }}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .Title }}</title>
+    {{ if ne .Title "" }}
+    <title>Base58⛓️🔓 | {{ .Title }}</title>
+    {{ else }}
+    <title>Base58⛓️🔓</title>
+    {{ end }}
     <link rel="stylesheet" href="/static/css/styles.css" />
     <script src="/static/script.js" type="text/javascript"></script>
     <link href="/static/css/normalize.css" rel="stylesheet" type="text/css">
