@@ -22,7 +22,7 @@
       {{ if eq .Newsletter "newsletter" }}
       <div><strong>{{ .Email }}</strong> has been {{ .ActionText }} the Base58 Protocols mailing list.</div>
       {{ else }}
-      <div><strong>{{ .Email }}</strong> has been {{ .ActionText }} the Base58 "{{ .Newsletter }}" waitlist.</div>
+      <div><strong>{{ .Email }}</strong> has been {{ .ActionText }} the Base58 {{ .Newsletter }} waitlist.</div>
       {{ end }}
       <div class="padding-xsmall"></div>
       <a href="/" class="tertiary-button w-button">Go Home</a>

@@ -851,7 +851,7 @@ func SubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 	_, token := getSubscribeToken(ctx.Env.SecretBytes(), email, newsletter, timestamp)
 
 	ctx.Infos.Printf("%s subscribe token is %s. sending confirmation email", email, token)
-	_, err := emails.SendNewsletterSubEmail(ctx, email, token)
+	_, err := emails.SendNewsletterSubEmail(ctx, email, token, newsletter)
 	if err != nil {
 		w.Write([]byte(fmt.Sprintf(`
         	<div class="form_message-error-wrapper w-form-fail" style="display:block;">
@@ -936,13 +936,20 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		return
 	}
 	
+	var title, actionText string
+	if subToken.Newsletter == "newsletter" {
+		title = "Subscribed Success"
+		actionText = "subscribed to"
+	} else {
+		title = "You're on the Waitlist"
+		actionText = "added to"
+	}
 	// Render the template with the data
-	title := "Subscribed Success"
-	furlCard := defaultCard(ctx, r, title + " | Base58")
+	furlCard := defaultCard(ctx, r, title)
 	err = ctx.TemplateCache.ExecuteTemplate(w, "emails/subscribe.tmpl", &SubscribePage{
-		Page: getPage(ctx, title + " | Base58", furlCard),
+		Page: getPage(ctx, title, furlCard),
 		Text: title,
-		ActionText: "subscribed to",
+		ActionText: actionText,
 		Email: subToken.Email,
 		Newsletter: subToken.Newsletter,
 	})
@@ -1101,7 +1108,7 @@ func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 	timestamp := uint64(time.Now().UTC().UnixNano())
 
 	_, token := getSubscribeToken(ctx.Env.SecretBytes(), email, newsletter, timestamp)
-	mail, err := emails.SendNewsletterSubEmail(ctx, email, token)
+	mail, err := emails.SendNewsletterSubEmail(ctx, email, token, newsletter)
 	if err != nil {
 		ctx.Err.Printf("/check-email unable to send mail %s", err)
 		return

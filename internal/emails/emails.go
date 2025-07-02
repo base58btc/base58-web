@@ -205,31 +205,42 @@ type EmailFile struct {
 	Name string
 }
 
+func buildConfirmURL(ctx *config.AppContext, token string) string {
+	return fmt.Sprintf("%s/confirm/%s", ctx.SitePath(), token)
+}
+
 type SubConfirmEmail struct {
 	Email      string
 	ConfirmURL string
+	Newsletter string
 }
 
-func buildConfirmURL(ctx *config.AppContext, token string) string {
-	return fmt.Sprintf("%s/newsletter/confirm/%s", ctx.SitePath(), token)
-}
 
-func SendNewsletterSubEmail(ctx *config.AppContext, email, token string) ([]byte, error) {
+func SendNewsletterSubEmail(ctx *config.AppContext, email, token, newsletter string) ([]byte, error) {
 
-	timestamp := strconv.Itoa(int(time.Now().Unix()))
-	jobkey := "subscribe-" + token + "-" + timestamp
+	var title, template string
+	if newsletter == "newsletter" {
+		title = "Newsletter Subscription"
+		template = "emails/confirm-sub.tmpl"
+	} else {
+		title = fmt.Sprintf("%s Course Waitlist", newsletter)
+		template = "emails/confirm-waitlist.tmpl"
+	}
+	jobkey := "subscribe-" + token
 	mail := &Mail{
 		JobKey: jobkey,
 		Email:  email,
-		Title:  "[Action Required] Confirm Base58 Newsletter Subscription",
+		Title:  fmt.Sprintf("[Action Required] Confirm Base58 %s", title),
 		SendAt: time.Now(),
 	}
 
 	/* Swap in the tokens */
 	var buf bytes.Buffer
-	err := ctx.TemplateCache.ExecuteTemplate(&buf, "emails/confirm-sub.tmpl", &SubConfirmEmail{
+	err := ctx.TemplateCache.ExecuteTemplate(&buf, template, &SubConfirmEmail{
 		Email:      email,
 		ConfirmURL: buildConfirmURL(ctx, token),
+		Newsletter: newsletter,
+
 	})
 
 	if err != nil {
@@ -243,7 +254,7 @@ func SendNewsletterSubEmail(ctx *config.AppContext, email, token string) ([]byte
 		return nil, err
 	}
 
-	return mail.TextBody, ComposeAndSendMail(ctx, mail)
+	return mail.HTMLBody, ComposeAndSendMail(ctx, mail)
 }
 
 func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session *types.CourseSession, confirm *types.Confirmed) ([]byte, error) {
@@ -274,7 +285,7 @@ func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session
 		return nil, err
 	}
 
-	/* FIXME: if ticked event, send a ticket PDF too! x confirm.Count */
+	/* FIXME: if ticketed event, send a ticket PDF too! x confirm.Count */
 	//refID := UniqueID(email, idem, int32(i))
 
 	/* FIXME: add a receipt PDF */
