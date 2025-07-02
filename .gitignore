@@ -7,3 +7,4 @@ target
 
 *.swp
 .env
+.DS_Store
