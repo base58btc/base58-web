@@ -3254,7 +3254,7 @@ figcaption {
   grid-template-columns: 1fr;
   grid-auto-columns: 1fr;
   align-items: stretch;
-  width: 40vw;
+  width: 60vw;
   display: grid;
 }
 
