@@ -34,7 +34,6 @@ import (
 )
 
 var webpages []string = []string{"about", "courses", "404", "401", "workshop", "contact", "index", "workshop/book", "workshop/become"}
-var tools []string = []string{"wif", "keyaddr"}
 
 /* Thank you StackOverflow https://stackoverflow.com/a/50581032 */
 func findAndParseTemplates(rootDir string, funcMap template.FuncMap) (*template.Template, error) {
@@ -98,14 +97,7 @@ func RegisterCheckoutTypes() {
 	gob.Register(CourseItem{})
 }
 
-func Routes(ctx *config.AppContext) (http.Handler, error) {
-	r := mux.NewRouter()
-
-	err := BuildTemplateCache(ctx)
-	if err != nil {
-		return r, err
-	}
-
+func registerLNURL(ctx *config.AppContext, r *mux.Router) {
 	/* LNURL hack oof */
 	/* This goes to chain.fail (on nixbox) which then fwds to nodebox */
 	r.HandleFunc("/.well-known/lnurlp/{user:hello|nifty|niftynei|pay|zap}", func(w http.ResponseWriter, r *http.Request) {
@@ -117,6 +109,18 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/lnurl_api/invoice", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://chain.fail/based-lnurl/invoice?"+r.URL.Query().Encode(), http.StatusSeeOther)
 	})
+
+}
+
+func Routes(ctx *config.AppContext) (http.Handler, error) {
+	r := mux.NewRouter()
+
+	err := BuildTemplateCache(ctx)
+	if err != nil {
+		return r, err
+	}
+
+	registerLNURL(ctx, r)
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		RenderPage(w, r, ctx, "index")
