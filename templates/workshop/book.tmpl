@@ -224,19 +224,46 @@ margin: 0rem !important;
                       <div class="margin-bottom margin-small">
                         <h1 class="heading-2">Bring the protocol to life for your team or classroom.</h1>
                       </div>
-                      <p class="text-size-medium">Interested in hosting a Bitcoin at Work(shop) session for your company, STEM classroom, or community? Let us know a bit about what you’re planning—we’ll connect you with the right facilitator.</p>
+                      <p class="text-size-medium">Interested in hosting a Bitcoin at Work(shop) session for your company, STEM classroom, or community? Let us know a bit about what you’re planning—dates, number of attendees, location—we’ll connect you with the right facilitator.</p>
                     </div>
                     <div class="contact-header_form-block w-form">
-                      <form id="wf-form-Contact-8-Form" name="wf-form-Contact-1-Form" data-name="Contact 1 Form" method="get" class="contact-header_form" data-wf-page-id="67e9aca0324c102df5ee4e18" data-wf-element-id="a24b0eb6-8e32-7f1b-4dab-31c2fde2213f">
-                        <div class="form_field-wrapper"><label for="Contact-8-Name" class="contact-form-field">Nym</label><input class="form_input w-input" maxlength="256" name="Contact-8-Name" data-name="Contact 8 Name" placeholder="" type="text" id="Contact-8-Name" required=""></div>
-                        <div class="form_field-wrapper"><label for="Contact-8-Message" class="contact-form-field">Message</label><textarea placeholder="Type your message..." maxlength="5000" id="Contact-8-Message" name="Contact-8-Message" data-name="Contact 8 Message" required="" class="form_input is-text-area w-input"></textarea></div><input type="submit" data-wait="Please wait..." id="w-node-a24b0eb6-8e32-7f1b-4dab-31c2fde22153-f5ee4e18" class="secondary-button w-button" value="Book a Facilitator">
+                      <form id="wf-form-Contact-8-Form" name="wf-form-Contact-1-Form" data-name="book_workshop" method="get" class="contact-header_form" data-wf-page-id="67e9aca0324c102df5ee4e18" data-wf-element-id="a24b0eb6-8e32-7f1b-4dab-31c2fde2213f" action="./wf_auth">
+                        <div class="form_field-wrapper">
+			<label for="workshop-email" class="contact-form-field">Email</label>
+			  <input 
+			  	class="form_input w-input" 
+				maxlength="256" 
+				name="workshop-email" 
+				id="workshop-email" 
+				data-name="workshop-email" 
+				placeholder="your@example.com" 
+				autoComplete="on"
+				autoCorrect="off"
+				autoCapitalize="off"
+				spellCheck="false"
+				type="email" 
+				required=""></div>
+                        <div class="form_field-wrapper">
+			  <label for="workshop-message" class="contact-form-field">Message</label>
+			  <textarea placeholder="I'm planning..." 
+			  	maxlength="5000" 
+				id="workshop-message" 
+				name="workshop-message" 
+				data-name="workshop-message" 
+				required="" 
+				class="form_input is-text-area w-input"></textarea>
+			  </div>
+			  <button type="submit" 
+			    id="submit-btn"
+			    data-wait="Please wait..." 
+			    hx-post="/workshop/contact/book"
+			    hx-include="#workshop-email #workshop-message"
+			    hx-trigger="click"
+			    hx-target="#contact_result"
+			    class="secondary-button w-button">
+			    Book a Facilitator</button>
                       </form>
-                      <div class="success-message w-form-done">
-                        <div class="success-text">Thank you! Your submission has been received!</div>
-                      </div>
-                      <div class="error-message w-form-fail">
-                        <div class="error-text">Oops! Something went wrong while submitting the form.</div>
-                      </div>
+		      <div id="contact_result"></div>
                     </div>
                   </div>
                 </div>

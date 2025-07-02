@@ -160,6 +160,9 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/check-email", func(w http.ResponseWriter, r *http.Request) {
 		CheckEmail(w, r, ctx)
 	})
+	r.HandleFunc("/workshop/contact/{formtype}", func(w http.ResponseWriter, r *http.Request) {
+		WorkshopContact(w, r, ctx)
+	}).Methods("POST")
 	r.HandleFunc("/{newsletter}/subscribe", func(w http.ResponseWriter, r *http.Request) {
 		SubscribeEmail(w, r, ctx)
 	}).Methods("POST")
@@ -827,6 +830,56 @@ func parseSubscribeToken(sec []byte, token string) (*SubToken, error) {
 		Email: string(emailB),
 		Newsletter: string(subB),
 	}, nil
+}
+
+func WorkshopContact(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	params := mux.Vars(r)
+	formtype := params["formtype"]
+
+	r.ParseForm()
+	email := r.Form.Get("workshop-email")
+	message := r.Form.Get("workshop-message")
+	/* Validate email */
+	if _, err := mail.ParseAddress(email); err != nil {
+		w.Write([]byte(fmt.Sprintf(`
+		<div class="error-message w-form-fail" style="display: block;">
+                  <div class="error-text">"%s" is not a valid email.</div>
+                </div>
+		`, email)))
+		return
+	}
+
+	/* Send hello@btcpp.dev + the email the message */
+	_, err := emails.SendContactEmail(ctx, "hello@btcpp.dev", message, email, formtype)	
+	if err != nil {
+		ctx.Err.Printf("Failed sending self message: %s", err)
+		if strings.Contains(err.Error(), "scheduled.idem_key") {
+			w.Write([]byte(`<div class="error-message w-form-fail" style="display: block;">
+			  <div class="error-text">That message has already been sent!</div>
+			</div>`))
+		} else {
+			w.Write([]byte(`<div class="error-message w-form-fail" style="display: block;">
+			  <div class="error-text">Server error. Please try again later.</div>
+			</div>`))
+		}
+		return
+	}
+	
+	_, err = emails.SendContactEmail(ctx, email, message, email, formtype)
+	if err != nil {
+		ctx.Err.Printf("Failed sending %s message: %s", email, err)
+		w.Write([]byte(`<div class="error-message w-form-fail" style="display: block;">
+                  <div class="error-text">Unable to send mail. Please try again later.</div>
+                </div>`))
+		return
+	}
+
+	ctx.Infos.Printf("Message to %s Work(shop) sent!", formtype)
+
+	/* show a banner about it sending successfully */
+	w.Write([]byte(`<div class="success-message w-form-done" style="display: block;">
+	  <div class="success-text">Thank you! Your message has been received!</div>
+	</div>`))
 }
 
 func SubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {

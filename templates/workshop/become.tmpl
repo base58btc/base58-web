@@ -222,21 +222,51 @@ margin: 0rem !important;
                   <div class="contact-header_content">
                     <div class="margin-bottom margin-medium">
                       <div class="margin-bottom margin-small">
-                        <h1 class="heading-2">Want to help bring the protocol to life?</h1>
+                        <h1 class="heading-2">Want to bring the protocol to life as a facilitator?</h1>
                       </div>
-                      <p class="text-size-medium">If you&#x27;re passionate about Bitcoin education and love getting hands-on, we’d love to hear from you. Tell us a bit about yourself and why you’re interested in becoming a Bitcoin at Work(shop) facilitator.</p>
+                      <p class="text-size-medium">If you&#x27;re passionate about Bitcoin and love getting hands-on, we’d love to hear from you. Tell us a bit about yourself and why you’re interested in becoming a Bitcoin at Work(shop) facilitator. We occassionally run facilitator training workshops at various points around the globe, and will do our best to get you involved in the next one. Let us know where in the world you are!</p>
+		      <p class="text-size-medium margin-top margin-xsmall">Note that costs for training are typically around $1k USD and include two days of training and your own Work(shop) kit to take home.</p>
                     </div>
                     <div class="contact-header_form-block w-form">
-                      <form id="wf-form-Contact-8-Form" name="wf-form-Contact-1-Form" data-name="Contact 1 Form" method="get" class="contact-header_form" data-wf-page-id="67e9ad187461f6671f8914a0" data-wf-element-id="a24b0eb6-8e32-7f1b-4dab-31c2fde2213f">
-                        <div class="form_field-wrapper"><label for="Contact-8-Name" class="contact-form-field">Nym</label><input class="form_input w-input" maxlength="256" name="Contact-8-Name" data-name="Contact 8 Name" placeholder="" type="text" id="Contact-8-Name" required=""></div>
-                        <div class="form_field-wrapper"><label for="Contact-8-Message" class="contact-form-field">Message</label><textarea id="Contact-8-Message" name="Contact-8-Message" maxlength="5000" data-name="Contact 8 Message" placeholder="Type your message..." required="" class="form_input is-text-area w-input"></textarea></div><input type="submit" data-wait="Please wait..." id="w-node-a24b0eb6-8e32-7f1b-4dab-31c2fde22153-1f8914a0" class="secondary-button w-button" value="Become a Facilitator">
+                      <form id="wf-form-Contact-8-Form" name="wf-form-Contact-1-Form" data-name="Contact 1 Form" method="get" class="contact-header_form" data-wf-page-id="67e9ad187461f6671f8914a0" data-wf-element-id="a24b0eb6-8e32-7f1b-4dab-31c2fde2213f" action="./wf_auth">
+                        <div class="form_field-wrapper">
+			<label for="workshop-email" class="contact-form-field">Email</label>
+			<input 
+			  	class="form_input w-input" 
+				maxlength="256" 
+				name="workshop-email" 
+				id="workshop-email" 
+				data-name="workshop-email" 
+				placeholder="your@example.com" 
+				autoComplete="on"
+				autoCorrect="off"
+				autoCapitalize="off"
+				spellCheck="false"
+				type="email" 
+				required=""></div>
+                        <div class="form_field-wrapper">
+			<label for="workshop-message" 
+			class="contact-form-field">Message</label>
+			<textarea 
+				id="workshop-message" 
+				name="workshop-message" 
+				maxlength="5000" 
+				data-name="workshop-message" 
+				placeholder="Tell us more yourself" 
+				required="" 
+				class="form_input is-text-area w-input"></textarea>
+			</div>
+			  <button type="submit" 
+			    id="submit-btn"
+			    data-wait="Please wait..." 
+			    hx-post="/workshop/contact/facilitate"
+			    hx-include="#workshop-email #workshop-message"
+			    hx-trigger="click"
+			    hx-target="#contact_result"
+			    class="secondary-button w-button">
+			    Become a Facilitator</button>
                       </form>
-                      <div class="success-message w-form-done">
-                        <div class="success-text">Thank you! Your submission has been received!</div>
-                      </div>
-                      <div class="error-message w-form-fail">
-                        <div class="error-text">Oops! Something went wrong while submitting the form.</div>
-                      </div>
+		      <div id="contact_result"></div>
                     </div>
                   </div>
                 </div>

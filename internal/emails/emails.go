@@ -257,6 +257,41 @@ func SendNewsletterSubEmail(ctx *config.AppContext, email, token, newsletter str
 	return mail.HTMLBody, ComposeAndSendMail(ctx, mail)
 }
 
+func SendContactEmail(ctx *config.AppContext, email, message, from, formtype string) ([]byte, error) {
+	var err error
+	
+	/* Jobkey is the message + email */
+	h := sha256.New()
+	h.Write([]byte(email))
+	h.Write([]byte(message))
+	jobkey := fmt.Sprintf("base58:%s-%s", formtype, hex.EncodeToString(h.Sum(nil)[:8]))
+
+	var title string
+	if from != email{
+		title = fmt.Sprintf("New Message from %s: %s a Work(shop)", formtype, from)
+		message = fmt.Sprintf("%s\n\nSent from: <%s>", message, from)
+	} else {
+		title = fmt.Sprintf("Your Request to %s a Work(shop)", formtype)
+		message = fmt.Sprintf(`Hey there! We got your inquiry to %s a Work(shop). Here's a copy of the message you sent. We'll be in touch shortly.\n\n %s
+		`, formtype, message)
+	}
+
+	mail := &Mail{
+		JobKey: jobkey,
+		Email:  email,
+		Title:  title,
+		SendAt: time.Now(),
+		TextBody: []byte(message),
+	}
+
+	mail.HTMLBody, err = BuildHTMLEmail(ctx, []byte(message))
+	if err != nil {
+		return nil, err
+	}
+	
+	return mail.HTMLBody, ComposeAndSendMail(ctx, mail)
+}
+
 func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session *types.CourseSession, confirm *types.Confirmed) ([]byte, error) {
 	var err error
 	mail := &Mail{
