@@ -2880,7 +2880,7 @@ figcaption {
   color: var(--text-color--text-primary\<deleted\|relume-variable-text-color-1\>);
   background-color: #fcf1e6;
   background-image: url('/static/img/workshop/abc_six.JPG');
-  background-position: 0 0;
+  background-position: center;
   background-size: cover;
 }
 
