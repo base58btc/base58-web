@@ -78,7 +78,11 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 		"ShirtOpts": ShirtOptions,
 		"TixCount":  TixCount,
 		"toHTML": func(s string) template.HTML {
-			b := helpers.ConvertMdToHTML(ctx, s)
+			b := helpers.ConvertMdToHTML(ctx, "prereq", s)
+			return template.HTML(string(b))
+		},
+		"toText": func(s string) template.HTML {
+			b := helpers.ConvertMdToHTML(ctx, "text", s)
 			return template.HTML(string(b))
 		},
 		"ishtml": func(s string) template.HTML {
@@ -126,23 +130,21 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 			RenderPage(w, r, ctx, renderPage)
 		}).Methods("GET")
 	}
-	/* This is a legacy from last website */
-	r.HandleFunc("/classes", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/courses", http.StatusSeeOther)
-	})
-	r.HandleFunc("/classes/{class}", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/courses", http.StatusSeeOther)
-	})
+
 	r.HandleFunc("/courses/larp", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/workshop", http.StatusSeeOther)
 	})
 	r.HandleFunc("/courses/{course}", func(w http.ResponseWriter, r *http.Request) {
 		Courses(w, r, ctx)
 	})
-	/* This is a legacy from last website */
-	r.HandleFunc("/team", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/about", http.StatusSeeOther)
-	})
+
+	for _, page := range types.TextPages {
+		renderPage := page
+		r.HandleFunc("/"+renderPage.Tag, func(w http.ResponseWriter, r *http.Request) {
+			RenderTextPage(w, r, ctx, renderPage)
+		}).Methods("GET")
+	}
+	
 	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
 		Register(w, r, ctx)
 	})
@@ -1359,6 +1361,34 @@ func RenderPage(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, 
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/%s exec template failed %s\n", template, err.Error())
+		return
+	}
+}
+
+type ContentPage struct {
+	Page    Page
+	Text    string
+}
+
+func RenderTextPage(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, tPage types.TextPage) {
+
+	/* Read page from disk (if not in cache) */
+	pageBytes, err := ioutil.ReadFile(fmt.Sprintf("templates/text/%s.md", tPage.Tag))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Unable to load text template templates/text/%s.md", tPage.Tag), http.StatusInternalServerError)
+		ctx.Err.Printf("Unable to load text template %s.md\n", tPage.Tag, err.Error())
+		return
+	}
+
+	// Render the template with the data
+	furlCard := defaultCard(ctx, r, tPage.Title)
+	err = ctx.TemplateCache.ExecuteTemplate(w, "text/text.tmpl", &ContentPage{
+		Text:    string(pageBytes),
+		Page:    getPage(ctx, tPage.Title, furlCard),
+	})
+	if err != nil {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("text.tmpl exec failed %s\n", err.Error())
 		return
 	}
 }
