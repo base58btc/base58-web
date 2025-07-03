@@ -7,12 +7,12 @@ require (
 	github.com/alexedwards/scs/v2 v2.5.0
 	github.com/base58btc/mailer v0.0.0-20230510213939-04e8f45514b5
 	github.com/btcsuite/btcutil v1.0.2
-	github.com/gomarkdown/markdown v0.0.0-20231222211730-1d6d20845b47
+	github.com/gomarkdown/markdown v0.0.0-20250311123330-531bef5e742b
 	github.com/google/go-cmp v0.6.0
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/schema v1.2.0
+	github.com/gorilla/schema v1.4.1
 	github.com/joho/godotenv v1.5.1
-	github.com/rs/cors v1.10.1
+	github.com/rs/cors v1.11.1
 	github.com/sorcererxw/go-notion v0.2.4
 	github.com/stripe/stripe-go/v74 v74.12.0
 )
