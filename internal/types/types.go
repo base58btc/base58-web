@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"strconv"
 	"time"
 )
 
@@ -150,6 +151,15 @@ type (
 		ExtraOneData  string
 		ExtraTwoLabel string
 		ExtraTwoData  string
+	}
+
+	Letter struct {
+		ID            string
+		Title         string
+		Newsletter    string
+		Markdown      string
+		SendAt        string	
+		Expiry        *time.Time
 	}
 )
 
@@ -449,4 +459,54 @@ func (s *Subscriber) RmSubscription(name string) bool {
 
 	s.Subs = newSubs
 	return unsubscribed
+}
+
+/* The syntax for calc send is:
+
+    - Blank means send 'now'
+    - A date means send on date at 9am.
+      3/4/2025 -> March, 4th 2025 @ 9am
+    - +9 -> scheduled for 9-days from now. 
+      note: '+' days are never sent on weekends!
+    - anything else: sends now
+*/
+func (l *Letter) CalcSendAt() (time.Time, error) {
+	if l.SendAt == "" {
+		return time.Now(), nil
+	}
+
+	
+	if l.SendAt[0:1] == "+" {
+		days, err := strconv.Atoi(l.SendAt[1:])
+		if err != nil {
+			return time.Now(), err
+		}
+
+		sendAt := time.Now().AddDate(0, 0, days)
+		switch sendAt.Weekday() {
+		case time.Sunday:
+			days += 1
+		case time.Saturday:
+			days += 2
+		}
+		/* Update to new date (we don't send on weekends) */
+		sendAt = time.Now().AddDate(0, 0, days)
+
+		/* Set to 8.01a on that day */
+		setDate := time.Date(sendAt.Year(), sendAt.Month(), sendAt.Day(), 8, 1, 0, 0, sendAt.Location())
+		return setDate, nil
+	}
+
+	layout := "1/2/2006"
+	pT, err := time.Parse(layout, l.SendAt)
+	if err != nil {
+		return time.Now(), err
+	}
+	/* Set time to 8am */
+	setDate := time.Date(pT.Year(), pT.Month(), pT.Day(), 8, 1, 0, 0, pT.Location())
+	return setDate, nil
+}
+
+func (l *Letter) IsExpired() bool {
+	return l.Expiry != nil && l.Expiry.Before(time.Now())
 }

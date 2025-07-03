@@ -1008,16 +1008,6 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		return
 	}
 
-	/* Expiry time is one week */
-	expiryTime := subToken.Time.AddDate(0, 0, 7)
-	if expiryTime.Before(time.Now()) {
-		ctx.Infos.Printf("Email subscribe token too old.")
-		/* Return the homepage page */
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-
-	}
-
 	/* Add to email list */
 	subscriber, err := getters.FindSubscriber(ctx.Notion, subToken.Email)
 	if err != nil {
@@ -1041,7 +1031,23 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 
 	changed := subscriber.AddSubscription(subToken.Newsletter)
 	if changed {
+		/* Send Subscriptions (if any) */
+		err = ScheduleMissives(ctx, subscriber.Email, subToken.Newsletter)
+		if err != nil {
+			ctx.Infos.Printf("Missive subscribe failed for newsletter confirmation %s: %s", subToken.Email, err)
+			/* FIXME: show an error banner or something */
+			/* Return the homepage page */
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
 		err = getters.UpdateSubs(ctx.Notion, subscriber)
+		if err != nil {
+			ctx.Infos.Printf("Subscribe failed for newsletter confirmation request %s: %s", subToken.Email, err)
+			/* FIXME: show an error banner or something */
+			/* Return the homepage page */
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
 	}
 
 	if err != nil {
@@ -1109,9 +1115,17 @@ func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 
 	changed := subscriber.RmSubscription(subToken.Newsletter)
 	if changed {
+
+		/* Update on Notion */
 		err := getters.UpdateSubs(ctx.Notion, subscriber)
 		if err != nil {
-			ctx.Infos.Printf("Error unsubscribing %s from %s: %s", subscriber.Email, subToken.Newsletter, err)
+			ctx.Infos.Printf("notion error: unsubscribing %s from %s: %s", subscriber.Email, subToken.Newsletter, err)
+		}
+
+		/* Update with mailer */
+		err = emails.SendSubDeleteRequest(ctx, subToken.Email, subToken.Newsletter)
+		if err != nil {
+			ctx.Infos.Printf("mailer error: unsubscribing %s from %s: %s", subscriber.Email, subToken.Newsletter, err)
 		} else {
 			ctx.Infos.Printf("Unsubscribed %s from %s", subscriber.Email, subToken.Newsletter)
 		}

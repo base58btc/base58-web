@@ -3,6 +3,7 @@ package emails
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/hmac"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -192,7 +193,9 @@ func makeAuthStamp(secret string, timestamp string, r *http.Request) string {
 
 type Mail struct {
 	JobKey   string
+	Sub      string
 	Email    string
+	ReplyTo  string
 	Title    string
 	SendAt   time.Time
 	HTMLBody []byte
@@ -215,6 +218,42 @@ type SubConfirmEmail struct {
 	Newsletter string
 }
 
+func makeJobHash(email, newsletter, title string) string {
+	h := sha256.New()
+	h.Write([]byte(email))
+	h.Write([]byte(newsletter))
+	h.Write([]byte(title))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func SendNewsletterMissive(ctx *config.AppContext, email string, letter *types.Letter) ([]byte, error) {
+
+	jobhash := makeJobHash(email, letter.Newsletter, letter.Title)
+	jobkey := fmt.Sprintf("%s-%s", letter.Newsletter, jobhash)
+	htmlBody, err := BuildHTMLEmail(ctx, []byte(letter.Markdown))
+	if err != nil {
+		return nil, err
+	}
+	sendAt, err := letter.CalcSendAt()
+	if err != nil {
+		return nil, err
+	}
+	subkey := makeSubKey(email, letter.Newsletter)
+	mail := &Mail{
+		JobKey: jobkey,
+		Sub:    subkey,
+		Email:  email,
+		Title:  letter.Title,
+		SendAt: sendAt,
+		TextBody: []byte(letter.Markdown),
+		HTMLBody: htmlBody,
+	}
+
+	ctx.Infos.Printf("Sending (%s)%s to %s at %s", subkey, letter.Title, email, sendAt)
+
+	return htmlBody, ComposeAndSendMail(ctx, mail)
+}
+
 
 func SendNewsletterSubEmail(ctx *config.AppContext, email, token, newsletter string) ([]byte, error) {
 
@@ -229,10 +268,13 @@ func SendNewsletterSubEmail(ctx *config.AppContext, email, token, newsletter str
 	jobkey := "subscribe-" + token
 	mail := &Mail{
 		JobKey: jobkey,
+		Sub:    makeSubKey(email, newsletter),
 		Email:  email,
 		Title:  fmt.Sprintf("[Action Required] Confirm Base58 %s", title),
 		SendAt: time.Now(),
 	}
+
+	ctx.Infos.Printf("mail subkey is %s", mail.Sub)
 
 	/* Swap in the tokens */
 	var buf bytes.Buffer
@@ -264,7 +306,7 @@ func SendContactEmail(ctx *config.AppContext, email, message, from, formtype str
 	h := sha256.New()
 	h.Write([]byte(email))
 	h.Write([]byte(message))
-	jobkey := fmt.Sprintf("base58:%s-%s", formtype, hex.EncodeToString(h.Sum(nil)[:8]))
+	jobkey := fmt.Sprintf("%s-%s", formtype, hex.EncodeToString(h.Sum(nil)[:8]))
 
 	var title string
 	if from != email{
@@ -351,9 +393,11 @@ func ComposeAndSendMail(ctx *config.AppContext, mail *Mail) error {
 	/* Build a mail to send */
 	mailReq := &mailer.MailRequest{
 		JobKey:      "base58:" + mail.JobKey,
+		Subscription: mail.Sub,
 		ToAddr:      mail.Email,
 		FromAddr:    "hello@base58.school",
 		FromName:    "Base58⛓️ 🔓",
+		ReplyTo:     mail.ReplyTo,
 		Title:       mail.Title,
 		HTMLBody:    string(mail.HTMLBody),
 		TextBody:    string(mail.TextBody),
@@ -363,6 +407,65 @@ func ComposeAndSendMail(ctx *config.AppContext, mail *Mail) error {
 	}
 
 	return SendMailRequest(ctx, mailReq)
+}
+
+func makeSubKey(email, newsletter string) string {
+	/* Hash email+newsletter, take first 8 bytes */
+	mac := hmac.New(sha256.New, []byte(email))
+	mac.Write([]byte(newsletter))
+	hashfix := hex.EncodeToString(mac.Sum(nil)[:8])
+	return fmt.Sprintf("%s-%s", hashfix, newsletter)
+}
+
+func SendSubDeleteRequest(ctx *config.AppContext, email, sub string) error {
+	/* Send as a DELETE request w/ JSON body */
+	subkey := makeSubKey(email, sub)
+	subdelete := &mailer.SubDelete{
+		SubKey: subkey,
+	}
+	payload, err := json.Marshal(subdelete)
+	if err != nil {
+		return err
+	}
+
+	client := &http.Client{}
+
+	url := ctx.Env.MailEndpoint + "/sub"
+	req, err := http.NewRequest(http.MethodDelete, url, bytes.NewBuffer(payload))
+	if err != nil {
+		return err
+	}
+
+	timestamp := strconv.Itoa(int(time.Now().UTC().Unix()))
+	secret := ctx.Env.MailerSecret
+	authStamp := makeAuthStamp(secret, timestamp, req)
+
+	req.Header.Set("Authorization", authStamp)
+	req.Header.Set("X-Base58-Timestamp", timestamp)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	var ret mailer.ReturnVal
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if err = json.Unmarshal(data, &ret); err != nil {
+		return err
+	}
+
+	if !ret.Success {
+		return fmt.Errorf("Unable to delete subscription: %s", sub)
+	}
+
+	ctx.Infos.Printf("Rm'd subscription %s", subkey)
+	return nil
 }
 
 func SendMailRequest(ctx *config.AppContext, mail *mailer.MailRequest) error {

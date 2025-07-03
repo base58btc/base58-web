@@ -204,16 +204,41 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 	return session
 }
 
-func ListCourses(n *types.Notion) ([]*types.Course, error) {
-	/* FIXME: pagination */
-	pages, _, _, _ := n.Client.QueryDatabase(context.Background(),
-		n.Config.CoursesDb, notion.QueryDatabaseParam{})
 
+func parseLetter(pageID string, props map[string]notion.PropertyValue) *types.Letter {
+	letter := &types.Letter{
+		ID:               pageID,
+		Title:            parseRichText("Title", props),
+		Newsletter:       parseRichText("Newsletter", props),
+		Markdown:         parseRichText("Markdown", props),
+		SendAt:           parseRichText("SendAt", props),
+	}
+
+	expiry := props["Expiry"].Date
+	if expiry != nil {
+		letter.Expiry = &expiry.Start
+	}
+	return letter
+}
+
+func ListCourses(n *types.Notion) ([]*types.Course, error) {
 	var courses []*types.Course
-	/* Convert each page into a Course struct */
-	for _, page := range pages {
-		course := parseCourse(page.ID, page.Properties)
-		courses = append(courses, course)
+
+	hasMore := true
+	nextCursor := ""
+	for hasMore {
+		var pages []*notion.Page
+
+		pages, nextCursor, hasMore, _ = n.Client.QueryDatabase(context.Background(),
+			n.Config.CoursesDb, notion.QueryDatabaseParam{
+				StartCursor: nextCursor,
+			})
+
+		/* Convert each page into a Course struct */
+		for _, page := range pages {
+			course := parseCourse(page.ID, page.Properties)
+			courses = append(courses, course)
+		}
 	}
 
 	return courses, nil
@@ -309,29 +334,67 @@ func GetSessionInfo(n *types.Notion, sessionID string) (*types.Course, *types.Co
 func GetCourseSessions(n *types.Notion, course *types.Course) ([]*types.CourseSession, error) {
 	var sessions []*types.CourseSession
 
-	/* FIXME: pagination */
-	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
-		n.Config.SessionsDb,
-		notion.QueryDatabaseParam{
-			Filter: &notion.Filter{
-				Property: "course",
-				Relation: &notion.RelationFilterCondition{
-					Contains: course.ID,
+	hasMore := true
+	nextCursor := ""
+	for hasMore {
+		var err error
+		var pages []*notion.Page
+		pages, nextCursor, hasMore, err = n.Client.QueryDatabase(context.Background(),
+			n.Config.SessionsDb,
+			notion.QueryDatabaseParam{
+				StartCursor: nextCursor,
+				Filter: &notion.Filter{
+					Property: "course",
+					Relation: &notion.RelationFilterCondition{
+						Contains: course.ID,
+					},
 				},
-			},
-		})
+			})
 
-	if err != nil {
-		return nil, err
-	}
-	for _, page := range pages {
-		session := parseSession(page.ID, page.Properties)
-		session.CourseName = course.Title
-		sessions = append(sessions, session)
+		if err != nil {
+			return nil, err
+		}
+		for _, page := range pages {
+			session := parseSession(page.ID, page.Properties)
+			session.CourseName = course.Title
+			sessions = append(sessions, session)
+		}
 	}
 
 	return sessions, nil
 }
+
+func GetLetters(n *types.Notion, newsletter string) ([]*types.Letter, error) {
+	hasMore := true
+	nextCursor := ""
+	var letters []*types.Letter
+	for hasMore {
+
+		var err error
+		var pages []*notion.Page
+		pages, nextCursor, hasMore, err = n.Client.QueryDatabase(context.Background(),
+			n.Config.MissivesDb, notion.QueryDatabaseParam{
+				StartCursor: nextCursor,
+				Filter: &notion.Filter{
+					Property: "Newsletter",
+					Text: &notion.TextFilterCondition{
+						Equals: newsletter,
+					},
+				},
+			})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, page := range pages {
+			letter := parseLetter(page.ID, page.Properties)
+			letters = append(letters, letter)
+		}
+	}
+
+	return letters, nil
+}
+
 
 func UniqueID(contact string, ref string, counter int32) string {
 	/* sha256 of ref || contact|| count (4, le) */

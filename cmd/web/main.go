@@ -50,6 +50,7 @@ func loadConfig() (*types.EnvConfig, bool) {
 		SignupsDb:      os.Getenv("NOTION_SIGNUPS"),
 		WaitlistDb:     os.Getenv("NOTION_WAITLIST"),
 		NewsletterDb:   os.Getenv("NOTION_NEWSLETTER"),
+		MissivesDb:     os.Getenv("NOTION_MISSIVES"),
 	}
 
 	config.OpenNode = types.OpenNodeConfig{

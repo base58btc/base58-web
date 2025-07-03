@@ -14,6 +14,7 @@ type (
 		SignupsDb      string `toml:"signups"`
 		WaitlistDb     string `toml:"class_waitlist"`
 		NewsletterDb   string `toml:"newsletter"`
+		MissivesDb     string `toml:"missives"`
 	}
 
 	Notion struct {
