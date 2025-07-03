@@ -8,12 +8,8 @@ dev-run: build-all
 build:
 	go build -v -o target/$(APP_NAME) ./cmd/web/main.go
 
-.PHONY: css-build
-css-build:
-	tailwindcss -i templates/css/input.css -o static/css/styles.css --minify
-
 .PHONY: build-all
-build-all: build css-build
+build-all: build
 
 .PHONY: clean
 clean:
