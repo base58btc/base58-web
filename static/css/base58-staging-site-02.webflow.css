@@ -4070,7 +4070,6 @@ figcaption {
     border-bottom-style: solid;
     border-bottom-width: 1px;
     border-right-style: none;
-    justify-content: flex-start;
     align-items: center;
     padding-left: 1.5rem;
     padding-right: 1.5rem;
