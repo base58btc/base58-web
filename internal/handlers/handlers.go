@@ -114,6 +114,9 @@ func registerLNURL(ctx *config.AppContext, r *mux.Router) {
 
 func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r := mux.NewRouter()
+	r.NotFoundHandler = http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+		handle404(w, r, ctx)
+	})
 
 	err := BuildTemplateCache(ctx)
 	if err != nil {
@@ -210,6 +213,12 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	}
 
 	return r, nil
+}
+
+func handle404(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	w.WriteHeader(http.StatusNotFound)
+	RenderPage(w, r, ctx, "404")
+	ctx.Err.Printf("404 err: %s", r.URL.Path)
 }
 
 func TixCount(availSeats uint) []types.OptionItem {
@@ -441,7 +450,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	if r.Method != http.MethodPost {
-		http.NotFound(w, r)
+		handle404(w, r, ctx)
 		return
 	}
 
@@ -555,7 +564,7 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 
 	default:
-		http.Error(w, "Page not found", http.StatusNotFound)
+		handle404(w, r, ctx)
 		ctx.Err.Printf("/register unable to find checkout method %s\n", form.CheckoutVia)
 		return
 	}
@@ -619,7 +628,7 @@ func Reserve(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 
 	if r.Method != http.MethodPost {
-		http.NotFound(w, r)
+		handle404(w, r, ctx)
 		return
 	}
 
@@ -732,7 +741,7 @@ func Summary(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, car
 	}
 
 	if r.Method != http.MethodPost {
-		http.NotFound(w, r)
+		handle404(w, r, ctx)
 		return
 	}
 
@@ -766,7 +775,7 @@ func Summary(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, car
 		FiatCheckoutStart(w, r, ctx, cart)
 		return
 	default:
-		http.Error(w, "Page not found", http.StatusNotFound)
+		handle404(w, r, ctx)
 		ctx.Err.Printf("/register unable to find checkout method %s\n", form.CheckoutVia)
 		return
 	}
