@@ -1686,6 +1686,11 @@ func getPage(ctx *config.AppContext, title string, card types.FurlCard) Page {
 func getHomeData(ctx *config.AppContext, n *types.Notion) (pageData, error) {
 	courses, err := getters.ListCourses(n)
 
+	/* Sort courses by Popularity */
+	sort.Slice(courses, func(i, j int) bool {
+		return courses[i].Popularity < courses[j].Popularity
+	})
+
 	if err != nil {
 		return pageData{}, err
 	}
