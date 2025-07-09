@@ -11,6 +11,7 @@ import (
 	"github.com/sorcererxw/go-notion"
 	"os"
 	"strings"
+	"time"
 )
 
 func fileGetURL(file *notion.File) string {
@@ -362,6 +363,17 @@ func GetCourseSessions(n *types.Notion, course *types.Course) ([]*types.CourseSe
 	}
 
 	return sessions, nil
+}
+
+func MarkLetterSent(n *types.Notion, letter *types.Letter, sentAt time.Time) error {
+
+	_, err := n.Client.UpdatePageProperties(context.Background(), letter.ID,
+		map[string]*notion.PropertyValue{
+			"SentAt": notion.NewDatePropertyValue(&notion.Date{
+				Start: sentAt,
+			}),
+		})
+	return err
 }
 
 func GetLetters(n *types.Notion, newsletter string) ([]*types.Letter, error) {

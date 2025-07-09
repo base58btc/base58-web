@@ -1,8 +1,7 @@
-  - add URI processing to missive bodies
-  - how to send an email? 
-    - add a sent-at field for "send now" missives
-    - if "send at" is blank or malformatted, DO NOT SEND
+  - add a "sendall" for newsletters
+  - calc missive key
   - add pincode to un/schedule new mail endpoint?
+
   - ship mailer on nixos box!
 
 design fixes:

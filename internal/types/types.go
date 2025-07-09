@@ -159,6 +159,7 @@ type (
 		Newsletter    string
 		Markdown      string
 		SendAt        string	
+		SentAt        *time.Time
 		Expiry        *time.Time
 	}
 )
@@ -474,6 +475,7 @@ func (s *Subscriber) IsSubscribed(newsletter string) bool {
 
     - Blank means do not send
     - 'now' means send now
+    - 'onsub' means send now, and keep sending when new subs are added
     - A date means send on date at 9am.
       3/4/2025 -> March, 4th 2025 @ 9am
     - +9 -> scheduled for 9-days from now. 
@@ -486,6 +488,10 @@ func (l *Letter) CalcSendAt() (time.Time, error) {
 	}
 
 	if l.SendAt == "now" {
+		return time.Now(), nil
+	}
+
+	if l.SendAt == "onsub" {
 		return time.Now(), nil
 	}
 	
@@ -520,12 +526,24 @@ func (l *Letter) CalcSendAt() (time.Time, error) {
 	return setDate, nil
 }
 
+func (l *Letter) SetSentAt() bool {
+	return l.SentAt == nil && l.SendAt == "now" || l.SendAt == "onsub"
+}
+
+/* Either it's 'onsub' and already has a 'sent-at' or
+ * it's scheduled for a '+X' date */
 func (l *Letter) AtSubOnly() bool {
-	return len(l.SendAt) > 0 && l.SendAt[0:1] == "+"
+	return (l.SentAt != nil && l.SendAt == "onsub") || (len(l.SendAt) > 0 && l.SendAt[0:1] == "+")
 }
 
 func (l *Letter) Scheduled() bool {
-	return len(l.SendAt) > 0
+	if l.SendAt == "" {
+		return false
+	}
+	if l.SendAt ==  "now" && l.SentAt != nil {
+		return false
+	}
+	return true
 }
 
 func (l *Letter) Sendable() bool {

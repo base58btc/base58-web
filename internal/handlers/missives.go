@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"strings" 
+	"time"
 
 	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/config"
@@ -43,6 +44,15 @@ func ScheduleMissives(ctx *config.AppContext, subscribers []*types.Subscriber, n
 				if !strings.Contains(err.Error(), "scheduled.idem_key") {
 					return err
 				}
+			}
+		}
+
+		/* Update SentAt field! */
+		if letter.SetSentAt() {
+			now := time.Now()
+			err = getters.MarkLetterSent(ctx.Notion, letter, now)
+			if err != nil {
+				return err
 			}
 		}
 	}
