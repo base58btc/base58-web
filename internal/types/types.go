@@ -554,7 +554,11 @@ func (l *Letter) IsExpired() bool {
 	return l.Expiry != nil && l.Expiry.Before(time.Now())
 }
 
-/* Job identifier for this letter */
+/* Job identifier for this letter.
+   We use the pageID from Notion.
+   If you delete the missive from Notion, you won't
+   be able to unschedule it.
+*/
 func (l *Letter) Missive() string {
-	return "fixme"
+	return l.ID
 }
