@@ -380,6 +380,18 @@ func GetLetters(n *types.Notion, newsletter string) ([]*types.Letter, error) {
 	hasMore := true
 	nextCursor := ""
 	var letters []*types.Letter
+	var filter *notion.Filter
+
+	/* "all" keyword sends everything */
+	if newsletter != "all" {
+		filter = &notion.Filter{
+			Property: "Newsletter",
+			Text: &notion.TextFilterCondition{
+				Equals: newsletter,
+			},
+		}
+	}
+
 	for hasMore {
 
 		var err error
@@ -387,12 +399,7 @@ func GetLetters(n *types.Notion, newsletter string) ([]*types.Letter, error) {
 		pages, nextCursor, hasMore, err = n.Client.QueryDatabase(context.Background(),
 			n.Config.MissivesDb, notion.QueryDatabaseParam{
 				StartCursor: nextCursor,
-				Filter: &notion.Filter{
-					Property: "Newsletter",
-					Text: &notion.TextFilterCondition{
-						Equals: newsletter,
-					},
-				},
+				Filter: filter,
 			})
 		if err != nil {
 			return nil, err
