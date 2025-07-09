@@ -1147,7 +1147,7 @@ func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 	if err != nil {
 		ctx.Infos.Printf("Invalid token %s for unsubscribe: %s", token, err)
 		/* Return the homepage page */
-		RenderPage(w, r, ctx, "index")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
@@ -1156,7 +1156,7 @@ func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 	if err != nil || subscriber == nil {
 		ctx.Infos.Printf("No subscriber found for token %s: %s", token, err)
 		/* Return the homepage page */
-		RenderPage(w, r, ctx, "index")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
