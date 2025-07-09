@@ -181,6 +181,14 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 		ConfirmEmail(w, r, ctx)
 	}).Methods("GET")
 
+	r.HandleFunc("/{newsletter}/schedule", func(w http.ResponseWriter, r *http.Request) {
+		ScheduleNewsMissives(w, r, ctx)
+	}).Methods("GET")
+
+	r.HandleFunc("/{missive}/unschedule", func(w http.ResponseWriter, r *http.Request) {
+		UnscheduleNewsMissive(w, r, ctx)
+	}).Methods("GET")
+
 	r.HandleFunc("/newsletter/unsubscribe/{token}", func(w http.ResponseWriter, r *http.Request) {
 		UnsubscribeEmail(w, r, ctx)
 	}).Methods("GET")
@@ -1032,7 +1040,7 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	changed := subscriber.AddSubscription(subToken.Newsletter)
 	if changed {
 		/* Send Subscriptions (if any) */
-		err = ScheduleMissives(ctx, subscriber.Email, subToken.Newsletter)
+		err = NewSubscriberMissives(ctx, subscriber.Email, subToken.Newsletter)
 		if err != nil {
 			ctx.Infos.Printf("Missive subscribe failed for newsletter confirmation %s: %s", subToken.Email, err)
 			/* FIXME: show an error banner or something */
@@ -1089,6 +1097,45 @@ type SubscribePage struct {
 	Text        string
 	ActionText  string
 	Newsletter  string
+}
+
+func ScheduleNewsMissives(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	/* TODO: add pin */
+	params := mux.Vars(r)
+	newsletter := params["newsletter"]
+
+	subscribers, err := getters.ListSubscribers(ctx.Notion, newsletter)
+	if err != nil {
+		ctx.Infos.Printf("Unable to schedule missives: %s", err)
+		/* Return the homepage page */
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	err = ScheduleMissives(ctx, subscribers, newsletter)
+	if err != nil {
+		ctx.Infos.Printf("Unable to send missives: %s", err)
+		/* Return the homepage page */
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func UnscheduleNewsMissive(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	/* TODO: add pin */
+	params := mux.Vars(r)
+	missive := params["missive"]
+
+	err := emails.SendCancelMissiveRequest(ctx, missive)
+	if err != nil {
+		ctx.Infos.Printf("Unable to unschedule missive %s: %s", missive, err)
+		/* Return the homepage page */
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {

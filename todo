@@ -1,7 +1,26 @@
-  - cancel subscription jobs on unsubscribe
+  - add URI processing to missive bodies
+  - how to send an email? 
+    - add a sent-at field for "send now" missives
+    - if "send at" is blank or malformatted, DO NOT SEND
+  - add pincode to un/schedule new mail endpoint?
+  - ship mailer on nixos box!
 
-  - automated emails after newsletter signups
-  - new newsletter missives
+design fixes:
+  - add david to facilitator website
+  - nicer images?
+  - images from japan
+  - what is in stacey's doc?
+  - fix FAQ toggles (transition to htmx)
+  - add functional furl card images!
+phil suggestions:
+  - hamburger menu is way too big on desktop, and slightly too big on mobile
+  - adjust the font size to match other sizes on the page
+  - higher res background image for your workshop page
+  - high res headshots for your instructor images
+  - offer course curriculum as a free PDF to capture emails
+    - satoshi white paper deep dive course!
+  - not too annoying slide in if you make it down the page 
+  - graduates featured at these companies would be more powerful
 
   - course infrastructure
 	  - jupyter notebooks!
@@ -11,28 +30,22 @@
 	  - quizzes
 	  - implementation exercises
 
-- to build:
-  - emails for class/LARP signups
   - about page
     - v2: donations!
-  - receipts
 
-- next up:
-	- blog
-	- unfurls!
-		- add route for https://oembed.com/
-	- v2: nostr pubkeys
-		- send nostr notice
-	- v2: send via telegram
-		- send telegram notices
-	- v2: add ticket(s) to ticketed events
-		- integrate with apple wallet
-		- integrate with google wallet
-	- v2: option to add to calendar
-	- v2: custom btc backend
-	- v2: bolt12
-	x BIP21 + BOLT11 payment options 
-		x bip21 // LN invoice
-		- click to copy  
-	- notification from LN node that has been paid? (websocket to server?)
-		- pipe response to checkout page (if still around)
+
+future work?
+- email ME about new class/LARP signups
+- receipts for class signups!
+- blog
+- option to add to calendar
+
+- unfurls: add route for https://oembed.com/
+- mailer: send nostr notices
+- mailer: send telegram notices
+
+- add ticket(s) to ticketed events
+	- integrate with apple wallet
+	- integrate with google wallet
+- checkout with CLN!!!
+- bolt12 recurrence!!

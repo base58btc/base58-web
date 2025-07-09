@@ -135,6 +135,20 @@ func mdToHTML(md []byte) []byte {
 	return markdown.Render(doc, renderer)
 }
 
+func missiveTemplate(ctx *config.AppContext, letter *types.Letter) (*template.Template) {
+
+	/* Hash the data for a key. We use the title + body 
+	 * so if they change, a new template will get generated */
+	keyhash := makeJobHash("", letter.Title, letter.Markdown)
+	t, ok := ctx.EmailCache[keyhash]
+	if !ok {
+		t = template.Must(template.New("").Parse(string(letter.Markdown)))
+		ctx.EmailCache[keyhash] = t
+	}
+
+	return t
+}
+
 func findEmailMarkdown(ctx *config.AppContext, tmplURL string) (*template.Template, error) {
 	t, ok := ctx.EmailCache[tmplURL]
 	if !ok {
@@ -194,6 +208,7 @@ func makeAuthStamp(secret string, timestamp string, r *http.Request) string {
 type Mail struct {
 	JobKey   string
 	Sub      string
+	Missive  string
 	Email    string
 	ReplyTo  string
 	Title    string
@@ -226,26 +241,35 @@ func makeJobHash(email, newsletter, title string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func SendNewsletterMissive(ctx *config.AppContext, email string, letter *types.Letter) ([]byte, error) {
+func SendNewsletterMissive(ctx *config.AppContext, email string, letter *types.Letter, sendAt time.Time) ([]byte, error) {
 
 	jobhash := makeJobHash(email, letter.Newsletter, letter.Title)
 	jobkey := fmt.Sprintf("%s-%s", letter.Newsletter, jobhash)
-	htmlBody, err := BuildHTMLEmail(ctx, []byte(letter.Markdown))
+
+	var buf bytes.Buffer
+	emailTmpl := missiveTemplate(ctx, letter)
+	err := emailTmpl.Execute(&buf, &EmailContent{
+		URI: ctx.CallbackPath(),
+	})
 	if err != nil {
 		return nil, err
 	}
-	sendAt, err := letter.CalcSendAt()
+
+	htmlBody, err := BuildHTMLEmail(ctx, buf.Bytes())
 	if err != nil {
 		return nil, err
 	}
+	/* Subscription key; ties this missive to all notes meant
+	 * for this email/user on this Newsletter */
 	subkey := makeSubKey(email, letter.Newsletter)
 	mail := &Mail{
 		JobKey: jobkey,
 		Sub:    subkey,
+		Missive: letter.Missive(),
 		Email:  email,
 		Title:  letter.Title,
 		SendAt: sendAt,
-		TextBody: []byte(letter.Markdown),
+		TextBody: buf.Bytes(),
 		HTMLBody: htmlBody,
 	}
 
@@ -394,6 +418,7 @@ func ComposeAndSendMail(ctx *config.AppContext, mail *Mail) error {
 	mailReq := &mailer.MailRequest{
 		JobKey:      "base58:" + mail.JobKey,
 		Subscription: mail.Sub,
+		Missive:     mail.Missive,
 		ToAddr:      mail.Email,
 		FromAddr:    "hello@base58.school",
 		FromName:    "Base58⛓️ 🔓",
@@ -465,6 +490,56 @@ func SendSubDeleteRequest(ctx *config.AppContext, email, sub string) error {
 	}
 
 	ctx.Infos.Printf("Rm'd subscription %s", subkey)
+	return nil
+}
+
+func SendCancelMissiveRequest(ctx *config.AppContext, missive string) error {
+	/* Send as a DELETE request w/ JSON body */
+	del := &mailer.MissiveDelete{
+		Missive: missive,
+	}
+	payload, err := json.Marshal(del)
+	if err != nil {
+		return err
+	}
+
+	client := &http.Client{}
+
+	url := ctx.Env.MailEndpoint + "/missive"
+	req, err := http.NewRequest(http.MethodDelete, url, bytes.NewBuffer(payload))
+	if err != nil {
+		return err
+	}
+
+	timestamp := strconv.Itoa(int(time.Now().UTC().Unix()))
+	secret := ctx.Env.MailerSecret
+	authStamp := makeAuthStamp(secret, timestamp, req)
+
+	req.Header.Set("Authorization", authStamp)
+	req.Header.Set("X-Base58-Timestamp", timestamp)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	var ret mailer.ReturnVal
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if err = json.Unmarshal(data, &ret); err != nil {
+		return err
+	}
+
+	if !ret.Success {
+		return fmt.Errorf("Unable to delete missive: %s", del.Missive)
+	}
+
+	ctx.Infos.Printf("Rm'd missive %s", missive)
 	return nil
 }
 

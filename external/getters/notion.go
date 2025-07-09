@@ -479,6 +479,40 @@ func parseSubs(options *[]*notion.SelectOption) []*types.Subscription {
 	return subs
 }
 
+func ListSubscribers(n *types.Notion, newsletter string) ([]*types.Subscriber, error) {
+	hasMore := true
+	nextCursor := ""
+	var subs []*types.Subscriber
+	for hasMore {
+
+		var err error
+		var pages []*notion.Page
+		pages, nextCursor, hasMore, err = n.Client.QueryDatabase(context.Background(),
+			n.Config.NewsletterDb, notion.QueryDatabaseParam{
+				StartCursor: nextCursor,
+				Filter: &notion.Filter{
+					Property: "Subs",
+					MultiSelect: &notion.MultiSelectFilterCondition{
+						Contains: newsletter,
+					},
+				},
+			})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, page := range pages {
+			sub := &types.Subscriber{
+				Email: parseRichText("Email", page.Properties),
+				Subs:  parseSubs(page.Properties["Subs"].MultiSelect),
+			}
+			subs = append(subs, sub)
+		}
+	}
+
+	return subs, nil
+}
+
 func FindSubscriber(n *types.Notion, email string) (*types.Subscriber, error) {
 	pages, _, _, err := n.Client.QueryDatabase(context.Background(),
 		n.Config.NewsletterDb, notion.QueryDatabaseParam{

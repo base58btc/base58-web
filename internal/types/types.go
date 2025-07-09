@@ -461,20 +461,33 @@ func (s *Subscriber) RmSubscription(name string) bool {
 	return unsubscribed
 }
 
+func (s *Subscriber) IsSubscribed(newsletter string) bool {
+	for _,sub := range s.Subs {
+		if sub.Name == newsletter {
+			return true
+		}
+	}
+	return false
+}
+
 /* The syntax for calc send is:
 
-    - Blank means send 'now'
+    - Blank means do not send
+    - 'now' means send now
     - A date means send on date at 9am.
       3/4/2025 -> March, 4th 2025 @ 9am
     - +9 -> scheduled for 9-days from now. 
       note: '+' days are never sent on weekends!
-    - anything else: sends now
+    - anything else: returns an error
 */
 func (l *Letter) CalcSendAt() (time.Time, error) {
 	if l.SendAt == "" {
-		return time.Now(), nil
+		return time.Now(), fmt.Errorf("Missive %s (%s) is not scheduled", l.Title, l.Newsletter)
 	}
 
+	if l.SendAt == "now" {
+		return time.Now(), nil
+	}
 	
 	if l.SendAt[0:1] == "+" {
 		days, err := strconv.Atoi(l.SendAt[1:])
@@ -507,6 +520,23 @@ func (l *Letter) CalcSendAt() (time.Time, error) {
 	return setDate, nil
 }
 
+func (l *Letter) AtSubOnly() bool {
+	return len(l.SendAt) > 0 && l.SendAt[0:1] == "+"
+}
+
+func (l *Letter) Scheduled() bool {
+	return len(l.SendAt) > 0
+}
+
+func (l *Letter) Sendable() bool {
+	return l.Scheduled() && !l.IsExpired()
+}
+
 func (l *Letter) IsExpired() bool {
 	return l.Expiry != nil && l.Expiry.Before(time.Now())
+}
+
+/* Job identifier for this letter */
+func (l *Letter) Missive() string {
+	return "fixme"
 }
