@@ -181,6 +181,10 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 		ConfirmEmail(w, r, ctx)
 	}).Methods("GET")
 
+	r.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		Login(w, r, ctx)
+	}).Methods("POST")
+
 	r.HandleFunc("/{newsletter}/schedule", func(w http.ResponseWriter, r *http.Request) {
 		ScheduleNewsMissives(w, r, ctx)
 	}).Methods("GET")
@@ -1099,8 +1103,24 @@ type SubscribePage struct {
 	Newsletter  string
 }
 
+func checkPin(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) bool {
+	pin := ctx.Session.GetString(r.Context(), "pin")
+	if pin == "" {
+		w.Header().Set("x-missing-field", "pin")
+		w.WriteHeader(http.StatusUnauthorized)
+		ctx.Infos.Printf("401 login failed: %s", r.URL.Path)
+		return false
+	}
+	return pin == ctx.Env.Pincode
+}
+
 func ScheduleNewsMissives(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-	/* TODO: add pin */
+	/* Check for verified */
+	if ok := checkPin(w, r, ctx); !ok {
+		Render401(w, r, ctx)
+		return
+	}
+
 	params := mux.Vars(r)
 	newsletter := params["newsletter"]
 
@@ -1119,11 +1139,17 @@ func ScheduleNewsMissives(w http.ResponseWriter, r *http.Request, ctx *config.Ap
 		return
 	}
 
+	ctx.Infos.Printf("Scheduled emails for %s", newsletter)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func UnscheduleNewsMissive(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-	/* TODO: add pin */
+	/* Check for verified */
+	if ok := checkPin(w, r, ctx); !ok {
+		Render401(w, r, ctx)
+		return
+	}
+
 	params := mux.Vars(r)
 	missive := params["missive"]
 
@@ -1530,6 +1556,46 @@ func OpenNodeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 
 	w.WriteHeader(http.StatusOK)
 }
+
+type LoginPage struct {
+	Page              Page
+	Destination       string
+}
+
+func Render401(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	err := ctx.TemplateCache.ExecuteTemplate(w, "401.tmpl", &LoginPage{
+		Page:        getPage(ctx, "Login", types.FurlCard{}),
+		Destination: r.URL.Path,
+	})
+	if err != nil {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("/401.tmpl exec template failed %s\n", err.Error())
+		return
+	}
+}
+
+/* Set the pin cookie and redirect to destination */	
+func Login(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	r.ParseForm()
+	password := r.Form.Get("pass")
+	destpath := r.Form.Get("dest")
+
+	if password != ctx.Env.Pincode {
+		w.Write([]byte(`
+		<div class="form_message-error" style="display: block;">
+                  <div class="error-text">Incorrect password. Try again.</div>
+                </div>
+		`))
+		return
+	}
+
+	/* Set the pin as cookie and redirect */
+	ctx.Session.Put(r.Context(), "pin", password)
+
+	/* Use HTMX to redirect */
+	w.Header().Set("HX-Redirect", destpath)
+}
+
 
 func RenderPage(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, page string) {
 	data, err := getHomeData(ctx, ctx.Notion)

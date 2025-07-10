@@ -20,6 +20,7 @@ type (
 		MailerSecret string
 		MailDomain   string
 		MailEndpoint string
+		Pincode      string
 		Notion       NotionConfig
 		Stripe       StripeConfig
 		OpenNode     OpenNodeConfig

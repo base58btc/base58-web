@@ -40,6 +40,7 @@ func loadConfig() (*types.EnvConfig, bool) {
 	config.MailerSecret = os.Getenv("MAIL_SEC")
 	config.MailDomain = os.Getenv("MAIL_DOMAIN")
 	config.MailEndpoint = os.Getenv("MAIL_API")
+	config.Pincode = os.Getenv("PINCODE")
 
 	config.Notion = types.NotionConfig{
 		Token:          os.Getenv("NOTION_TOKEN"),
