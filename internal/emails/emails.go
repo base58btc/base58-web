@@ -168,11 +168,11 @@ func mdToHTML(md []byte) []byte {
 	return markdown.Render(doc, renderer)
 }
 
-func missiveTemplate(ctx *config.AppContext, letter *types.Letter) *template.Template {
+func missiveTemplate(ctx *config.AppContext, letter *types.Letter) (*template.Template) {
 
-	/* Hash the data for a key. We use the title + body
+	/* Hash the data for a key. We use the ID + body
 	 * so if they change, a new template will get generated */
-	keyhash := makeJobHash("", letter.Title, letter.Markdown)
+	keyhash := makeJobHash("", letter.ID, letter.Markdown)
 	t, ok := ctx.EmailCache[keyhash]
 	if !ok {
 		t = template.Must(template.New("").Parse(string(letter.Markdown)))
@@ -284,12 +284,7 @@ func SendNewsletterMissive(ctx *config.AppContext, email string, letter *types.L
 	jobkey := fmt.Sprintf("%s-%s", letter.Newsletter, jobhash)
 
 	var buf bytes.Buffer
-	emailTmpl, err := template.New("").Parse(string(letter.Markdown))
-	if err != nil {
-		ctx.Err.Printf("error with template: %s", string(letter.Markdown))
-		return nil, err
-	}
-	err = emailTmpl.Execute(&buf, &EmailContent{
+	err := missiveTemplate(ctx, letter).Execute(&buf, &EmailContent{
 		URI: ctx.CallbackPath(),
 	})
 	if err != nil {
