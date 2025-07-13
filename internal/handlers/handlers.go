@@ -910,6 +910,19 @@ func WorkshopContact(w http.ResponseWriter, r *http.Request, ctx *config.AppCont
 		return
 	}
 
+	/* If is a facilitator, subscribe to the larp-facilitator waitlist */
+	if formtype == "facilitate" {
+		newsletter := "larp-facilitator"
+		timestamp := uint64(time.Now().UTC().UnixNano())
+		_, token := helpers.GetSubscribeToken(ctx.Env.SecretBytes(), email, newsletter, timestamp)
+		_, err := emails.SendNewsletterSubEmail(ctx, email, token, newsletter)
+		/* Log error but return success */
+		if err != nil {
+			ctx.Err.Printf("Failed sending %s subscribe offer: %s", email, err)
+		}
+	}
+
+
 	ctx.Infos.Printf("Message to %s Work(shop) sent!", formtype)
 
 	/* show a banner about it sending successfully */

@@ -1,10 +1,6 @@
-  - add the LARP facilitator training as a separate course
+  - add functional furl card images!
   - deploy new code!!!!
 
-  - unfurls: add route for https://oembed.com/
-  - add functional furl card images!
-  - add a larp newsletter signup
-  - add "subscribe to newsletter" checkboxes to contact forms!
   - bring over emails from existing courses/waitlists!
   - send invitation to subscribe to newsletter
 
@@ -58,3 +54,14 @@ future work?
   - integrate with google wallet
 - checkout with CLN!!!
 - bolt12 recurrence!!
+
+- unfurls: add route for https://oembed.com/
+  - url scheme: https://base58.school/courses/*
+  - api scheme: https://base58.school/oembed/
+  inputs: url, maxwidth, maxheight, format
+  - https://github.com/iamcal/oembed/blob/master/providers/bluesky.yml
+  <!-- oembed ref -->
+  <link rel="alternate" type="application/json+oembed" 
+	  href="https://base58.school/oembed?url=http%3A%2F%2Fbase58.school%2Fcourses%2Fbitdevbasics01%2F&format=json" 
+	  title="Base58's oEmbed Profile" />
+
