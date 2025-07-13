@@ -12,6 +12,7 @@ import (
 
 func ScheduleMissives(ctx *config.AppContext, subscribers []*types.Subscriber, newsletter string) error {
 
+	subonly, sendable, skipped := 0, 0, 0
 	letters, err := getters.GetLetters(ctx.Notion, newsletter)
 	if err != nil {
 		return err
@@ -19,10 +20,12 @@ func ScheduleMissives(ctx *config.AppContext, subscribers []*types.Subscriber, n
 
 	for _, letter := range letters {
 		if !letter.Sendable() {
+			skipped += 1
 			continue
 		}
 
 		if letter.AtSubOnly() {
+			subonly += 1
 			continue
 		}
 
@@ -31,6 +34,8 @@ func ScheduleMissives(ctx *config.AppContext, subscribers []*types.Subscriber, n
 			return err
 		}
 
+		sendable += 1
+		subssent := 0
 		for _, sub := range subscribers {
 			if !sub.IsSubscribed(newsletter) {
 				continue
@@ -45,7 +50,9 @@ func ScheduleMissives(ctx *config.AppContext, subscribers []*types.Subscriber, n
 					return err
 				}
 			}
+			subssent += 1
 		}
+		ctx.Infos.Printf("Sent %d emails (%s)", subssent, letter.Title)
 
 		/* Update SentAt field! */
 		if letter.SetSentAt() {
@@ -56,6 +63,9 @@ func ScheduleMissives(ctx *config.AppContext, subscribers []*types.Subscriber, n
 			}
 		}
 	}
+
+	ctx.Infos.Printf("Attempted to send %d; skipped %d 'subonly' %d sent %d", len(letters), skipped, subonly, sendable)
+
 
 	return nil
 }
