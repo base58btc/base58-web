@@ -147,7 +147,7 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
 		Success(w, r, ctx)
 	})
-	r.HandleFunc("/check-email", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/check-email/{email}", func(w http.ResponseWriter, r *http.Request) {
 		CheckEmail(w, r, ctx)
 	})
 	r.HandleFunc("/workshop/contact/{formtype}", func(w http.ResponseWriter, r *http.Request) {
@@ -1289,17 +1289,39 @@ type SuccessData struct {
 
 func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 
-	email := "nifty@btcpp.dev"
-	newsletter := "newsletter"
-	timestamp := uint64(time.Now().UTC().UnixNano())
+	params := mux.Vars(r)
+	newsletter := params["email"]
 
-	_, token := getSubscribeToken(ctx.Env.SecretBytes(), email, newsletter, timestamp)
-	mail, err := emails.SendNewsletterSubEmail(ctx, email, token, newsletter)
+	email := "nifty@btcpp.dev"
+	letters, err := getters.GetLetters(ctx.Notion, "all")
 	if err != nil {
 		ctx.Err.Printf("/check-email unable to send mail %s", err)
 		return
 	}
-	w.Write(mail)
+	for _, l := range letters {
+		ctx.Infos.Printf("Looking at letter %s (%s)", l.ID, l.Title)
+		if l.ID == newsletter {
+			now := time.Now()
+			mail, err := emails.SendNewsletterMissive(ctx, email, l, now)
+			if err != nil {
+				ctx.Err.Printf("/check-email unable to send mail %s", err)
+				return
+			}
+			w.Write(mail)
+			return
+		}
+	}
+
+	w.Write([]byte(fmt.Sprintf(`
+	<html>
+	<body>
+	<div class="error-message w-form-fail" style="display: block;">
+	  <div class="error-text">Unable to find %s</div>
+	</div>
+	</body>
+	</html>
+	`, newsletter)))
+	return
 }
 
 func Success(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
