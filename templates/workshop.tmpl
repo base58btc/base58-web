@@ -380,6 +380,43 @@ margin: 0rem !important;
           </div>
         </div>
       </section>
+	<section class="cta_section">
+	<div class="padding-global">
+	  <div class="container-small">
+	    <div class="padding-section-large">
+	      <div class="text_align-center">
+		<div class="margin-bottom margin-small">
+		  <h3 class="heading-3">Get Updates on Base58's Work(shop)</h3>
+		</div>
+		<p class="cta-text">Want to find out about new facilitator trainings, workshops, or tips for playing the Bitcoin at Work(shop)? Join our Work(shop) mailing list to get the latest straight to your inbox.</p>
+		<div class="margin-top margin-medium">
+		  <div class="button-group is-center">
+                    <div id="email-form" name="email-signup" class="footer9_form"> 
+                      <input class="form_input w-input" maxlength="256" 
+		        name="newsletter-email"
+		        id="newsletter-email" type="email" 
+			required
+                        autoComplete="on" autoCorrect="off" 
+			autoCapitalize="off" spellCheck="false"
+                        placeholder="you@base58.school"
+                        />
+		      <button id="subscribe-btn" 
+		      class="primary-button w-button"
+		      hx-post="/larp/subscribe"
+		      hx-include="#newsletter-email"
+		      hx-trigger="click"
+                      hx-target="#news_subscribe_result">Subscribe</button>
+		    </div>
+                    <div class="text-size-tiny neutral">By subscribing you agree to receive updates from Base58. No spam, just the good stuff.</div>
+		    <div id="news_subscribe_result">
+		    </div>
+                  </div>
+		</div>
+	      </div>
+	    </div>
+	  </div>
+	</div>
+	</section>
       <section class="gallery_section">
         <div class="padding-global">
           <div class="container-large">
