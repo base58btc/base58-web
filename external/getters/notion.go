@@ -219,6 +219,10 @@ func parseLetter(pageID string, props map[string]notion.PropertyValue) *types.Le
 	if expiry != nil {
 		letter.Expiry = &expiry.Start
 	}
+	sentat := props["SentAt"].Date
+	if sentat != nil {
+		letter.SentAt = &sentat.Start
+	}
 	return letter
 }
 

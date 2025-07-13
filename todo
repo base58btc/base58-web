@@ -1,16 +1,21 @@
-  - add a "sendall" for newsletters
-  - calc missive key
-  - add pincode to un/schedule new mail endpoint?
 
-  - ship mailer on nixos box!
+
+  - add an unsubscribe link to every email!!
+  - add codeblock formatting + color highlighting
+  - larp newsletter
+  - add "subscribe to newsletter" checkboxes to contact forms!
+
+later...
+  - bundle up missive code and add to btc++?!?
 
 design fixes:
+  - add functional furl card images!
   - add david to facilitator website
-  - nicer images?
-  - images from japan
+  - landing page for how to Work(shop)
+  - resources section
+  - workshop: images from japan
   - what is in stacey's doc?
   - fix FAQ toggles (transition to htmx)
-  - add functional furl card images!
 phil suggestions:
   - hamburger menu is way too big on desktop, and slightly too big on mobile
   - adjust the font size to match other sizes on the page
@@ -22,29 +27,37 @@ phil suggestions:
   - graduates featured at these companies would be more powerful
 
   - course infrastructure
-	  - jupyter notebooks!
-	  - notes
-	  - resources
-	  - play next
-	  - quizzes
-	  - implementation exercises
+  - course content
+    - jupyter notebooks!
+    - notes
+    - resources
+    - play next
+    - videos (hosting?)
+    - quizzes
+    - implementation exercises
+  - missives: on course signup??
+    - remove from waitlist for that course
+    - add to course + alumni newsletters
+    - cohort tags as subscriptions
+    - email ME about new class/LARP signups
+    - receipts for class signups!
+  - option to add to calendar (send ics attachment w/ signup emails)
+  - badges 
+    - linkedin
+    - nostr
+    - post to X?
 
   - about page
     - v2: donations!
-
+  - add blog (is "newletter" missives with sendat == now)
 
 future work?
-- email ME about new class/LARP signups
-- receipts for class signups!
-- blog
-- option to add to calendar
-
 - unfurls: add route for https://oembed.com/
 - mailer: send nostr notices
 - mailer: send telegram notices
 
 - add ticket(s) to ticketed events
-	- integrate with apple wallet
-	- integrate with google wallet
+  - integrate with apple wallet
+  - integrate with google wallet
 - checkout with CLN!!!
 - bolt12 recurrence!!

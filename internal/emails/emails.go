@@ -39,6 +39,38 @@ type EmailContent struct {
 var globalctx *config.AppContext
 
 func emailRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+	graphStyles := `
+	font-optical-sizing: auto;
+	font-style: normal;
+	line-height: 26px;
+	font-size: 16px;
+	color: rgb(54, 55, 55);
+	`
+	if paragraph, ok := node.(*ast.Paragraph); ok && entering {
+		paragraph.Attribute = &ast.Attribute{
+			Attrs: make(map[string][]byte),
+		}
+		paragraph.Attribute.Attrs["style"] = []byte(graphStyles)
+	}
+	if list, ok := node.(*ast.List); ok && entering {
+		styleAttr := `padding-inline-start: 1.5rem;`
+		list.Attribute = &ast.Attribute{
+			Attrs: make(map[string][]byte),
+		}
+		list.Attribute.Attrs["style"] = []byte(styleAttr)
+	}
+	if listItem, ok := node.(*ast.ListItem); ok {
+		var toWrite string
+		if entering {
+			toWrite = fmt.Sprintf(`<li>
+			<p styles="%s">`, graphStyles)
+		} else {
+			toWrite = `</p></li>`
+		}
+		listItem.Tight = true
+		io.WriteString(w, toWrite)
+		return ast.GoToNext, true
+	}
 	if blockquote, ok := node.(*ast.BlockQuote); ok && entering {
 		var attr *ast.Attribute
 		if c := blockquote.AsContainer(); c != nil {
@@ -58,12 +90,11 @@ func emailRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus,
 		styleValue := `
 			border: none;
 			margin: 0;
+			text-align: center;
 			align-items: center;
 			margin-bottom: auto;
 			padding-bottom: 1rem;
 			padding-top: 1rem;
-			display: flex;
-			justify-content: center;
 		`
 		attr.Attrs["style"] = []byte(styleValue)
 	}
