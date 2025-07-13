@@ -396,7 +396,6 @@ func GetLetters(n *types.Notion, newsletter string) ([]*types.Letter, error) {
 	}
 
 	for hasMore {
-
 		var err error
 		var pages []*notion.Page
 		pages, nextCursor, hasMore, err = n.Client.QueryDatabase(context.Background(),

@@ -784,28 +784,6 @@ func Summary(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, car
 
 }
 
-func getSubscribeToken(sec []byte, email, newsletter string, timestamp uint64) (string, string) {
-	/* Make a lil hash using the email + timestamp + newsletter */
-	h := sha256.New()
-	h.Write(sec)
-	h.Write([]byte(email))
-	h.Write([]byte(newsletter))
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, timestamp)
-	h.Write(b)
-
-	/* Token is 8-bytes hash prefix, hex of email,
-	 * hex of newsletter, hex of timestamp
-	 */
-
-	hashB := h.Sum(nil)
-	hash := hex.EncodeToString(hashB[:8])
-	emailHex := hex.EncodeToString([]byte(email))
-	subHex := hex.EncodeToString([]byte(newsletter))
-	timeHex := hex.EncodeToString(b)
-	return hash, fmt.Sprintf("%s-%s-%s-%s", hash, emailHex, subHex, timeHex)
-}
-
 type SubToken struct {
 	Time       time.Time
 	Email      string
@@ -831,7 +809,7 @@ func parseSubscribeToken(sec []byte, token string) (*SubToken, error) {
 		return nil, err
 	}
 	timestamp := binary.LittleEndian.Uint64(timeB)
-	hash, _ := getSubscribeToken(sec, string(emailB), string(subB), timestamp)
+	hash, _ := helpers.GetSubscribeToken(sec, string(emailB), string(subB), timestamp)
 	if hash != parts[0] {
 		return nil, fmt.Errorf("Invalid token %s", token)
 	}
@@ -959,7 +937,7 @@ func SubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 	}
 
 	timestamp := uint64(time.Now().UTC().UnixNano())
-	_, token := getSubscribeToken(ctx.Env.SecretBytes(), email, newsletter, timestamp)
+	_, token := helpers.GetSubscribeToken(ctx.Env.SecretBytes(), email, newsletter, timestamp)
 
 	ctx.Infos.Printf("%s subscribe token is %s. sending confirmation email", email, token)
 	_, err := emails.SendNewsletterSubEmail(ctx, email, token, newsletter)
@@ -1163,7 +1141,10 @@ func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 	/* Find record for that token */
 	subscriber, err := getters.FindSubscriber(ctx.Notion, subToken.Email)
 	if err != nil || subscriber == nil {
-		ctx.Infos.Printf("No subscriber found for token %s: %s", token, err)
+		ctx.Infos.Printf("No subscriber found for token %s (%s)", token, subToken.Email)
+		if err != nil {
+			ctx.Err.Printf("error: %s", err)
+		}
 		/* Return the homepage page */
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -1291,24 +1272,24 @@ func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 	params := mux.Vars(r)
 	newsletter := params["email"]
 
-	email := "nifty@btcpp.dev"
 	letters, err := getters.GetLetters(ctx.Notion, "all")
 	if err != nil {
 		ctx.Err.Printf("/check-email unable to send mail %s", err)
 		return
 	}
+	
+	email := "nifty@btcpp.dev"
 	for _, l := range letters {
 		ctx.Infos.Printf("Looking at letter %s (%s)", l.ID, l.Title)
-		if l.ID == newsletter {
-			now := time.Now()
-			mail, err := emails.SendNewsletterMissive(ctx, email, l, now)
-			if err != nil {
-				ctx.Err.Printf("/check-email unable to send mail %s", err)
-				return
-			}
-			w.Write(mail)
-			return
+		now := time.Now()
+		mail, err := emails.SendNewsletterMissive(ctx, email, l, now)
+		if err != nil {
+			ctx.Err.Printf("/check-email unable to send mail %s", err)
 		}
+		if mail != nil {
+			w.Write(mail)
+		}
+		return
 	}
 
 	w.Write([]byte(fmt.Sprintf(`

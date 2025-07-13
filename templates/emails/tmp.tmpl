@@ -56,6 +56,11 @@ a {
                 <img src="{{ .URI }}/static/img/icons/gh.png" style="width: 2rem;" >
             </a>
         </div>
+	{{ if .Unsubscribe }}
+	<div>
+	  <p><a style="text-underline-offset: 4px; text-decoration-line: underline; font-weight: 400;" href="{{ .URI }}/newsletter/unsubscribe/{{ .Unsubscribe }}">Unsubscribe</a> from this newsletter</p>
+	</div>
+	{{ end }}
     </footer>
           </div>
        </div>

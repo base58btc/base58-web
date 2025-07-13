@@ -17,6 +17,7 @@ import (
 
 	"github.com/kodylow/base58-website/internal/config"
 	"github.com/kodylow/base58-website/internal/types"
+	"github.com/kodylow/base58-website/internal/helpers"
 
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/ast"
@@ -32,8 +33,9 @@ type EmailInfos struct {
 }
 
 type EmailContent struct {
-	Content string
-	URI     string
+	Content     string
+	URI         string
+	Unsubscribe string
 }
 
 var globalctx *config.AppContext
@@ -121,7 +123,7 @@ func emailRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus,
 				text-decoration: none;
 			"`
 		} else {
-			styleAttr = `style="text-underline-offset:4px; text-decoration-line:underline; text-underline-offset:4px; font-weight:400;"`
+			styleAttr = `style="text-decoration-line:underline; text-underline-offset:4px; font-weight:400;"`
 		}
 		anchor.AdditionalAttributes = append(anchor.AdditionalAttributes, styleAttr)
 	}
@@ -206,8 +208,11 @@ func findEmailMarkdown(ctx *config.AppContext, tmplURL string) (*template.Templa
 
 	return t, nil
 }
-
 func BuildHTMLEmail(ctx *config.AppContext, markdown []byte) ([]byte, error) {
+	return BuildHTMLEmailUnsub(ctx, markdown, "")
+}
+
+func BuildHTMLEmailUnsub(ctx *config.AppContext, markdown []byte, unsubscribe string) ([]byte, error) {
 
 	globalctx = ctx
 	/* Convert markdown to HTML */
@@ -216,8 +221,9 @@ func BuildHTMLEmail(ctx *config.AppContext, markdown []byte) ([]byte, error) {
 	/* Embed into our email wrapper template */
 	var email bytes.Buffer
 	err := ctx.TemplateCache.ExecuteTemplate(&email, "emails/tmp.tmpl", &EmailContent{
-		Content: string(htmlOut),
-		URI:     ctx.CallbackPath(),
+		Content:     string(htmlOut),
+		URI:         ctx.CallbackPath(),
+		Unsubscribe: unsubscribe,
 	})
 
 	if err != nil {
@@ -278,15 +284,21 @@ func SendNewsletterMissive(ctx *config.AppContext, email string, letter *types.L
 	jobkey := fmt.Sprintf("%s-%s", letter.Newsletter, jobhash)
 
 	var buf bytes.Buffer
-	emailTmpl := missiveTemplate(ctx, letter)
-	err := emailTmpl.Execute(&buf, &EmailContent{
+	emailTmpl, err := template.New("").Parse(string(letter.Markdown))
+	if err != nil {
+		ctx.Err.Printf("error with template: %s", string(letter.Markdown))
+		return nil, err
+	}
+	err = emailTmpl.Execute(&buf, &EmailContent{
 		URI: ctx.CallbackPath(),
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	htmlBody, err := BuildHTMLEmail(ctx, buf.Bytes())
+	timestamp := uint64(time.Now().UTC().UnixNano())
+	_, subToken := helpers.GetSubscribeToken(ctx.Env.SecretBytes(), email, letter.Newsletter, timestamp)
+	htmlBody, err := BuildHTMLEmailUnsub(ctx, buf.Bytes(), subToken)
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,9 @@ package helpers
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"time"
 
@@ -209,3 +211,26 @@ func FilterSessions(sessions []*types.CourseSession, from time.Time) []*types.Co
 
 	return filtered
 }
+
+func GetSubscribeToken(sec []byte, email, newsletter string, timestamp uint64) (string, string) {
+	/* Make a lil hash using the email + timestamp + newsletter */
+	h := sha256.New()
+	h.Write(sec)
+	h.Write([]byte(email))
+	h.Write([]byte(newsletter))
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, timestamp)
+	h.Write(b)
+
+	/* Token is 8-bytes hash prefix, hex of email,
+	 * hex of newsletter, hex of timestamp
+	 */
+
+	hashB := h.Sum(nil)
+	hash := hex.EncodeToString(hashB[:8])
+	emailHex := hex.EncodeToString([]byte(email))
+	subHex := hex.EncodeToString([]byte(newsletter))
+	timeHex := hex.EncodeToString(b)
+	return hash, fmt.Sprintf("%s-%s-%s-%s", hash, emailHex, subHex, timeHex)
+}
+

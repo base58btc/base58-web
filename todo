@@ -1,19 +1,17 @@
+  - add david to facilitator website
+  - workshop: images from japan
+  - unfurls: add route for https://oembed.com/
+  - add functional furl card images!
+  - deploy new code!!!!
 
-
-  - add an unsubscribe link to every email!!
-  - add codeblock formatting + color highlighting
-  - larp newsletter
+  - add a larp newsletter signup
   - add "subscribe to newsletter" checkboxes to contact forms!
-
-later...
-  - bundle up missive code and add to btc++?!?
+  - bring over emails from existing courses/waitlists!
+  - send invitation to subscribe to newsletter
 
 design fixes:
-  - add functional furl card images!
-  - add david to facilitator website
-  - landing page for how to Work(shop)
-  - resources section
-  - workshop: images from japan
+  - emails: add codeblock formatting + color highlighting
+  - workshop: resources section??
   - what is in stacey's doc?
   - fix FAQ toggles (transition to htmx)
 phil suggestions:
@@ -47,12 +45,12 @@ phil suggestions:
     - nostr
     - post to X?
 
+  - alumni focused pages
   - about page
     - v2: donations!
   - add blog (is "newletter" missives with sendat == now)
 
 future work?
-- unfurls: add route for https://oembed.com/
 - mailer: send nostr notices
 - mailer: send telegram notices
 
