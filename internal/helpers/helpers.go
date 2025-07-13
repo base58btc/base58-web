@@ -17,7 +17,6 @@ import (
 
 var renderers map[string]*html.Renderer = make(map[string]*html.Renderer)
 
-
 /* Blogpost on how to write renderers https://blog.kowalczyk.info/article/cxn3/advanced-markdown-processing-in-go.html */
 func preReqRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
 	if anchor, ok := node.(*ast.Link); ok && entering {
@@ -127,7 +126,7 @@ func getRenderer(renderFmt string) *html.Renderer {
 	renderer, ok := renderers[renderFmt]
 	if !ok {
 		switch renderFmt {
-		case "prereq": 
+		case "prereq":
 			renderer = newBlockRenderer(preReqRenderHook)
 		case "text":
 			renderer = newBlockRenderer(textPageRenderHook)

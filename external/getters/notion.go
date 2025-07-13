@@ -112,9 +112,9 @@ func parseChapterInfo(key string, props map[string]notion.PropertyValue) []types
 	for i, item := range items {
 		for j := 0; j < len(item); j++ {
 			if string(item[j]) == ":" {
-				cis[i] = types.ChapterInfo {
+				cis[i] = types.ChapterInfo{
 					Title: item[:j],
-					Desc: item[j+1:],
+					Desc:  item[j+1:],
 				}
 				break
 			}
@@ -205,14 +205,13 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 	return session
 }
 
-
 func parseLetter(pageID string, props map[string]notion.PropertyValue) *types.Letter {
 	letter := &types.Letter{
-		ID:               pageID,
-		Title:            parseRichText("Title", props),
-		Newsletter:       parseRichText("Newsletter", props),
-		Markdown:         parseRichText("Markdown", props),
-		SendAt:           parseRichText("SendAt", props),
+		ID:         pageID,
+		Title:      parseRichText("Title", props),
+		Newsletter: parseRichText("Newsletter", props),
+		Markdown:   parseRichText("Markdown", props),
+		SendAt:     parseRichText("SendAt", props),
 	}
 
 	expiry := props["Expiry"].Date
@@ -403,7 +402,7 @@ func GetLetters(n *types.Notion, newsletter string) ([]*types.Letter, error) {
 		pages, nextCursor, hasMore, err = n.Client.QueryDatabase(context.Background(),
 			n.Config.MissivesDb, notion.QueryDatabaseParam{
 				StartCursor: nextCursor,
-				Filter: filter,
+				Filter:      filter,
 			})
 		if err != nil {
 			return nil, err
@@ -417,7 +416,6 @@ func GetLetters(n *types.Notion, newsletter string) ([]*types.Letter, error) {
 
 	return letters, nil
 }
-
 
 func UniqueID(contact string, ref string, counter int32) string {
 	/* sha256 of ref || contact|| count (4, le) */
@@ -551,7 +549,7 @@ func FindSubscriber(n *types.Notion, email string) (*types.Subscriber, error) {
 		return nil, err
 	}
 
-	sub := &types.Subscriber {
+	sub := &types.Subscriber{
 		Pages: make([]string, len(pages)),
 	}
 
@@ -586,7 +584,7 @@ func SubscribeEmail(n *types.Notion, email, newsletter string) (*types.Subscribe
 		return nil, err
 	}
 	subscriber := &types.Subscriber{
-		Pages:  []string { page.ID },
+		Pages: []string{page.ID},
 		Email: email,
 	}
 	subscriber.AddSubscription(newsletter)
@@ -596,7 +594,7 @@ func SubscribeEmail(n *types.Notion, email, newsletter string) (*types.Subscribe
 func makeSubList(sub *types.Subscriber) []*notion.SelectOption {
 	subList := make([]*notion.SelectOption, len(sub.Subs))
 	for i, subscription := range sub.Subs {
-		subList[i] = &notion.SelectOption {
+		subList[i] = &notion.SelectOption{
 			Name: subscription.Name,
 			ID:   subscription.ID,
 		}
@@ -604,9 +602,9 @@ func makeSubList(sub *types.Subscriber) []*notion.SelectOption {
 	return subList
 }
 
-func UpdateSubs(n *types.Notion, sub *types.Subscriber) (error) {
+func UpdateSubs(n *types.Notion, sub *types.Subscriber) error {
 	subList := makeSubList(sub)
-	
+
 	for _, pageID := range sub.Pages {
 		_, err := n.Client.UpdatePageProperties(context.Background(), pageID,
 			map[string]*notion.PropertyValue{

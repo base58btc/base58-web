@@ -37,33 +37,33 @@ var webpages []string = []string{"about", "courses", "404", "401", "workshop", "
 
 /* Thank you StackOverflow https://stackoverflow.com/a/50581032 */
 func findAndParseTemplates(rootDir string, funcMap template.FuncMap) (*template.Template, error) {
-    cleanRoot := filepath.Clean(rootDir)
-    pfx := len(cleanRoot)+1
-    root := template.New("")
+	cleanRoot := filepath.Clean(rootDir)
+	pfx := len(cleanRoot) + 1
+	root := template.New("")
 
-    err := filepath.Walk(cleanRoot, func(path string, info os.FileInfo, e1 error) error {
-        if !info.IsDir() && strings.HasSuffix(path, ".tmpl") {
-            if e1 != nil {
-                return e1
-            }
+	err := filepath.Walk(cleanRoot, func(path string, info os.FileInfo, e1 error) error {
+		if !info.IsDir() && strings.HasSuffix(path, ".tmpl") {
+			if e1 != nil {
+				return e1
+			}
 
-            b, e2 := ioutil.ReadFile(path)
-            if e2 != nil {
-                return e2
-            }
+			b, e2 := ioutil.ReadFile(path)
+			if e2 != nil {
+				return e2
+			}
 
-            name := path[pfx:]
-            t := root.New(name).Funcs(funcMap)
-            _, e2 = t.Parse(string(b))
-            if e2 != nil {
-                return e2
-            }
-        }
+			name := path[pfx:]
+			t := root.New(name).Funcs(funcMap)
+			_, e2 = t.Parse(string(b))
+			if e2 != nil {
+				return e2
+			}
+		}
 
-        return nil
-    })
+		return nil
+	})
 
-    return root, err
+	return root, err
 }
 
 func BuildTemplateCache(ctx *config.AppContext) error {
@@ -74,8 +74,8 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 		"FiatPrice":   types.FiatPrice,
 		"BtcPrice":    types.BtcPrice,
 		"AvailOnline": AvailOnline,
-		"ShirtOpts": ShirtOptions,
-		"TixCount":  TixCount,
+		"ShirtOpts":   ShirtOptions,
+		"TixCount":    TixCount,
 		"toHTML": func(s string) template.HTML {
 			b := helpers.ConvertMdToHTML(ctx, "prereq", s)
 			return template.HTML(string(b))
@@ -99,7 +99,7 @@ func RegisterCheckoutTypes() {
 
 func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r := mux.NewRouter()
-	r.NotFoundHandler = http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handle404(w, r, ctx)
 	})
 
@@ -134,7 +134,7 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 			RenderTextPage(w, r, ctx, renderPage)
 		}).Methods("GET")
 	}
-	
+
 	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
 		Register(w, r, ctx)
 	})
@@ -795,7 +795,7 @@ func getSubscribeToken(sec []byte, email, newsletter string, timestamp uint64) (
 	h.Write(b)
 
 	/* Token is 8-bytes hash prefix, hex of email,
-	 * hex of newsletter, hex of timestamp 
+	 * hex of newsletter, hex of timestamp
 	 */
 
 	hashB := h.Sum(nil)
@@ -817,7 +817,7 @@ func parseSubscribeToken(sec []byte, token string) (*SubToken, error) {
 	if len(parts) != 4 {
 		return nil, fmt.Errorf("Invalid token format %s", token)
 	}
-	
+
 	emailB, err := hex.DecodeString(parts[1])
 	if err != nil {
 		return nil, err
@@ -836,9 +836,9 @@ func parseSubscribeToken(sec []byte, token string) (*SubToken, error) {
 		return nil, fmt.Errorf("Invalid token %s", token)
 	}
 
-	return &SubToken{ 
-		Time: time.Unix(0, int64(timestamp)),
-		Email: string(emailB),
+	return &SubToken{
+		Time:       time.Unix(0, int64(timestamp)),
+		Email:      string(emailB),
 		Newsletter: string(subB),
 	}, nil
 }
@@ -859,7 +859,7 @@ func FormContact(w http.ResponseWriter, r *http.Request, ctx *config.AppContext)
 	}
 
 	/* Send hello@base58.school + the email the message */
-	_, err := emails.SendContactEmail(ctx, "hello@base58.school", message, email, "contact")	
+	_, err := emails.SendContactEmail(ctx, "hello@base58.school", message, email, "contact")
 	if err != nil {
 		ctx.Err.Printf("Failed sending self message: %s", err)
 		if strings.Contains(err.Error(), "scheduled.idem_key") {
@@ -873,7 +873,7 @@ func FormContact(w http.ResponseWriter, r *http.Request, ctx *config.AppContext)
 		}
 		return
 	}
-	
+
 	_, err = emails.SendContactEmail(ctx, email, message, email, "contact")
 	if err != nil {
 		ctx.Err.Printf("Failed sending %s message: %s", email, err)
@@ -908,7 +908,7 @@ func WorkshopContact(w http.ResponseWriter, r *http.Request, ctx *config.AppCont
 	}
 
 	/* Send hello@base58.school + the email the message */
-	_, err := emails.SendContactEmail(ctx, "hello@base58.school", message, email, formtype)	
+	_, err := emails.SendContactEmail(ctx, "hello@base58.school", message, email, formtype)
 	if err != nil {
 		ctx.Err.Printf("Failed sending self message: %s", err)
 		if strings.Contains(err.Error(), "scheduled.idem_key") {
@@ -922,7 +922,7 @@ func WorkshopContact(w http.ResponseWriter, r *http.Request, ctx *config.AppCont
 		}
 		return
 	}
-	
+
 	_, err = emails.SendContactEmail(ctx, email, message, email, formtype)
 	if err != nil {
 		ctx.Err.Printf("Failed sending %s message: %s", email, err)
@@ -1052,7 +1052,7 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	
+
 	var title, actionText string
 	if subToken.Newsletter == "newsletter" {
 		title = "Subscribed Success"
@@ -1064,10 +1064,10 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	// Render the template with the data
 	furlCard := defaultCard(ctx, r, title)
 	err = ctx.TemplateCache.ExecuteTemplate(w, "emails/subscribe.tmpl", &SubscribePage{
-		Page: getPage(ctx, title, furlCard),
-		Text: title,
+		Page:       getPage(ctx, title, furlCard),
+		Text:       title,
 		ActionText: actionText,
-		Email: subToken.Email,
+		Email:      subToken.Email,
 		Newsletter: subToken.Newsletter,
 	})
 
@@ -1079,11 +1079,11 @@ func ConfirmEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 }
 
 type SubscribePage struct {
-	Page        Page
-	Email       string
-	Text        string
-	ActionText  string
-	Newsletter  string
+	Page       Page
+	Email      string
+	Text       string
+	ActionText string
+	Newsletter string
 }
 
 func checkPin(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) bool {
@@ -1189,14 +1189,13 @@ func UnsubscribeEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 		ctx.Infos.Printf("Subscriber %s already unsubscribed from %s", subscriber.Email, subToken.Newsletter)
 	}
 
-
 	// Render the template with the data
 	title := "Unsubscribe"
 	furlCard := defaultCard(ctx, r, title)
 	err = ctx.TemplateCache.ExecuteTemplate(w, "emails/subscribe.tmpl", &SubscribePage{
-		Page: getPage(ctx, title, furlCard),
-		Email: subscriber.Email,
-		Text: "Sorry to see you go",
+		Page:       getPage(ctx, title, furlCard),
+		Email:      subscriber.Email,
+		Text:       "Sorry to see you go",
 		ActionText: "unsubscribed from",
 		Newsletter: subToken.Newsletter,
 	})
@@ -1563,8 +1562,8 @@ func OpenNodeHook(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 }
 
 type LoginPage struct {
-	Page              Page
-	Destination       string
+	Page        Page
+	Destination string
 }
 
 func Render401(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -1579,7 +1578,7 @@ func Render401(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 }
 
-/* Set the pin cookie and redirect to destination */	
+/* Set the pin cookie and redirect to destination */
 func Login(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	r.ParseForm()
 	password := r.Form.Get("pass")
@@ -1601,7 +1600,6 @@ func Login(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	w.Header().Set("HX-Redirect", destpath)
 }
 
-
 func RenderPage(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, page string) {
 	data, err := getHomeData(ctx, ctx.Notion)
 	if err != nil {
@@ -1621,8 +1619,8 @@ func RenderPage(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, 
 }
 
 type ContentPage struct {
-	Page    Page
-	Text    string
+	Page Page
+	Text string
 }
 
 func RenderTextPage(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, tPage types.TextPage) {
@@ -1638,8 +1636,8 @@ func RenderTextPage(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 	// Render the template with the data
 	furlCard := defaultCard(ctx, r, tPage.Title)
 	err = ctx.TemplateCache.ExecuteTemplate(w, "text/text.tmpl", &ContentPage{
-		Text:    string(pageBytes),
-		Page:    getPage(ctx, tPage.Title, furlCard),
+		Text: string(pageBytes),
+		Page: getPage(ctx, tPage.Title, furlCard),
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)

@@ -2,18 +2,18 @@ package types
 
 type (
 	TextPage struct {
-		Tag    string
-		Title  string
+		Tag   string
+		Title string
 	}
 )
 
 var TextPages []TextPage = []TextPage{
 	TextPage{
-		Tag: "privacy",
+		Tag:   "privacy",
 		Title: "Privacy Policy",
 	},
 	TextPage{
-		Tag: "terms",
+		Tag:   "terms",
 		Title: "Terms of Service",
 	},
 }

@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"strings" 
+	"strings"
 	"time"
 
 	"github.com/kodylow/base58-website/external/getters"
@@ -43,7 +43,7 @@ func ScheduleMissives(ctx *config.AppContext, subscribers []*types.Subscriber, n
 
 			_, err := emails.SendNewsletterMissive(ctx, sub.Email, letter, sendAt)
 			if err != nil {
-				/* FIXME: do something less hacky for collisions 
+				/* FIXME: do something less hacky for collisions
 				(like returning a specific error code)
 				*/
 				if !strings.Contains(err.Error(), "scheduled.idem_key") {
@@ -65,7 +65,6 @@ func ScheduleMissives(ctx *config.AppContext, subscribers []*types.Subscriber, n
 	}
 
 	ctx.Infos.Printf("Attempted to send %d; skipped %d 'subonly' %d sent %d", len(letters), skipped, subonly, sendable)
-
 
 	return nil
 }

@@ -2,8 +2,8 @@ package emails
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -166,9 +166,9 @@ func mdToHTML(md []byte) []byte {
 	return markdown.Render(doc, renderer)
 }
 
-func missiveTemplate(ctx *config.AppContext, letter *types.Letter) (*template.Template) {
+func missiveTemplate(ctx *config.AppContext, letter *types.Letter) *template.Template {
 
-	/* Hash the data for a key. We use the title + body 
+	/* Hash the data for a key. We use the title + body
 	 * so if they change, a new template will get generated */
 	keyhash := makeJobHash("", letter.Title, letter.Markdown)
 	t, ok := ctx.EmailCache[keyhash]
@@ -294,12 +294,12 @@ func SendNewsletterMissive(ctx *config.AppContext, email string, letter *types.L
 	 * for this email/user on this Newsletter */
 	subkey := makeSubKey(email, letter.Newsletter)
 	mail := &Mail{
-		JobKey: jobkey,
-		Sub:    subkey,
-		Missive: letter.Missive(),
-		Email:  email,
-		Title:  letter.Title,
-		SendAt: sendAt,
+		JobKey:   jobkey,
+		Sub:      subkey,
+		Missive:  letter.Missive(),
+		Email:    email,
+		Title:    letter.Title,
+		SendAt:   sendAt,
 		TextBody: buf.Bytes(),
 		HTMLBody: htmlBody,
 	}
@@ -308,7 +308,6 @@ func SendNewsletterMissive(ctx *config.AppContext, email string, letter *types.L
 
 	return htmlBody, ComposeAndSendMail(ctx, mail)
 }
-
 
 func SendNewsletterSubEmail(ctx *config.AppContext, email, token, newsletter string) ([]byte, error) {
 
@@ -337,7 +336,6 @@ func SendNewsletterSubEmail(ctx *config.AppContext, email, token, newsletter str
 		Email:      email,
 		ConfirmURL: buildConfirmURL(ctx, token),
 		Newsletter: newsletter,
-
 	})
 
 	if err != nil {
@@ -356,7 +354,7 @@ func SendNewsletterSubEmail(ctx *config.AppContext, email, token, newsletter str
 
 func SendContactEmail(ctx *config.AppContext, email, message, from, formtype string) ([]byte, error) {
 	var err error
-	
+
 	/* Jobkey is the message + email */
 	h := sha256.New()
 	h.Write([]byte(email))
@@ -364,7 +362,7 @@ func SendContactEmail(ctx *config.AppContext, email, message, from, formtype str
 	jobkey := fmt.Sprintf("%s-%s", formtype, hex.EncodeToString(h.Sum(nil)[:8]))
 
 	var title string
-	if from != email{
+	if from != email {
 		if formtype == "contact" {
 			title = fmt.Sprintf("New Message from %s: Get In Touch", from)
 		} else {
@@ -382,10 +380,10 @@ func SendContactEmail(ctx *config.AppContext, email, message, from, formtype str
 	}
 
 	mail := &Mail{
-		JobKey: jobkey,
-		Email:  email,
-		Title:  title,
-		SendAt: time.Now(),
+		JobKey:   jobkey,
+		Email:    email,
+		Title:    title,
+		SendAt:   time.Now(),
 		TextBody: []byte(message),
 	}
 
@@ -393,7 +391,7 @@ func SendContactEmail(ctx *config.AppContext, email, message, from, formtype str
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return mail.HTMLBody, ComposeAndSendMail(ctx, mail)
 }
 
@@ -447,19 +445,19 @@ func ComposeAndSendMail(ctx *config.AppContext, mail *Mail) error {
 
 	/* Build a mail to send */
 	mailReq := &mailer.MailRequest{
-		JobKey:      "base58:" + mail.JobKey,
+		JobKey:       "base58:" + mail.JobKey,
 		Subscription: mail.Sub,
-		Missive:     mail.Missive,
-		ToAddr:      mail.Email,
-		FromAddr:    "hello@base58.school",
-		FromName:    "Base58⛓️ 🔓",
-		ReplyTo:     mail.ReplyTo,
-		Title:       mail.Title,
-		HTMLBody:    string(mail.HTMLBody),
-		TextBody:    string(mail.TextBody),
-		Attachments: attaches,
-		SendAt:      float64(mail.SendAt.UTC().Unix()),
-		Domain:      ctx.Env.MailDomain,
+		Missive:      mail.Missive,
+		ToAddr:       mail.Email,
+		FromAddr:     "hello@base58.school",
+		FromName:     "Base58⛓️ 🔓",
+		ReplyTo:      mail.ReplyTo,
+		Title:        mail.Title,
+		HTMLBody:     string(mail.HTMLBody),
+		TextBody:     string(mail.TextBody),
+		Attachments:  attaches,
+		SendAt:       float64(mail.SendAt.UTC().Unix()),
+		Domain:       ctx.Env.MailDomain,
 	}
 
 	return SendMailRequest(ctx, mailReq)

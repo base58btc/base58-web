@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -34,8 +34,8 @@ type (
 	Currency     string
 
 	ChapterInfo struct {
-		Title         string
-		Desc          string
+		Title string
+		Desc  string
 	}
 
 	Course struct {
@@ -131,14 +131,14 @@ type (
 	}
 
 	Subscriber struct {
-		Email         string
-		Subs          []*Subscription
-		Pages         []string
+		Email string
+		Subs  []*Subscription
+		Pages []string
 	}
 
 	Subscription struct {
-		Name          string
-		ID            string
+		Name string
+		ID   string
 	}
 
 	FurlCard struct {
@@ -155,13 +155,13 @@ type (
 	}
 
 	Letter struct {
-		ID            string
-		Title         string
-		Newsletter    string
-		Markdown      string
-		SendAt        string	
-		SentAt        *time.Time
-		Expiry        *time.Time
+		ID         string
+		Title      string
+		Newsletter string
+		Markdown   string
+		SendAt     string
+		SentAt     *time.Time
+		Expiry     *time.Time
 	}
 )
 
@@ -218,7 +218,7 @@ func (c Course) Featured(difficulty string) bool {
 }
 
 func (c Course) Stars() []string {
-	stars := []string {"empty", "empty", "empty", "empty", "empty"}
+	stars := []string{"empty", "empty", "empty", "empty", "empty"}
 	rating := c.Rating * 100
 
 	half := math.Mod(float64(rating), 100) > 0
@@ -232,7 +232,7 @@ func (c Course) Stars() []string {
 		}
 	}
 
-	return stars;
+	return stars
 }
 
 func (c CourseSession) Dates() []time.Time {
@@ -430,9 +430,9 @@ func (s *Subscriber) AddSubscription(name string) bool {
 		s.Subs = make([]*Subscription, 0)
 	}
 
-	for _,sub := range s.Subs {
+	for _, sub := range s.Subs {
 		if sub.Name == name {
-			return false 
+			return false
 		}
 	}
 
@@ -451,7 +451,7 @@ func (s *Subscriber) RmSubscription(name string) bool {
 	newSubs := make([]*Subscription, 0)
 	unsubscribed := false
 
-	for _,sub := range s.Subs {
+	for _, sub := range s.Subs {
 		if sub.Name == name {
 			unsubscribed = true
 			continue
@@ -464,7 +464,7 @@ func (s *Subscriber) RmSubscription(name string) bool {
 }
 
 func (s *Subscriber) IsSubscribed(newsletter string) bool {
-	for _,sub := range s.Subs {
+	for _, sub := range s.Subs {
 		if sub.Name == newsletter {
 			return true
 		}
@@ -472,16 +472,17 @@ func (s *Subscriber) IsSubscribed(newsletter string) bool {
 	return false
 }
 
-/* The syntax for calc send is:
+/*
+The syntax for calc send is:
 
-    - Blank means do not send
-    - 'now' means send now
-    - 'onsub' means send now, and keep sending when new subs are added
-    - A date means send on date at 9am.
-      3/4/2025 -> March, 4th 2025 @ 9am
-    - +9 -> scheduled for 9-days from now. 
-      note: '+' days are never sent on weekends!
-    - anything else: returns an error
+  - Blank means do not send
+  - 'now' means send now
+  - 'onsub' means send now, and keep sending when new subs are added
+  - A date means send on date at 9am.
+    3/4/2025 -> March, 4th 2025 @ 9am
+  - +9 -> scheduled for 9-days from now.
+    note: '+' days are never sent on weekends!
+  - anything else: returns an error
 */
 func (l *Letter) CalcSendAt() (time.Time, error) {
 	if l.SendAt == "" {
@@ -495,7 +496,7 @@ func (l *Letter) CalcSendAt() (time.Time, error) {
 	if l.SendAt == "onsub" {
 		return time.Now(), nil
 	}
-	
+
 	if l.SendAt[0:1] == "+" {
 		days, err := strconv.Atoi(l.SendAt[1:])
 		if err != nil {
@@ -541,7 +542,7 @@ func (l *Letter) Scheduled() bool {
 	if l.SendAt == "" {
 		return false
 	}
-	if l.SendAt ==  "now" && l.SentAt != nil {
+	if l.SendAt == "now" && l.SentAt != nil {
 		return false
 	}
 	return true
@@ -555,10 +556,12 @@ func (l *Letter) IsExpired() bool {
 	return l.Expiry != nil && l.Expiry.Before(time.Now())
 }
 
-/* Job identifier for this letter.
-   We use the pageID from Notion.
-   If you delete the missive from Notion, you won't
-   be able to unschedule it.
+/*
+Job identifier for this letter.
+
+	We use the pageID from Notion.
+	If you delete the missive from Notion, you won't
+	be able to unschedule it.
 */
 func (l *Letter) Missive() string {
 	return l.ID
