@@ -206,7 +206,7 @@ func (c CourseSession) IsUnscheduled() bool {
 }
 
 func (c Course) FurlImg() string {
-	return fmt.Sprintf("courses/%s_card.png", c.Title)
+	return fmt.Sprintf("courses/%s_card.png", c.Tag)
 }
 
 func (c Course) PromoURL(domain string) string {
