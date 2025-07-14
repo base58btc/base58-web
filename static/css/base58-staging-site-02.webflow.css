@@ -764,6 +764,12 @@ figcaption {
   flex-wrap: wrap;
   align-items: center;
   display: flex;
+  gap: 1rem; /* adjust spacing as needed */
+}
+
+.button-group .w-button {
+  flex: 1 1 0;
+  text-align: center;
 }
 
 .button-group.is-center {
@@ -2877,6 +2883,7 @@ figcaption {
   padding-left: 0;
   padding-right: 0;
 }
+
 
 .workshophero_section {
   color: var(--text-color--text-primary\<deleted\|relume-variable-text-color-1\>);
