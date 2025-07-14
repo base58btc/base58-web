@@ -2899,6 +2899,7 @@ figcaption {
 
 .list-2 {
   margin-bottom: 2rem;
+  list-style-type: disc;
 }
 
 .text-style-link-2 {
