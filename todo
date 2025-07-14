@@ -1,11 +1,10 @@
   - add functional furl card images!
-  - fix FAQ toggles (transition to htmx)
-  - deploy new code!!!!
 
   - bring over emails from existing courses/waitlists!
   - send invitation to subscribe to newsletter
 
   - satoshi white paper deep dive course!
+  - jupyter notebooks!
 
 design fixes:
   - emails: add codeblock formatting + color highlighting
@@ -16,7 +15,6 @@ design fixes:
 
   - course infrastructure
   - course content
-    - jupyter notebooks!
     - notes
     - resources
     - play next
@@ -64,3 +62,9 @@ future work?
 	  href="https://base58.school/oembed?url=http%3A%2F%2Fbase58.school%2Fcourses%2Fbitdevbasics01%2F&format=json" 
 	  title="Base58's oEmbed Profile" />
 
+
+- css animations + style inspo
+	https://www.joshwcomeau.com/animation/keyframe-animations/
+
+- hyperscript (toggles)
+	https://hyperscript.org/commands/toggle/

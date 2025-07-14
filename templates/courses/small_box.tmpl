@@ -1,7 +1,15 @@
 {{ define "smallbox" }}
 {{ if not .Visible }}
 {{ else }}
-<div role="listitem" class="w-dyn-item"><a role="listitem"
+<div role="courseitem" class="w-dyn-item"
+	level="{{ .Difficulty }}"
+	popularity="{{ .Popularity }}"
+	price="{{ .PriceUSD }}"
+	topic="{{ .Topic }}"
+	format="{{ index .Format 0 }}"
+	availability="{{ .Availability }}"
+	>
+  <a role="listitem"
     href="/courses/{{ .Tag }}"
     class="grid-list_item w-inline-block"><img loading="lazy"
       src="/static/img/courses/{{ .Tag }}.png"
@@ -34,13 +42,6 @@
 	  </div>
 	</div>
       </div>
-    </div>
-    <div class="d-none">
-      <div fs-cmssort-field="popular" class="popularity">{{ .Popularity }}</div>
-      <div fs-cmssort-field="price" class="price">{{ .PriceUSD }}</div>
-      <div fs-cmssort-field="date" class="date">1/1/2024</div>
-      <div fs-cmsfilter-field="topic" class="topic">{{ .Topic }}</div>
-      <div fs-cmsfilter-field="availability" class="availability">{{ .Availability }}</div>
     </div>
   </a>
 </div>

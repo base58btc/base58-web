@@ -60,6 +60,9 @@
         height: 0px;
       }
     }
+    .filter_height {
+        height: 100% !important;
+    }
   </style>
   <link href="https://fonts.googleapis.com" rel="preconnect">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin="anonymous">
@@ -350,14 +353,14 @@ a,
             <div class="coursefilters_container">
               <div class="coursefilters_layout">
                 <div fs-cmsfilter-element="filters" class="w-form">
-                  <form id="email-form-2" name="email-form-2" data-name="Email Form 2" method="get"
-                    data-wf-page-id="67d76c360ee76ed0c60f7abd"
-                    data-wf-element-id="eb991a62-0a67-9bbf-5fd0-6ef4bef0af2b"
-		    action="./wf_auth">
+                  <div>
+		    <!-- removing filters til i have more time -->
                     <div class="w-layout-grid filters5_feed-header-top _2">
                       <a id="w-node-_407a40df-a809-97c6-e402-8f5ecf39cb1e-c60f7abd"
                         data-w-id="407a40df-a809-97c6-e402-8f5ecf39cb1e" href="#"
                         class="filters5_filters-button w-inline-block"
+			_="on click toggle .filter_height on #filterlist"
+			style="display:none;"
 			>
                         <div class="icon-embed-xsmall w-embed"><svg width=" 100%" height=" 100%" viewbox="0 0 24 24"
                             fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -367,7 +370,10 @@ a,
                       </a>
                       <div id="w-node-_65af496a-32b2-8454-891b-4860bad7b0ee-c60f7abd" class="tab4_component">
                         <div class="tab4_tabs-menu">
-                          <div class="tab4_tab-link active"><label class="tab4_radio-group w-radio">
+                          <div class="tab4_tab-link active"
+			    _="on click 
+			       show <[role=courseitem]/> in #courselist">
+			     <label class="tab4_radio-group w-radio">
                               <div
                                 class="w-form-formradioinput w-form-formradioinput--inputType-custom tab4_radio-button w-radio-input">
                               </div><input type="radio" name="radio" id="radio-9" data-name="Radio 9"
@@ -375,15 +381,23 @@ a,
                                 fs-cmsfilter-element="clear" class="tab4_radio-button-label w-form-label"
                                 for="radio-9">All Courses</span>
                             </label></div>
-                          <div class="tab4_tab-link"><label class="tab4_radio-group w-radio">
+                          <div class="tab4_tab-link" level="Entry-level"
+			  _="on click 
+			     show <[role=courseitem]/> in #courselist
+			     when its @level equals my @level
+			     ">
+			  <label class="tab4_radio-group w-radio">
                               <div
                                 class="w-form-formradioinput w-form-formradioinput--inputType-custom tab4_radio-button w-radio-input">
                               </div><input type="radio" name="radio" id="radio-10" data-name="Radio 10"
-                                style="opacity:0;position:absolute;z-index:-1" value="radio"><span
+                                style="opacity:0;position:absolute;z-index:-1" value="Entry-level"><span
                                 fs-cmsfilter-field="level" class="tab4_radio-button-label w-form-label"
                                 for="radio-10">Entry-level</span>
                             </label></div>
-                          <div class="tab4_tab-link"><label class="tab4_radio-group w-radio">
+                          <div class="tab4_tab-link" level="Developers"
+			  _="on click 
+			     show <[role=courseitem]/> in #courselist
+			     when its @level equals my @level"><label class="tab4_radio-group w-radio">
                               <div
                                 class="w-form-formradioinput w-form-formradioinput--inputType-custom tab4_radio-button w-radio-input">
                               </div><input type="radio" name="radio" id="radio-11" data-name="Radio 11"
@@ -391,7 +405,10 @@ a,
                                 fs-cmsfilter-field="level" class="tab4_radio-button-label w-form-label"
                                 for="radio-11">Developers</span>
                             </label></div>
-                          <div class="tab4_tab-link"><label class="tab4_radio-group w-radio">
+                          <div class="tab4_tab-link" level="Experienced"
+			  _="on click 
+			     show <[role=courseitem]/> in #courselist
+			     when its @level equals my @level"><label class="tab4_radio-group w-radio">
                               <div
                                 class="w-form-formradioinput w-form-formradioinput--inputType-custom tab4_radio-button w-radio-input">
                               </div><input type="radio" name="radio" id="radio-12" data-name="Radio 12"
@@ -428,9 +445,12 @@ a,
                           </div>
                         </div>
                       </div>
+		      <!-- FIXME: add sorting back -->
                       <div data-delay="200" data-hover="false" fs-cmssort-element="trigger"
                         id="w-node-_407a40df-a809-97c6-e402-8f5ecf39cb32-c60f7abd"
-                        data-w-id="407a40df-a809-97c6-e402-8f5ecf39cb32" class="dropdown1_component w-dropdown">
+                        data-w-id="407a40df-a809-97c6-e402-8f5ecf39cb32" class="dropdown1_component w-dropdown"
+			style="display:none;"
+			>
                         <div class="dropdown1_toggle w-dropdown-toggle">
                           <div fs-cmssort-element="dropdown-label" class="filter-text">Sort by</div>
                           <div class="dropdown-chevron w-embed"><svg width=" 100%" height=" 100%" viewbox="0 0 16 16"
@@ -456,7 +476,7 @@ a,
                         </nav>
                       </div>
                     </div>
-                    <div style="width:100%;height:0px" class="filters5_filters-wrapper">
+                    <div id="filterlist" style="width:100%;height:0px" class="filters5_filters-wrapper .filter_height">
                       <div class="margin-bottom margin-medium">
                         <div class="filters5_filter-group-list">
                           <div class="filters5_filter-group">
@@ -659,7 +679,7 @@ a,
                         </div>
                       </div>
                     </div>
-                  </form>
+                  </div>
                 </div>
                 <div class="filters_feed-header-bottom">
                   <div class="filters_tags-wrapper">
@@ -684,7 +704,7 @@ a,
                       <div class="padding-bottom padding-small"></div>
                     </div>
                     <div class="courses_grid_list-wrapper w-dyn-list">
-                      <div fs-cmssort-element="list" fs-cmsfilter-element="list" role="list"
+                      <div id="courselist" fs-cmssort-element="list" fs-cmsfilter-element="list" role="list"
                         class="grid-list10_list-2 w-dyn-items">
 			{{ range .Courses }}
 			  {{ block "smallbox" . }} {{ end }}

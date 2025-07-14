@@ -1802,11 +1802,13 @@ figcaption {
 }
 
 .dropdown1_component {
-  border: 1.5px #000;
-  border-radius: 6px;
   margin-left: 0;
   margin-right: 0;
   padding: .75rem 1.5rem;
+  border: 1.5px solid var(--border-color--border-primary\<deleted\|relume-variable-border-color-1\>);
+  color: var(--black);
+  background-color: #0000;
+  border-radius: 6px;
 }
 
 .heading-style-h6-4 {
@@ -2069,7 +2071,7 @@ figcaption {
 }
 
 .filters5_feed-header-top._2 {
-  grid-template-columns: 1fr max-content 1fr;
+  grid-template-columns: 1fr max-content;
 }
 
 .filters5_keyword-search {
@@ -3693,7 +3695,6 @@ figcaption {
     grid-column-gap: 1.5rem;
     grid-row-gap: 2rem;
     grid-template-rows: auto auto;
-    grid-template-columns: 1fr 1fr;
     grid-auto-columns: 1fr;
     display: grid;
   }

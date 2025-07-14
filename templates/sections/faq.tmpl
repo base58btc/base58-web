@@ -1,5 +1,22 @@
 {{ define "faq" }}
     <section class="section_faq">
+    <style>
+.visible {
+	animation: fade-in 1000ms;
+	animation-fill-mode: both;
+}
+
+@keyframes fade-in {
+	from {
+		transform: translateY(-10%);
+		opacity: 0;
+	}
+	to {
+		transform: translateY(0%);
+		opacity: 1;
+	}
+}
+    </style>
       <div class="padding-global">
         <div class="container-large">
           <div class="padding-section-large">
@@ -19,7 +36,9 @@
                 <div class="faq_list">
                   <div class="w-layout-grid faq_list-grid">
                     <div class="faq_accordion">
-                      <div class="faq_question">
+                      <div class="faq_question"
+		        _="on click toggle *display of the next <div/>
+			   then toggle .visible on the next <div/>">
                         <div class="text-size-medium text-weight-bold">What payment methods do you accept?</div>
                         <div class="faq_icon-wrapper">
                           <div class="icon-embed-small w-embed"><svg width="100%" height="100%" viewbox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -27,7 +46,7 @@
                             </svg></div>
                         </div>
                       </div>
-                      <div class="faq_answer">
+                      <div class="faq_answer" style="display: none;opacity: 0;">
                         <div class="margin-bottom margin-small">
                           <div class="max-width-large">
                             <p class="text-size-small">For courses on Udemy, we only accept fiat payments. For courses on our site, you can checkout with Bitcoin (onchain + lightning) or with a credit card (fiat)</p>
@@ -36,7 +55,9 @@
                       </div>
                     </div>
                     <div class="faq_accordion">
-                      <div class="faq_question">
+                      <div class="faq_question"
+		        _="on click toggle *display of the next <div/>
+			   then toggle .visible on the next <div/>">
                         <div class="text-size-medium text-weight-bold">What if I&#x27;m not satisfied with the course?</div>
                         <div class="faq_icon-wrapper">
                           <div class="icon-embed-small w-embed"><svg width="100%" height="100%" viewbox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -44,7 +65,7 @@
                             </svg></div>
                         </div>
                       </div>
-                      <div class="faq_answer">
+                      <div class="faq_answer" style="display: none;opacity: 0;">
                         <div class="margin-bottom margin-small">
                           <div class="max-width-large">
                             <p class="text-size-small">You can get a full refund within the first week of the course. No questions asked.</p>
@@ -53,7 +74,9 @@
                       </div>
                     </div>
                     <div class="faq_accordion">
-                      <div class="faq_question">
+                      <div class="faq_question"
+		        _="on click toggle *display of the next <div/>
+			   then toggle .visible on the next <div/>">
                         <div class="text-size-medium text-weight-bold">Are there any options for team training?</div>
                         <div class="faq_icon-wrapper">
                           <div class="icon-embed-small w-embed"><svg width="100%" height="100%" viewbox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -61,7 +84,7 @@
                             </svg></div>
                         </div>
                       </div>
-                      <div class="faq_answer">
+                      <div class="faq_answer" style="display: none;opacity: 0;">
                         <div class="margin-bottom margin-small">
                           <div class="max-width-large">
                             <p class="text-size-small">Yes! Please contact us at <a target="_blank" href="mailto:hello@base58.school">hello@base58.school</a>
