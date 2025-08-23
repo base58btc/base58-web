@@ -38,8 +38,6 @@ type EmailContent struct {
 	Unsubscribe string
 }
 
-var globalctx *config.AppContext
-
 func emailRenderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
 	graphStyles := `
 	font-optical-sizing: auto;
@@ -214,7 +212,6 @@ func BuildHTMLEmail(ctx *config.AppContext, markdown []byte) ([]byte, error) {
 
 func BuildHTMLEmailUnsub(ctx *config.AppContext, markdown []byte, unsubscribe string) ([]byte, error) {
 
-	globalctx = ctx
 	/* Convert markdown to HTML */
 	htmlOut := mdToHTML(markdown)
 
@@ -240,6 +237,15 @@ func makeAuthStamp(secret string, timestamp string, r *http.Request) string {
 	h.Write([]byte(r.URL.Path))
 	h.Write([]byte(r.Method))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func addAuthStamp(ctx *config.AppContext, req *http.Request) {
+	timestamp := strconv.Itoa(int(time.Now().UTC().Unix()))
+	secret := ctx.Env.MailerSecret
+	authStamp := makeAuthStamp(secret, timestamp, req)
+
+	req.Header.Set("Authorization", authStamp)
+	req.Header.Set("X-Base58-Timestamp", timestamp)
 }
 
 type Mail struct {
@@ -478,31 +484,16 @@ func makeSubKey(email, newsletter string) string {
 	return fmt.Sprintf("%s-%s", hashfix, newsletter)
 }
 
-func SendSubDeleteRequest(ctx *config.AppContext, email, sub string) error {
-	/* Send as a DELETE request w/ JSON body */
-	subkey := makeSubKey(email, sub)
-	subdelete := &mailer.SubDelete{
-		SubKey: subkey,
-	}
-	payload, err := json.Marshal(subdelete)
-	if err != nil {
-		return err
-	}
-
+func sendMailerReq(ctx *config.AppContext, endpoint string, method http.Method, payload json.Data) error {
 	client := &http.Client{}
 
-	url := ctx.Env.MailEndpoint + "/sub"
-	req, err := http.NewRequest(http.MethodDelete, url, bytes.NewBuffer(payload))
+	url := ctx.Env.MailEndpoint + endopint
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
 	if err != nil {
 		return err
 	}
 
-	timestamp := strconv.Itoa(int(time.Now().UTC().Unix()))
-	secret := ctx.Env.MailerSecret
-	authStamp := makeAuthStamp(secret, timestamp, req)
-
-	req.Header.Set("Authorization", authStamp)
-	req.Header.Set("X-Base58-Timestamp", timestamp)
+	addAuthStamp(ctx, req)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -522,9 +513,25 @@ func SendSubDeleteRequest(ctx *config.AppContext, email, sub string) error {
 	}
 
 	if !ret.Success {
-		return fmt.Errorf("Unable to delete subscription: %s", sub)
+		return fmt.Errorf("Mailer request %s failed: %d", endpoint, ret.ResponseCode)
+	}
+}
+
+func SendSubDeleteRequest(ctx *config.AppContext, email, sub string) error {
+	/* Send as a DELETE request w/ JSON body */
+	subkey := makeSubKey(email, sub)
+	subdelete := &mailer.SubDelete{
+		SubKey: subkey,
+	}
+	payload, err := json.Marshal(subdelete)
+	if err != nil {
+		return err
 	}
 
+	err = sendMailerReq(ctx, "/sub", http.MethodDelete, payload)
+	if err != nil {
+		return fmt.Errorf("Sub delete request failed. %s, %s : %s", sub,  email, err)
+	}
 	ctx.Infos.Printf("Rm'd subscription %s", subkey)
 	return nil
 }
@@ -539,40 +546,9 @@ func SendCancelMissiveRequest(ctx *config.AppContext, missive string) error {
 		return err
 	}
 
-	client := &http.Client{}
-
-	url := ctx.Env.MailEndpoint + "/missive"
-	req, err := http.NewRequest(http.MethodDelete, url, bytes.NewBuffer(payload))
+	err = sendMailerReq(ctx, "/missive", http.MethodDelete, payload)
 	if err != nil {
-		return err
-	}
-
-	timestamp := strconv.Itoa(int(time.Now().UTC().Unix()))
-	secret := ctx.Env.MailerSecret
-	authStamp := makeAuthStamp(secret, timestamp, req)
-
-	req.Header.Set("Authorization", authStamp)
-	req.Header.Set("X-Base58-Timestamp", timestamp)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	var ret mailer.ReturnVal
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if err = json.Unmarshal(data, &ret); err != nil {
-		return err
-	}
-
-	if !ret.Success {
-		return fmt.Errorf("Unable to delete missive: %s", del.Missive)
+		return fmt.Errorf("Unable to delete missive %s: %s", del.Missive, err)
 	}
 
 	ctx.Infos.Printf("Rm'd missive %s", missive)
@@ -586,40 +562,9 @@ func SendMailRequest(ctx *config.AppContext, mail *mailer.MailRequest) error {
 		return err
 	}
 
-	client := &http.Client{}
-
-	url := ctx.Env.MailEndpoint + "/job"
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(payload))
+	err = sendMailerReq(ctx, "/job", http.MethodPut, payload)
 	if err != nil {
-		return err
-	}
-
-	timestamp := strconv.Itoa(int(time.Now().UTC().Unix()))
-	secret := ctx.Env.MailerSecret
-	authStamp := makeAuthStamp(secret, timestamp, req)
-
-	req.Header.Set("Authorization", authStamp)
-	req.Header.Set("X-Base58-Timestamp", timestamp)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	var ret mailer.ReturnVal
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if err = json.Unmarshal(data, &ret); err != nil {
-		return err
-	}
-
-	if !ret.Success {
-		return fmt.Errorf("Unable to schedule mail: %s", ret.Message)
+		return fmt.Errorf("Unable to schedule mail %s: %s", ret.Message, err)
 	}
 
 	ctx.Infos.Printf("Sent mail to %s at domain %s", mail.ToAddr, mail.Domain)

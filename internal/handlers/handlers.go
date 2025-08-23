@@ -156,6 +156,7 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/contact/ok", func(w http.ResponseWriter, r *http.Request) {
 		FormContact(w, r, ctx)
 	}).Methods("POST")
+
 	r.HandleFunc("/{newsletter}/subscribe", func(w http.ResponseWriter, r *http.Request) {
 		SubscribeEmail(w, r, ctx)
 	}).Methods("POST")
