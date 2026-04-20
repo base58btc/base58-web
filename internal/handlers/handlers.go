@@ -33,7 +33,7 @@ import (
 	"github.com/stripe/stripe-go/v74/webhook"
 )
 
-var webpages []string = []string{"about", "courses", "404", "401", "workshop", "contact", "index", "workshop/book", "workshop/become"}
+var webpages []string = []string{"about", "courses", "404", "401", "contact", "index"}
 
 /* Thank you StackOverflow https://stackoverflow.com/a/50581032 */
 func findAndParseTemplates(rootDir string, funcMap template.FuncMap) (*template.Template, error) {
@@ -122,8 +122,17 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	}
 
 	r.HandleFunc("/courses/larp", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/workshop", http.StatusSeeOther)
+		http.Redirect(w, r, "https://workshop.base58.school", http.StatusMovedPermanently)
 	})
+	r.HandleFunc("/workshop", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://workshop.base58.school", http.StatusMovedPermanently)
+	}).Methods("GET")
+	r.HandleFunc("/workshop/book", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://workshop.base58.school", http.StatusMovedPermanently)
+	}).Methods("GET")
+	r.HandleFunc("/workshop/become", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://workshop.base58.school", http.StatusMovedPermanently)
+	}).Methods("GET")
 	r.HandleFunc("/courses/{course}", func(w http.ResponseWriter, r *http.Request) {
 		Courses(w, r, ctx)
 	})
