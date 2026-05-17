@@ -133,9 +133,12 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/workshop/become", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://workshop.base58.school", http.StatusMovedPermanently)
 	}).Methods("GET")
+	r.HandleFunc("/courses/{course}/{page:.*}", func(w http.ResponseWriter, r *http.Request) {
+		CourseLesson(w, r, ctx)
+	}).Methods("GET")
 	r.HandleFunc("/courses/{course}", func(w http.ResponseWriter, r *http.Request) {
 		Courses(w, r, ctx)
-	})
+	}).Methods("GET")
 
 	for _, page := range types.TextPages {
 		renderPage := page
@@ -932,7 +935,6 @@ func WorkshopContact(w http.ResponseWriter, r *http.Request, ctx *config.AppCont
 		}
 	}
 
-
 	ctx.Infos.Printf("Message to %s Work(shop) sent!", formtype)
 
 	/* show a banner about it sending successfully */
@@ -1274,7 +1276,7 @@ func BtcCheckoutStart(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 
 	if err != nil {
 		http.Error(w, "unable to init btc payment", http.StatusInternalServerError)
-		ctx.Err.Printf("opennode payment init failed", err.Error())
+		ctx.Err.Printf("opennode payment init failed %s", err.Error())
 		return
 	}
 
@@ -1300,7 +1302,7 @@ func CheckEmail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 		ctx.Err.Printf("/check-email unable to send mail %s", err)
 		return
 	}
-	
+
 	email := "nifty@btcpp.dev"
 	for _, l := range letters {
 		ctx.Infos.Printf("Looking at letter %s (%s)", l.ID, l.Title)
@@ -1633,7 +1635,7 @@ func RenderTextPage(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 	pageBytes, err := ioutil.ReadFile(fmt.Sprintf("templates/text/%s.md", tPage.Tag))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to load text template templates/text/%s.md", tPage.Tag), http.StatusInternalServerError)
-		ctx.Err.Printf("Unable to load text template %s.md\n", tPage.Tag, err.Error())
+		ctx.Err.Printf("Unable to load text template %s.md %s\n", tPage.Tag, err.Error())
 		return
 	}
 
@@ -1700,6 +1702,11 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
+	if localCourseExists(clss) {
+		CourseLesson(w, r, ctx)
+		return
+	}
+
 	course, err := getters.GetCourse(ctx.Notion, clss)
 	if err != nil {
 		http.Error(w, "Unable to load page, course not found", http.StatusInternalServerError)
@@ -1729,7 +1736,7 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		})
 		extraData = append(extraData, ExtraData{
 			Label: "Seats Left",
-			Data:  string(sessions[0].SeatsAvail),
+			Data:  strconv.FormatUint(uint64(sessions[0].SeatsAvail), 10),
 		})
 	}
 
