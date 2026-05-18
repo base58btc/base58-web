@@ -32,14 +32,14 @@ Here's how you'd convert the number 5 to two little-endian bytes.
 
 +++
 x = (5).to_bytes(2, 'little')
-print(x)
+x
 +++
 
 Hint: to make it readable, print it as hex.
 
 +++
 x = (5).to_bytes(2, 'little').hex()
-print(x)
+x
 +++
 
 ## Exercise
@@ -63,7 +63,7 @@ input = {
 }
 
 out = to_bytes(input)
-print(out.hex())
+out.hex()
 +++
 
 

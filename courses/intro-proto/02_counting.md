@@ -10,6 +10,7 @@ Those fruits are:
 - watermelon
 
 You also decided that, at most, they'd be able to carry home 
+
 - 1,000 bananas,
 - 70,000 mangos,
 - 260 apples,
@@ -23,14 +24,14 @@ Let's define a `maxsize` dict for each of these types of fruits.
 Since this is a computer protocol, we're going to have to fit the information about each fruit into _bytes_. We'll need to figure out how many bytes we need for each fruit, in order to communicate how many of each that there are.
 
 +++
-max = {
+maxsize = {
     'bananas': 1000,
     'mangos': 70000,
     'apples': 260,
     'pineapples': 20000,
     'watermelons': 15,
 }
-print(max)
+maxsize
 +++
 
 ### Max sizes of bytes
@@ -54,11 +55,11 @@ We have 4 options for the number of bytes we can use for each field.
 As an example, let's say that we wanted to pick how many bytes we'd need for the `pineapples` field. The `maxsize['pineapples']` in this case is 20,000. We can't fit the number 20,000 into 1 byte. We can fit it into 2 bytes, however, as the maxsize for this field is 65,535.
 
 +++
-print(255 > maxsize['pineapples'])
+255 > maxsize['pineapples']
 +++
 
 +++
-print(65353 > maxsize['pineapples'])
+65353 > maxsize['pineapples']
 +++
 
 
