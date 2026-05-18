@@ -1,8 +1,11 @@
 base58-website
-config.toml
 stripe
 .DS_Store
 goals
+reqs/
+base58-dev.db
+scratch
+tmp/
 
 target
 
