@@ -73,9 +73,13 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	courseSlug := params["course"]
 	pagePath := params["page"]
 
-	if localCourseRequiresAccess(ctx, courseSlug) && !hasLocalCourseAccess(r, ctx) {
-		w.WriteHeader(http.StatusUnauthorized)
-		Render401(w, r, ctx)
+	if canonical, ok := canonicalLocalCourseSlug(courseSlug); ok && canonical != courseSlug {
+		http.Redirect(w, r, courseLessonURL(canonical, pagePath), http.StatusMovedPermanently)
+		return
+	}
+
+	if access := checkCourseContentAccess(r, ctx, courseSlug); !access.Allowed {
+		redirectCourseAccessDenied(w, r, courseSlug, access.Reason)
 		return
 	}
 
@@ -137,12 +141,206 @@ func localCourseHero(ctx *config.AppContext, courseSlug, fallbackTitle string) (
 	return course.HeaderImg, fmt.Sprintf("%s course header", altTitle)
 }
 
-func localCourseRequiresAccess(ctx *config.AppContext, courseSlug string) bool {
-	return false
+type LocalCourseLandingData struct {
+	Page        Page
+	CourseSlug  string
+	CourseTitle string
+	Description string
+	Error       string
+	Notice      string
+	HeroURL     string
+	HeroAlt     string
+	StartURL    string
+	Sidebar     []*CourseNavItem
 }
 
-func hasLocalCourseAccess(r *http.Request, ctx *config.AppContext) bool {
-	return false
+func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, courseSlug string) {
+	outline, err := loadLocalCourse(localCoursesRoot, courseSlug, "")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	title, description, heroURL := localCourseLandingMetadata(ctx, courseSlug, outline.CourseTitle)
+	if title == "" {
+		title = outline.CourseTitle
+	}
+	heroAlt := ""
+	if heroURL != "" {
+		heroAlt = fmt.Sprintf("%s course header", title)
+	}
+	accessError := localCourseAccessError(r.URL.Query().Get("access"))
+	notice := localCourseNotice(r.URL.Query().Get("registered"))
+	startURL := ""
+	if outline.Current != nil {
+		startURL = outline.Current.URL
+	}
+
+	furlCard := defaultCard(ctx, r, title)
+	err = ctx.TemplateCache.ExecuteTemplate(w, "courses/local_course.tmpl", LocalCourseLandingData{
+		Page:        getPage(ctx, title, furlCard),
+		CourseSlug:  courseSlug,
+		CourseTitle: title,
+		Description: description,
+		Error:       accessError,
+		Notice:      notice,
+		HeroURL:     heroURL,
+		HeroAlt:     heroAlt,
+		StartURL:    startURL,
+		Sidebar:     outline.Items,
+	})
+	if err != nil {
+		http.Error(w, "Unable to load page", http.StatusInternalServerError)
+		ctx.Err.Printf("courses/local_course.tmpl exec failed %s\n", err.Error())
+		return
+	}
+}
+
+func LocalCourseSignup(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	if ctx == nil || ctx.DB == nil {
+		http.Error(w, "Course registration is not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	courseSlug := mux.Vars(r)["course"]
+	if canonical, ok := canonicalLocalCourseSlug(courseSlug); ok {
+		courseSlug = canonical
+	} else {
+		http.NotFound(w, r)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Unable to read registration", http.StatusBadRequest)
+		return
+	}
+	email := normalizeEmail(r.Form.Get("email"))
+	name := strings.TrimSpace(r.Form.Get("display_name"))
+	if email == "" {
+		http.Redirect(w, r, "/courses/"+courseSlug+"?access=signin", http.StatusSeeOther)
+		return
+	}
+
+	personID, err := ensurePersonForEmail(ctx, email)
+	if err != nil {
+		http.Error(w, "Unable to create account", http.StatusInternalServerError)
+		ctx.Err.Printf("course signup person failed: %s", err.Error())
+		return
+	}
+	if name != "" {
+		_ = updatePersonDisplayName(ctx, personID, name)
+	}
+	if _, err := grantEntitlement(ctx, personID, courseSlug, "self_signup", "Self-registered from course landing page"); err != nil {
+		http.Error(w, "Unable to grant course access", http.StatusInternalServerError)
+		ctx.Err.Printf("course signup entitlement failed: %s", err.Error())
+		return
+	}
+
+	ctx.Session.Put(r.Context(), "person_id", personID)
+	ctx.Session.Put(r.Context(), "person_email", email)
+
+	startURL := "/courses/" + courseSlug
+	if outline, err := loadLocalCourse(localCoursesRoot, courseSlug, ""); err == nil && outline.Current != nil {
+		startURL = outline.Current.URL + "?registered=1"
+	}
+	http.Redirect(w, r, startURL, http.StatusSeeOther)
+}
+
+func localCourseLandingMetadata(ctx *config.AppContext, courseSlug, fallbackTitle string) (string, string, string) {
+	if ctx != nil && ctx.DB != nil {
+		if course, err := getAdminCourse(ctx, courseSlug); err == nil {
+			return firstNonEmpty(course.Title, fallbackTitle), course.Description, course.HeaderImg
+		}
+	}
+
+	if ctx != nil && ctx.Notion != nil {
+		if course, err := getters.GetCourse(ctx.Notion, courseSlug); err == nil && course != nil {
+			return firstNonEmpty(course.Title, fallbackTitle), firstNonEmpty(course.ShortDesc, course.LongDesc), course.HeaderImg
+		}
+	}
+
+	return fallbackTitle, "", ""
+}
+
+func updatePersonDisplayName(ctx *config.AppContext, personID int64, name string) error {
+	if ctx == nil || ctx.DB == nil || personID == 0 || strings.TrimSpace(name) == "" {
+		return nil
+	}
+	_, err := ctx.DB.Exec(`UPDATE people SET display_name=`+ph(ctx, 1)+`, updated_at=CURRENT_TIMESTAMP WHERE id=`+ph(ctx, 2), strings.TrimSpace(name), personID)
+	return err
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+type courseContentAccess struct {
+	Allowed bool
+	Reason  string
+}
+
+func checkCourseContentAccess(r *http.Request, ctx *config.AppContext, courseSlug string) courseContentAccess {
+	if !localCourseExists(courseSlug) {
+		return courseContentAccess{Allowed: true}
+	}
+	if ctx == nil || ctx.DB == nil {
+		return courseContentAccess{Reason: "signin"}
+	}
+
+	personID := currentProgressPersonID(r, ctx)
+	if personID == 0 {
+		return courseContentAccess{Reason: "signin"}
+	}
+	if hasActiveCourseEntitlement(ctx, personID, courseSlug) {
+		return courseContentAccess{Allowed: true}
+	}
+	return courseContentAccess{Reason: "entitlement"}
+}
+
+func redirectCourseAccessDenied(w http.ResponseWriter, r *http.Request, courseSlug, reason string) {
+	if reason == "" {
+		reason = "entitlement"
+	}
+	http.Redirect(w, r, fmt.Sprintf("/courses/%s?access=%s", courseSlug, reason), http.StatusSeeOther)
+}
+
+func localCourseAccessError(reason string) string {
+	switch reason {
+	case "signin":
+		return "Sign in to access the course lessons."
+	case "entitlement":
+		return "You do not have access to this course yet."
+	default:
+		return ""
+	}
+}
+
+func localCourseNotice(value string) string {
+	if value == "1" {
+		return "Registration complete. You now have access to this course."
+	}
+	return ""
+}
+
+func hasActiveCourseEntitlement(ctx *config.AppContext, personID int64, courseSlug string) bool {
+	if ctx == nil || ctx.DB == nil || personID == 0 || courseSlug == "" {
+		return false
+	}
+
+	var count int
+	err := ctx.DB.QueryRow(`SELECT COUNT(1)
+FROM course_entitlements
+WHERE person_id=`+ph(ctx, 1)+`
+  AND course_slug=`+ph(ctx, 2)+`
+  AND status='active'
+  AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
+  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`, personID, courseSlug).Scan(&count)
+	return err == nil && count > 0
 }
 
 func localCourseExists(courseSlug string) bool {
@@ -152,6 +350,19 @@ func localCourseExists(courseSlug string) bool {
 
 	info, err := os.Stat(filepath.Join(localCoursesRoot, courseSlug))
 	return err == nil && info.IsDir()
+}
+
+func canonicalLocalCourseSlug(courseSlug string) (string, bool) {
+	if localCourseExists(courseSlug) {
+		return courseSlug, true
+	}
+	if strings.Contains(courseSlug, "_") {
+		canonical := strings.ReplaceAll(courseSlug, "_", "-")
+		if localCourseExists(canonical) {
+			return canonical, true
+		}
+	}
+	return courseSlug, false
 }
 
 func loadLocalCourse(rootDir, courseSlug, currentPath string) (*localCourseOutline, error) {
