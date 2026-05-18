@@ -77,7 +77,26 @@ In case you need it, here's a reminder of how many of each your friend can bring
 - pineapple: 20,000
 - watermelon: 15
 
+
+~~~
+What byte size can hold `20_000`?
+
+- 1 byte [255 is too small.]
+= 2 bytes [Correct: 65,535 can hold it.]
+- 4 bytes [This works, but is larger than necessary]
+~~~
+
 We have already determined that `pineapples` need 2 bytes.
+
+
+~~~
+What byte size can hold `70_000`?
+
+- 1 byte [255 is too small.]
+- 2 bytes [65,535 is too small.]
+= 4 bytes [This works! It's smallest set that can hold the highest count.]
+~~~
+
 
 +++
 bytecounts = {
