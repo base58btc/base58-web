@@ -124,6 +124,100 @@ func TestCourseMarkdownRendersCodeBlocks(t *testing.T) {
 	}
 }
 
+func TestCourseMarkdownRendersMultipleChoiceBlocks(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("Before\n\n~~~\nWhat byte size can hold `20_000`?\n\n- 1 byte [255 is too small.]\n= 2 bytes [Correct: 65,535 can hold it.]\n- 4 bytes [This works, but is larger than necessary.]\n~~~\n\nAfter\n")))
+
+	if !strings.Contains(html, `class="course-challenge course-multiple-choice"`) {
+		t.Fatalf("expected multiple choice block, got %s", html)
+	}
+	if !strings.Contains(html, `data-course-block-id="mc-1"`) {
+		t.Fatalf("expected deterministic multiple choice id, got %s", html)
+	}
+	if !strings.Contains(html, `<code>20_000</code>`) {
+		t.Fatalf("expected markdown prompt rendering, got %s", html)
+	}
+	if !strings.Contains(html, `class="course-choice-letter">A</span>`) {
+		t.Fatalf("expected lettered answers, got %s", html)
+	}
+	if !strings.Contains(html, `type="radio"`) {
+		t.Fatalf("expected single-answer multiple choice to render radio inputs, got %s", html)
+	}
+	if !strings.Contains(html, `data-correct="true"`) {
+		t.Fatalf("expected correct answer marker, got %s", html)
+	}
+	if !strings.Contains(html, `Correct: 65,535 can hold it.`) {
+		t.Fatalf("expected inline explanation rendering, got %s", html)
+	}
+	if strings.Contains(html, "~~~") {
+		t.Fatalf("expected multiple choice fence to be consumed, got %s", html)
+	}
+}
+
+func TestCourseMarkdownRendersMultipleAnswerBlocks(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("~~~\nPick all byte-sized aliases.\n\n= byte\n= uint8\n- uint16\n~~~\n")))
+
+	if !strings.Contains(html, `class="course-challenge course-multiple-choice"`) {
+		t.Fatalf("expected multiple choice block, got %s", html)
+	}
+	if !strings.Contains(html, `type="checkbox"`) {
+		t.Fatalf("expected multiple-answer block to render checkbox inputs, got %s", html)
+	}
+	if count := strings.Count(html, `data-correct="true"`); count != 2 {
+		t.Fatalf("expected two correct answer markers, got %d in %s", count, html)
+	}
+	if strings.Contains(html, `can only have one correct option`) {
+		t.Fatalf("expected multiple correct options to be accepted, got %s", html)
+	}
+}
+
+func TestCourseMarkdownRendersMultipleChoiceAuthoringErrors(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("~~~\nPick one.\n\n- A\n- B\n~~~\n")))
+
+	if !strings.Contains(html, `class="course-challenge course-authoring-error"`) {
+		t.Fatalf("expected authoring error block, got %s", html)
+	}
+	if !strings.Contains(html, `need one correct option`) {
+		t.Fatalf("expected missing correct option error, got %s", html)
+	}
+}
+
+func TestCourseMarkdownRendersCodeChallengeBlocks(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("???\nWrite `answer`.\n---\ndef answer():\n    pass\n---\nassert answer() == 4\n---\nTry returning 4.\n???\n")))
+
+	if !strings.Contains(html, `class="course-challenge course-code-challenge"`) {
+		t.Fatalf("expected code challenge block, got %s", html)
+	}
+	if !strings.Contains(html, `data-course-block-id="codecheck-1"`) {
+		t.Fatalf("expected deterministic code challenge id, got %s", html)
+	}
+	if !strings.Contains(html, `<code>answer</code>`) {
+		t.Fatalf("expected markdown prompt rendering, got %s", html)
+	}
+	if !strings.Contains(html, `def answer():`) {
+		t.Fatalf("expected starter code, got %s", html)
+	}
+	if strings.Contains(html, `assert answer() == 4`) {
+		t.Fatalf("expected hidden check code to be encoded, got %s", html)
+	}
+	if strings.Contains(html, `Try returning 4.`) {
+		t.Fatalf("expected failure message to be encoded, got %s", html)
+	}
+	if !markdownHasCourseCode([]byte("???\nPrompt\n---\ncode\n---\nassert True\n???\n")) {
+		t.Fatal("expected code challenge to require pyodide")
+	}
+}
+
+func TestCourseMarkdownRendersCodeChallengeAuthoringErrors(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("???\nPrompt only.\n???\n")))
+
+	if !strings.Contains(html, `class="course-challenge course-authoring-error"`) {
+		t.Fatalf("expected authoring error block, got %s", html)
+	}
+	if !strings.Contains(html, `need prompt, starter code, hidden check code`) {
+		t.Fatalf("expected missing sections error, got %s", html)
+	}
+}
+
 func writeTestFile(t *testing.T, path, contents string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {

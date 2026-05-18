@@ -243,6 +243,127 @@
       color: #8a2d22;
     }
 
+    .course-challenge {
+      margin: 1.5rem 0;
+      border: 1px solid rgba(20, 20, 20, 0.12);
+      border-radius: 0.5rem;
+      background: #fffdf8;
+      padding: 1rem;
+    }
+
+    .course-challenge-prompt > :last-child {
+      margin-bottom: 0;
+    }
+
+    .course-choice-list {
+      display: grid;
+      gap: 0.5rem;
+      margin: 1rem 0;
+      border: 0;
+      padding: 0;
+    }
+
+    .course-choice {
+      display: grid;
+      grid-template-columns: 1rem 2rem minmax(0, 1fr);
+      gap: 0.625rem;
+      align-items: start;
+      border: 1px solid rgba(20, 20, 20, 0.12);
+      border-radius: 0.375rem;
+      background: #f8f7f3;
+      padding: 0.625rem 0.75rem;
+      cursor: pointer;
+    }
+
+    .course-choice-input {
+      margin: 0.25rem 0 0;
+    }
+
+    .course-choice-letter {
+      color: #73592f;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .course-choice-body {
+      display: grid;
+      gap: 0.35rem;
+      min-width: 0;
+    }
+
+    .course-choice-explanation {
+      color: #5f5445;
+      font-size: 0.9375rem;
+      line-height: 1.45;
+    }
+
+    .course-choice.is-correct-answer {
+      border-color: rgba(47, 111, 78, 0.62);
+      background: #eef7f1;
+    }
+
+    .course-choice.is-incorrect-answer {
+      border-color: rgba(138, 45, 34, 0.5);
+      background: #fff1ee;
+    }
+
+    .course-choice-input:disabled {
+      cursor: default;
+    }
+
+    .course-challenge-actions {
+      display: flex;
+      justify-content: flex-start;
+      gap: 0.5rem;
+    }
+
+    .course-challenge-submit {
+      border: 1px solid rgba(20, 20, 20, 0.16);
+      border-radius: 0.375rem;
+      background: #191919;
+      padding: 0.55rem 0.85rem;
+      color: #f7c35f;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .course-challenge-submit:disabled {
+      cursor: default;
+      opacity: 0.62;
+    }
+
+    .course-challenge-feedback {
+      margin-top: 0.75rem;
+      border-radius: 0.375rem;
+      background: #eee8dc;
+      padding: 0.625rem 0.75rem;
+      font-weight: 700;
+    }
+
+    .course-challenge.is-correct .course-challenge-feedback,
+    .course-code-challenge.is-correct .challenge-output {
+      color: #2f6f4e;
+    }
+
+    .course-challenge.is-incorrect .course-challenge-feedback,
+    .course-code-challenge.is-incorrect .challenge-output {
+      color: #8a2d22;
+    }
+
+    .course-code-challenge .code-challenge-cell {
+      margin-bottom: 0;
+    }
+
+    .course-authoring-error {
+      border-color: rgba(138, 45, 34, 0.5);
+      background: #fff1ee;
+      color: #8a2d22;
+    }
+
+    .course-authoring-error p {
+      margin-bottom: 0;
+    }
+
     .course-platform_pager {
       display: flex;
       justify-content: space-between;
@@ -388,6 +509,16 @@
       const isCodeArea = target instanceof HTMLTextAreaElement && target.classList.contains("code-area");
 
       if (isCodeArea && event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+        const challenge = target.closest(".course-code-challenge");
+        if (challenge && typeof submitCodeChallenge === "function") {
+          const button = challenge.querySelector(".course-challenge-submit");
+          if (button) {
+            event.preventDefault();
+            submitCodeChallenge(button);
+          }
+          return;
+        }
+
         const cell = target.closest(".cell");
         const button = cell ? cell.querySelector(".run-btn") : null;
         if (button && typeof runCellCode === "function") {
@@ -429,6 +560,108 @@
         return false;
       }
       return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
+    }
+
+    function submitMultipleChoice(button) {
+      const block = button.closest(".course-multiple-choice");
+      if (!block) {
+        return;
+      }
+
+      const feedback = block.querySelector(".course-challenge-feedback");
+      const selectedChoices = Array.from(block.querySelectorAll(".course-choice-input:checked")).map(function(input) {
+        return input.closest(".course-choice");
+      }).filter(Boolean);
+      if (selectedChoices.length === 0) {
+        if (feedback) {
+          feedback.hidden = false;
+          feedback.textContent = "Choose at least one answer first.";
+        }
+        return;
+      }
+
+      const correctChoices = Array.from(block.querySelectorAll(".course-choice[data-correct='true']"));
+      const selectedIndexes = selectedChoices.map(function(choice) {
+        return choice.dataset.choiceIndex;
+      }).sort();
+      const correctIndexes = correctChoices.map(function(choice) {
+        return choice.dataset.choiceIndex;
+      }).sort();
+      const correct = selectedIndexes.length === correctIndexes.length && selectedIndexes.every(function(index, position) {
+        return index === correctIndexes[position];
+      });
+
+      block.querySelectorAll(".course-choice").forEach(function(choice) {
+        choice.classList.remove("is-selected-answer", "is-correct-answer", "is-incorrect-answer");
+        const explanation = choice.querySelector(".course-choice-explanation");
+        if (explanation) {
+          explanation.hidden = true;
+        }
+      });
+
+      correctChoices.forEach(function(choice) {
+        choice.classList.add("is-correct-answer");
+      });
+      selectedChoices.forEach(function(choice) {
+        choice.classList.add("is-selected-answer");
+        choice.classList.toggle("is-incorrect-answer", choice.dataset.correct !== "true");
+        const explanation = choice.querySelector(".course-choice-explanation");
+        if (explanation) {
+          explanation.hidden = false;
+        }
+      });
+
+      block.querySelectorAll(".course-choice-input").forEach(function(input) {
+        input.disabled = true;
+      });
+      button.disabled = true;
+
+      if (feedback) {
+        feedback.hidden = false;
+        feedback.textContent = correct ? "Correct." : "Not quite.";
+      }
+
+      markCourseBlockResult(block, {
+        correct: correct,
+        selectedOption: selectedIndexes.length === 1 ? selectedIndexes[0] : null,
+        selectedOptions: selectedIndexes
+      });
+    }
+
+    function markCourseBlockResult(block, result) {
+      if (!block) {
+        return;
+      }
+
+      const correct = Boolean(result && result.correct);
+      block.dataset.courseBlockCorrect = correct ? "true" : "false";
+      block.classList.add("is-answered");
+      block.classList.toggle("is-correct", correct);
+      block.classList.toggle("is-incorrect", !correct);
+
+      const shell = document.querySelector(".course-platform_shell");
+      window.dispatchEvent(new CustomEvent("course:block-result", {
+        detail: {
+          blockId: block.dataset.courseBlockId || "",
+          blockType: block.dataset.courseBlockType || "",
+          correct: correct,
+          selectedOption: result && result.selectedOption ? result.selectedOption : null,
+          selectedOptions: result && result.selectedOptions ? result.selectedOptions : [],
+          courseSlug: shell ? shell.dataset.courseSlug || "" : "",
+          lessonPath: shell ? shell.dataset.lessonPath || "" : ""
+        }
+      }));
+    }
+
+    function decodeCourseBlockData(value) {
+      if (!value) {
+        return "";
+      }
+
+      const bytes = Uint8Array.from(window.atob(value), function(char) {
+        return char.charCodeAt(0);
+      });
+      return new TextDecoder().decode(bytes);
     }
   </script>
   {{ if .HasCode }}
@@ -481,6 +714,31 @@ def __course_run_cell(code):
         sys.stderr = old_stderr
 
     return json.dumps({"ok": ok, "output": output})
+
+def __course_check_cell(student_code, check_code):
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    stdout = StringIO()
+    stderr = StringIO()
+    sys.stdout = stdout
+    sys.stderr = stderr
+    ok = True
+    phase = "student"
+
+    try:
+        exec(compile(student_code, "<course challenge>", "exec"), globals())
+        phase = "check"
+        exec(compile(check_code, "<course checks>", "exec"), globals())
+    except BaseException:
+        ok = False
+        if phase == "student":
+            traceback.print_exc(file=sys.stderr)
+    finally:
+        output = stdout.getvalue() + stderr.getvalue()
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+
+    return json.dumps({"ok": ok, "output": output, "phase": phase})
 `;
 
     async function getCoursePyodide() {
@@ -533,6 +791,48 @@ def __course_run_cell(code):
         button.disabled = false;
       }
     }
+
+    async function submitCodeChallenge(button) {
+      const block = button.closest(".course-code-challenge");
+      if (!block) {
+        return;
+      }
+
+      const textarea = block.querySelector(".code-area");
+      const output = block.querySelector(".challenge-output");
+      let keepDisabled = false;
+
+      output.classList.remove("is-error");
+      output.textContent = "Checking...";
+      button.disabled = true;
+
+      try {
+        const pyodide = await getCoursePyodide();
+        const checkCode = decodeCourseBlockData(block.dataset.checkCode || "");
+        const failureMessage = decodeCourseBlockData(block.dataset.failureMessage || "") || "Not quite. Try again.";
+        pyodide.globals.set("__course_challenge_code", textarea.value);
+        pyodide.globals.set("__course_challenge_check", checkCode);
+        const result = JSON.parse(pyodide.runPython("__course_check_cell(__course_challenge_code, __course_challenge_check)"));
+
+        if (result.ok) {
+          output.textContent = result.output ? result.output + "\nCorrect." : "Correct.";
+          textarea.disabled = true;
+          keepDisabled = true;
+          markCourseBlockResult(block, { correct: true });
+          return;
+        }
+
+        output.classList.add("is-error");
+        output.textContent = result.phase === "student" && result.output ? result.output : failureMessage;
+        markCourseBlockResult(block, { correct: false });
+      } catch (err) {
+        output.classList.add("is-error");
+        output.textContent = err.message;
+        markCourseBlockResult(block, { correct: false });
+      } finally {
+        button.disabled = keepDisabled;
+      }
+    }
   </script>
   {{ end }}
 </head>
@@ -544,7 +844,7 @@ def __course_run_cell(code):
         <div class="course-scroll-fill"></div>
       </div>
     </div>
-    <main class="course-platform_shell"{{ if .Previous }} data-prev-url="{{ .Previous.URL }}"{{ end }}{{ if .Next }} data-next-url="{{ .Next.URL }}"{{ end }}>
+    <main class="course-platform_shell" data-course-slug="{{ .CourseSlug }}" data-lesson-path="{{ .Current.Path }}"{{ if .Previous }} data-prev-url="{{ .Previous.URL }}"{{ end }}{{ if .Next }} data-next-url="{{ .Next.URL }}"{{ end }}>
       <aside class="course-platform_sidebar" aria-label="Course pages">
         <h2 class="course-platform_course-title">{{ .CourseTitle }}</h2>
         <nav class="course-platform_nav">
