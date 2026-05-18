@@ -2,50 +2,12 @@
 <html>
 <head>
   {{ block "head" .Page }} {{ end }}
-  <!--  Keep this css code to improve the font quality -->
-  <style>
-  * {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -o-font-smoothing: antialiased;
-  -webkit-appearance:none;
-}
-</style>
-  <style>
-.no-scroll {overflow:hidden;}
-</style>
 </head>
 <body>
-  <div class="utility_component">
-    <form class="utility_form-block w-password-page ">
-      <div class="utility_form w-password-page">
-        <img width="106" src="https://d3e54v103j8qbb.cloudfront.net/static/utility-lock.ae54711958.svg" alt="" class="utility_image">
-        <h3>Protected Page</h3>
-        <div class="padding-xsmall"></div>
-	<input class="form_input w-password-page w-input" 
-	  autofocus="true"
-	  maxlength="256" 
-	  data-name="field" 
-	  required 
-	  placeholder="Enter your password" 
-	  type="password" 
-	  name="pass" 
-	  id="pass">
-        <div class="padding-xsmall"></div> 
-	<button id="login-btn" 
-	class="tertiary-button w-password-page w-button" 
-	hx-post="/login" 
-	hx-include="#pass #dest" 
-	hx-trigger="click" 
-	hx-target="#login_result">Submit</button>
-	<div id="login_result" 
-	 style="display: block;"
-	 class="form_message-error-wrapper w-password-page w-form-fail">
-        </div>
-        <div style="display:none"><input type="hidden" name="dest" id="dest" value="{{ .Destination }}"></div>
-        </div>
-      </div>
-    </form>
-  </div>
+  <main style="max-width: 560px; margin: 6rem auto; font-family: Inter, sans-serif; padding: 0 1.5rem;">
+    <h1>Login Required</h1>
+    <p>This page requires an admin account.</p>
+    <p><a href="/admin/login">Sign in to admin</a></p>
+  </main>
 </body>
 </html>

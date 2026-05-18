@@ -108,6 +108,8 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 		return r, err
 	}
 
+	RegisterAdminRoutes(r, ctx)
+
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		RenderPage(w, r, ctx, "index")
 	}).Methods("GET")
@@ -178,8 +180,8 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	}).Methods("GET")
 
 	r.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		Login(w, r, ctx)
-	}).Methods("POST")
+		http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
+	}).Methods("GET", "POST")
 
 	r.HandleFunc("/{newsletter}/schedule", func(w http.ResponseWriter, r *http.Request) {
 		ScheduleNewsMissives(w, r, ctx)
@@ -1089,21 +1091,19 @@ type SubscribePage struct {
 	Newsletter string
 }
 
-func checkPin(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) bool {
-	pin := ctx.Session.GetString(r.Context(), "pin")
-	if pin == "" {
-		w.Header().Set("x-missing-field", "pin")
+func checkAdminSession(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) bool {
+	if currentAdminFromSession(r, ctx).ID == 0 {
 		w.WriteHeader(http.StatusUnauthorized)
-		ctx.Infos.Printf("401 login failed: %s", r.URL.Path)
+		ctx.Infos.Printf("401 admin login required: %s", r.URL.Path)
 		return false
 	}
-	return pin == ctx.Env.Pincode
+	return true
 }
 
 func ScheduleNewsMissives(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Check for verified */
-	if ok := checkPin(w, r, ctx); !ok {
-		Render401(w, r, ctx)
+	if ok := checkAdminSession(w, r, ctx); !ok {
+		http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
 		return
 	}
 
@@ -1131,8 +1131,8 @@ func ScheduleNewsMissives(w http.ResponseWriter, r *http.Request, ctx *config.Ap
 
 func UnscheduleNewsMissive(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	/* Check for verified */
-	if ok := checkPin(w, r, ctx); !ok {
-		Render401(w, r, ctx)
+	if ok := checkAdminSession(w, r, ctx); !ok {
+		http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
 		return
 	}
 
@@ -1584,26 +1584,9 @@ func Render401(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	}
 }
 
-/* Set the pin cookie and redirect to destination */
+/* Login redirects to the admin email login flow. */
 func Login(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
-	r.ParseForm()
-	password := r.Form.Get("pass")
-	destpath := r.Form.Get("dest")
-
-	if password != ctx.Env.Pincode {
-		w.Write([]byte(`
-		<div class="form_message-error" style="display: block;">
-                  <div class="error-text">Incorrect password. Try again.</div>
-                </div>
-		`))
-		return
-	}
-
-	/* Set the pin as cookie and redirect */
-	ctx.Session.Put(r.Context(), "pin", password)
-
-	/* Use HTMX to redirect */
-	w.Header().Set("HX-Redirect", destpath)
+	http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
 }
 
 func RenderPage(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, page string) {

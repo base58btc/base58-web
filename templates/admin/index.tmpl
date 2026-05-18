@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  {{ block "head" .Page }} {{ end }}
+  {{ template "admin/style.tmpl" . }}
+</head>
+<body class="admin-body">
+  {{ template "admin/nav.tmpl" . }}
+  <main class="admin-main">
+    <section class="admin-header">
+      <h1>Admin</h1>
+      <div class="admin-actions">
+        <a href="/admin/people/new">New person</a>
+        <a href="/admin/courses/new">New course</a>
+      </div>
+    </section>
+    {{ if not .HasDB }}
+      <div class="admin-error">Database is not configured. Add DB_DRIVER and DATABASE_URL, then run migrations.</div>
+    {{ else }}
+      <div class="admin-grid">
+        <section>
+          <h2>Recent People</h2>
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Status</th></tr></thead>
+            <tbody>
+            {{ range .People }}
+              <tr><td><a href="/admin/people/{{ .ID }}">{{ .DisplayName }}</a></td><td>{{ .PrimaryEmail }}</td><td>{{ .Status }}</td></tr>
+            {{ else }}
+              <tr><td colspan="3">No people yet.</td></tr>
+            {{ end }}
+            </tbody>
+          </table>
+        </section>
+        <section>
+          <h2>Courses</h2>
+          <table>
+            <thead><tr><th>Course</th><th>Slug</th><th>Status</th></tr></thead>
+            <tbody>
+            {{ range .Courses }}
+              <tr><td><a href="/admin/courses/{{ .Slug }}">{{ .Title }}</a></td><td>{{ .Slug }}</td><td>{{ .Status }}</td></tr>
+            {{ else }}
+              <tr><td colspan="3">No courses yet.</td></tr>
+            {{ end }}
+            </tbody>
+          </table>
+        </section>
+      </div>
+      <section>
+        <h2>Audit</h2>
+        {{ template "admin/audit_table.tmpl" . }}
+      </section>
+    {{ end }}
+  </main>
+</body>
+</html>

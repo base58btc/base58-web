@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  {{ block "head" .Page }} {{ end }}
+  {{ template "admin/style.tmpl" . }}
+</head>
+<body class="admin-body">
+  {{ template "admin/nav.tmpl" . }}
+  <main class="admin-main">
+    <section class="admin-header">
+      <h1>{{ .Course.Title }}</h1>
+      <a href="/admin/courses">Back to courses</a>
+    </section>
+    {{ if .Flash }}<div class="admin-flash">{{ .Flash }}</div>{{ end }}
+    {{ if .Error }}<div class="admin-error">{{ .Error }}</div>{{ end }}
+    <form class="admin-form" method="post" action="/admin/courses/{{ .Course.Slug }}">
+      {{ .CSRFField }}
+      {{ template "admin/course_fields.tmpl" .Course }}
+      <button type="submit">Save course</button>
+    </form>
+    <section>
+      <h2>People With Access</h2>
+      {{ template "admin/entitlements_table.tmpl" . }}
+    </section>
+  </main>
+</body>
+</html>

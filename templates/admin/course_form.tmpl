@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  {{ block "head" .Page }} {{ end }}
+  {{ template "admin/style.tmpl" . }}
+</head>
+<body class="admin-body">
+  {{ template "admin/nav.tmpl" . }}
+  <main class="admin-main">
+    <h1>New Course</h1>
+    {{ if .Error }}<div class="admin-error">{{ .Error }}</div>{{ end }}
+    <form class="admin-form" method="post" action="/admin/courses/new">
+      {{ .CSRFField }}
+      {{ template "admin/course_fields.tmpl" .Course }}
+      <button type="submit">Create course</button>
+    </form>
+  </main>
+</body>
+</html>

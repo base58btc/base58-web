@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  {{ block "head" .Page }} {{ end }}
+  {{ template "admin/style.tmpl" . }}
+</head>
+<body class="admin-body">
+  <main class="admin-main">
+    <h1>Admin Login</h1>
+    {{ if .Error }}<div class="admin-error">{{ .Error }}</div>{{ end }}
+    {{ if .Flash }}<div class="admin-flash">{{ .Flash }}</div>{{ end }}
+    {{ if .LoginLink }}
+      <div class="admin-flash"><a href="{{ .LoginLink }}">Open local login link</a></div>
+    {{ end }}
+    <form class="admin-form" method="post" action="/admin/login">
+      <label>Email<input type="email" name="email" value="{{ .Email }}" required autofocus></label>
+      <button type="submit">Send login link</button>
+    </form>
+  </main>
+</body>
+</html>

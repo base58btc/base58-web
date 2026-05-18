@@ -1,6 +1,7 @@
 package config
 
 import (
+	"database/sql"
 	"fmt"
 	"html/template"
 	"log"
@@ -19,6 +20,7 @@ type AppContext struct {
 	EmailCache    map[string]*template.Template
 	DocCache      map[string][]byte
 	Notion        *types.Notion
+	DB            *sql.DB
 
 	Env *types.EnvConfig
 }

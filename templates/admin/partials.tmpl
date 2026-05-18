@@ -1,0 +1,114 @@
+{{ define "admin/nav.tmpl" }}
+<nav class="admin-nav">
+  <a class="admin-brand" href="/admin">Base58 Admin</a>
+  <a href="/admin/people">People</a>
+  <a href="/admin/courses">Courses</a>
+  <a href="/admin/audit">Audit</a>
+  {{ if .CurrentAdmin.ID }}
+  <form class="admin-logout" method="post" action="/admin/logout">{{ .CSRFField }}<button type="submit">Log out</button></form>
+  {{ end }}
+</nav>
+{{ end }}
+
+{{ define "admin/style.tmpl" }}
+<style>
+.admin-body { background: #f7f7f4; color: #1f2328; font-family: Inter, sans-serif; margin: 0; }
+.admin-nav { align-items: center; background: #111; display: flex; gap: 20px; min-height: 56px; padding: 0 28px; }
+.admin-nav a { color: #fff; font-weight: 700; text-decoration: none; }
+.admin-brand { margin-right: 12px; }
+.admin-logout { margin-left: auto; }
+.admin-logout button { background: #333; border: 1px solid #666; color: #fff; cursor: pointer; font-weight: 700; padding: 8px 12px; }
+.admin-main { margin: 0 auto; max-width: 1180px; padding: 32px 24px 64px; }
+.admin-header { align-items: center; display: flex; justify-content: space-between; gap: 20px; }
+.admin-actions { display: flex; gap: 12px; }
+.admin-button, .admin-actions a, .admin-main button { background: #111; border: 0; color: #fff; cursor: pointer; font-weight: 700; padding: 10px 14px; text-decoration: none; }
+.admin-grid { display: grid; gap: 28px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.admin-form { display: grid; gap: 14px; max-width: 720px; }
+.admin-form label { display: grid; font-weight: 700; gap: 6px; }
+.admin-form input, .admin-form select, .admin-form textarea, .admin-search input, .admin-inline-form input, .admin-inline-form select { border: 1px solid #c9c9c2; font: inherit; padding: 10px 12px; }
+.admin-form textarea { min-height: 96px; resize: vertical; }
+.admin-search, .admin-inline-form { align-items: center; display: flex; gap: 10px; margin: 16px 0; }
+.admin-search input { min-width: 320px; }
+.admin-checkbox { align-items: center; display: flex; gap: 6px; }
+table { background: #fff; border-collapse: collapse; margin: 16px 0 28px; width: 100%; }
+th, td { border-bottom: 1px solid #e1e1dc; padding: 11px 12px; text-align: left; vertical-align: top; }
+th { background: #ecece6; font-size: 13px; text-transform: uppercase; }
+.admin-error { background: #ffe3e3; border: 1px solid #f3a6a6; margin: 14px 0; padding: 12px; }
+.admin-flash { background: #e2f7e8; border: 1px solid #98d4a9; margin: 14px 0; padding: 12px; }
+@media (max-width: 800px) {
+  .admin-grid, .admin-header, .admin-inline-form, .admin-search { display: block; }
+  .admin-nav { align-items: flex-start; flex-direction: column; gap: 10px; padding: 16px 20px; }
+  .admin-logout { margin-left: 0; }
+  .admin-search input { min-width: 0; width: 100%; }
+}
+</style>
+{{ end }}
+
+{{ define "admin/person_fields.tmpl" }}
+<label>Display name<input name="display_name" value="{{ .DisplayName }}"></label>
+<label>Status
+  <select name="status">
+    <option value="active" {{ if eq .Status "active" }}selected{{ end }}>Active</option>
+    <option value="inactive" {{ if eq .Status "inactive" }}selected{{ end }}>Inactive</option>
+  </select>
+</label>
+<label>Avatar URL<input name="avatar_url" value="{{ .AvatarURL }}"></label>
+<label>X URL<input name="x_url" value="{{ .XURL }}"></label>
+<label>Instagram URL<input name="instagram_url" value="{{ .InstagramURL }}"></label>
+<label>LinkedIn URL<input name="linkedin_url" value="{{ .LinkedinURL }}"></label>
+<label>GitHub URL<input name="github_url" value="{{ .GithubURL }}"></label>
+<label>Nostr npub<input name="nostr_npub" value="{{ .NostrNpub }}"></label>
+<label>Timezone<input name="timezone" value="{{ .Timezone }}"></label>
+{{ end }}
+
+{{ define "admin/course_fields.tmpl" }}
+<label>Slug<input name="slug" value="{{ .Slug }}" {{ if .Slug }}readonly{{ end }} required></label>
+<label>Title<input name="title" value="{{ .Title }}" required></label>
+<label>Status
+  <select name="status">
+    <option value="draft" {{ if eq .Status "draft" }}selected{{ end }}>Draft</option>
+    <option value="published" {{ if eq .Status "published" }}selected{{ end }}>Published</option>
+    <option value="archived" {{ if eq .Status "archived" }}selected{{ end }}>Archived</option>
+  </select>
+</label>
+<label>Description<textarea name="description">{{ .Description }}</textarea></label>
+<label>Header image URL<input name="header_img" value="{{ .HeaderImg }}"></label>
+{{ end }}
+
+{{ define "admin/entitlements_table.tmpl" }}
+<table>
+  <thead><tr><th>Course</th><th>Email</th><th>Status</th><th>Source</th><th>Granted</th><th>Notes</th><th></th></tr></thead>
+  <tbody>
+  {{ range .Entitlements }}
+    <tr>
+      <td><a href="/admin/courses/{{ .CourseSlug }}">{{ .CourseTitle }}</a></td>
+      <td><a href="/admin/people/{{ .PersonID }}">{{ .Email }}</a></td>
+      <td>{{ .Status }}</td>
+      <td>{{ .Source }}</td>
+      <td>{{ .GrantedAt }}</td>
+      <td>{{ .Notes }}</td>
+      <td>
+        {{ if ne .Status "revoked" }}
+        <form method="post" action="/admin/entitlements/{{ .ID }}/revoke">{{ $.CSRFField }}<button type="submit">Revoke</button></form>
+        {{ end }}
+      </td>
+    </tr>
+  {{ else }}
+    <tr><td colspan="7">No entitlements yet.</td></tr>
+  {{ end }}
+  </tbody>
+</table>
+{{ end }}
+
+{{ define "admin/audit_table.tmpl" }}
+<table>
+  <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
+  <tbody>
+  {{ range .AuditEvents }}
+    <tr><td>{{ .CreatedAt }}</td><td>{{ .Actor }}</td><td>{{ .Action }}</td><td>{{ .TargetType }} {{ .TargetID }}</td><td>{{ .Details }}</td></tr>
+  {{ else }}
+    <tr><td colspan="5">No audit events yet.</td></tr>
+  {{ end }}
+  </tbody>
+</table>
+{{ end }}

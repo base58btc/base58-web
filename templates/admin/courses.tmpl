@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  {{ block "head" .Page }} {{ end }}
+  {{ template "admin/style.tmpl" . }}
+</head>
+<body class="admin-body">
+  {{ template "admin/nav.tmpl" . }}
+  <main class="admin-main">
+    <section class="admin-header">
+      <h1>Courses</h1>
+      <a class="admin-button" href="/admin/courses/new">New course</a>
+    </section>
+    {{ if .Error }}<div class="admin-error">{{ .Error }}</div>{{ end }}
+    <table>
+      <thead><tr><th>Title</th><th>Slug</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {{ range .Courses }}
+        <tr><td>{{ .Title }}</td><td>{{ .Slug }}</td><td>{{ .Status }}</td><td><a href="/admin/courses/{{ .Slug }}">Open</a></td></tr>
+      {{ else }}
+        <tr><td colspan="4">No courses yet.</td></tr>
+      {{ end }}
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  {{ block "head" .Page }} {{ end }}
+  {{ template "admin/style.tmpl" . }}
+</head>
+<body class="admin-body">
+  {{ template "admin/nav.tmpl" . }}
+  <main class="admin-main">
+    <section class="admin-header">
+      <h1>People</h1>
+      <a class="admin-button" href="/admin/people/new">New person</a>
+    </section>
+    <form class="admin-search" method="get" action="/admin/people">
+      <input type="search" name="q" value="{{ .Query }}" placeholder="Search by name or email">
+      <button type="submit">Search</button>
+    </form>
+    {{ if .Error }}<div class="admin-error">{{ .Error }}</div>{{ end }}
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {{ range .People }}
+        <tr>
+          <td>{{ .DisplayName }}</td>
+          <td>{{ .PrimaryEmail }}</td>
+          <td>{{ .Status }}</td>
+          <td><a href="/admin/people/{{ .ID }}">Open</a></td>
+        </tr>
+      {{ else }}
+        <tr><td colspan="4">No people found.</td></tr>
+      {{ end }}
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  {{ block "head" .Page }} {{ end }}
+  {{ template "admin/style.tmpl" . }}
+</head>
+<body class="admin-body">
+  {{ template "admin/nav.tmpl" . }}
+  <main class="admin-main">
+    <h1>New Person</h1>
+    {{ if .Error }}<div class="admin-error">{{ .Error }}</div>{{ end }}
+    <form class="admin-form" method="post" action="/admin/people/new">
+      {{ .CSRFField }}
+      <label>Email<input name="email" type="email" required></label>
+      {{ template "admin/person_fields.tmpl" .Person }}
+      <button type="submit">Create person</button>
+    </form>
+  </main>
+</body>
+</html>

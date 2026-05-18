@@ -11,6 +11,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/joho/godotenv"
 	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/internal/database"
 	"github.com/kodylow/base58-website/internal/handlers"
 	"github.com/kodylow/base58-website/internal/types"
 	"github.com/rs/cors"
@@ -40,7 +41,9 @@ func loadConfig() (*types.EnvConfig, bool) {
 	config.MailerSecret = os.Getenv("MAIL_SEC")
 	config.MailDomain = os.Getenv("MAIL_DOMAIN")
 	config.MailEndpoint = os.Getenv("MAIL_API")
-	config.Pincode = os.Getenv("PINCODE")
+	config.DBDriver = os.Getenv("DB_DRIVER")
+	config.DatabaseURL = os.Getenv("DATABASE_URL")
+	config.AdminEmails = os.Getenv("ADMIN_BOOTSTRAP_EMAILS")
 
 	config.Notion = types.NotionConfig{
 		Token:          os.Getenv("NOTION_TOKEN"),
@@ -75,7 +78,7 @@ func main() {
 	app.Infos = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	app.Err = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
-	// Load configs from config.toml
+	// Load configuration from .env/SECRETS_FILE and process environment.
 	env, isProd := loadConfig()
 	app.IsProd = isProd
 
@@ -117,7 +120,6 @@ func main() {
 
 func run(env *types.EnvConfig) error {
 	// Initialize the application configuration
-	app.IsProd = false // change to true in production
 	app.Infos = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	app.Err = log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 	app.Env = env
@@ -131,6 +133,22 @@ func run(env *types.EnvConfig) error {
 
 	app.Notion = &types.Notion{Config: env.Notion}
 	app.Notion.Setup()
+
+	db, err := database.Open(env, app.IsProd)
+	if err != nil {
+		return err
+	}
+	app.DB = db
+	if db != nil {
+		go func() {
+			result, err := database.SyncCoursesFromNotion(db, env.DBDriver, app.Notion)
+			if err != nil {
+				app.Err.Printf("course sync from Notion failed: %s", err.Error())
+				return
+			}
+			app.Infos.Printf("course sync from Notion complete: seen=%d upserts=%d skipped=%d", result.Seen, result.Upserts, result.Skipped)
+		}()
+	}
 
 	return nil
 }

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  {{ block "head" .Page }} {{ end }}
+  {{ template "admin/style.tmpl" . }}
+</head>
+<body class="admin-body">
+  {{ template "admin/nav.tmpl" . }}
+  <main class="admin-main">
+    <section class="admin-header">
+      <h1>{{ .Person.DisplayName }}</h1>
+      <a href="/admin/people">Back to people</a>
+    </section>
+    {{ if .Flash }}<div class="admin-flash">{{ .Flash }}</div>{{ end }}
+    {{ if .Error }}<div class="admin-error">{{ .Error }}</div>{{ end }}
+    <div class="admin-grid">
+      <section>
+        <h2>Profile</h2>
+        <form class="admin-form" method="post" action="/admin/people/{{ .Person.ID }}">
+          {{ .CSRFField }}
+          {{ template "admin/person_fields.tmpl" .Person }}
+          <button type="submit">Save profile</button>
+        </form>
+      </section>
+      <section>
+        <h2>Emails</h2>
+        <table>
+          <thead><tr><th>Email</th><th>Primary</th><th>Verified</th></tr></thead>
+          <tbody>
+          {{ range .Person.Emails }}
+            <tr><td>{{ .Email }}</td><td>{{ if .IsPrimary }}Yes{{ else }}No{{ end }}</td><td>{{ .Verified }}</td></tr>
+          {{ end }}
+          </tbody>
+        </table>
+        <form class="admin-inline-form" method="post" action="/admin/people/{{ .Person.ID }}/emails">
+          {{ .CSRFField }}
+          <input name="email" type="email" required placeholder="Add email">
+          <label class="admin-checkbox"><input type="checkbox" name="primary" value="1"> Primary</label>
+          <button type="submit">Add</button>
+        </form>
+      </section>
+    </div>
+    <section>
+      <h2>Course Access</h2>
+      <form class="admin-inline-form" method="post" action="/admin/people/{{ .Person.ID }}/entitlements">
+        {{ .CSRFField }}
+        <select name="course_slug" required>
+          <option value="">Grant course...</option>
+          {{ range .Courses }}<option value="{{ .Slug }}">{{ .Title }}</option>{{ end }}
+        </select>
+        <input name="notes" placeholder="Notes">
+        <button type="submit">Grant access</button>
+      </form>
+      {{ template "admin/entitlements_table.tmpl" . }}
+    </section>
+  </main>
+</body>
+</html>
