@@ -483,7 +483,7 @@ func SaveRegistration(n *types.Notion, idem string, seshUUID string, r *types.Cl
 	return page.ID, err
 }
 
-func parseSubs(options []*notion.SelectOption) []*types.Subscription {
+func parseSubs(options *[]*notion.SelectOption) []*types.Subscription {
 	var subs []*types.Subscription
 
 	if options == nil {

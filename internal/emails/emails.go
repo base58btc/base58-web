@@ -484,10 +484,10 @@ func makeSubKey(email, newsletter string) string {
 	return fmt.Sprintf("%s-%s", hashfix, newsletter)
 }
 
-func sendMailerReq(ctx *config.AppContext, endpoint string, method http.Method, payload json.Data) error {
+func sendMailerReq(ctx *config.AppContext, endpoint string, method string, payload []byte) error {
 	client := &http.Client{}
 
-	url := ctx.Env.MailEndpoint + endopint
+	url := ctx.Env.MailEndpoint + endpoint
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
 	if err != nil {
 		return err
@@ -513,8 +513,10 @@ func sendMailerReq(ctx *config.AppContext, endpoint string, method http.Method, 
 	}
 
 	if !ret.Success {
-		return fmt.Errorf("Mailer request %s failed: %d", endpoint, ret.ResponseCode)
+		return fmt.Errorf("Mailer request %s failed (%d): %s", endpoint, ret.Code, ret.Message)
 	}
+
+	return nil
 }
 
 func SendSubDeleteRequest(ctx *config.AppContext, email, sub string) error {
@@ -564,7 +566,7 @@ func SendMailRequest(ctx *config.AppContext, mail *mailer.MailRequest) error {
 
 	err = sendMailerReq(ctx, "/job", http.MethodPut, payload)
 	if err != nil {
-		return fmt.Errorf("Unable to schedule mail %s: %s", ret.Message, err)
+		return fmt.Errorf("Unable to schedule mail to %s: %s", mail.ToAddr, err)
 	}
 
 	ctx.Infos.Printf("Sent mail to %s at domain %s", mail.ToAddr, mail.Domain)

@@ -16,7 +16,7 @@ func GetNotionData() (NotionResponse, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", endpoint+databaseID+"/query", nil)
 	if err != nil {
-		return nil, err
+		return NotionResponse{}, err
 	}
 	req.Header.Set("Notion-Version", "2021-08-16")
 	req.Header.Set("Content-Type", "application/json")
@@ -25,14 +25,14 @@ func GetNotionData() (NotionResponse, error) {
 	// Send the request and parse the response
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return NotionResponse{}, err
 	}
 	defer resp.Body.Close()
 
 	var response NotionResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
-		return nil, err
+		return NotionResponse{}, err
 	}
 
 	return response, nil
