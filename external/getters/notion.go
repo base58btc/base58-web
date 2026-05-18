@@ -24,6 +24,14 @@ func fileGetURL(file *notion.File) string {
 	return ""
 }
 
+func parseFileURL(key string, props map[string]notion.PropertyValue) string {
+	prop, ok := props[key]
+	if !ok || len(prop.Files) == 0 {
+		return ""
+	}
+	return fileGetURL(prop.Files[0])
+}
+
 func parseFormat(options *[]*notion.SelectOption) []types.CourseFormat {
 	var formats []types.CourseFormat
 
@@ -150,6 +158,7 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Co
 		Chapters:     parseChapterInfo("Chapters", props),
 		Includes:     parseStrSlice("Includes", props),
 		CourseURL:    props["CourseURL"].URL,
+		HeaderImg:    parseFileURL("HeaderImg", props),
 		Rating:       float32(props["Rating"].Number),
 		//WelcomeEmail:  props["WelcomeEmail"].URL,
 		//WaitlistEmail: props["WaitlistEmail"].URL,

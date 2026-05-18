@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/gomarkdown/markdown"
@@ -18,6 +20,14 @@ var (
 	courseCodeFence           = []byte("+++")
 	courseMultipleChoiceFence = []byte("~~~")
 	courseCodeChallengeFence  = []byte("???")
+	courseVideoFence          = []byte("!!!")
+)
+
+var (
+	courseVideoProviderPattern = regexp.MustCompile(`^[a-z0-9_-]+$`)
+	courseVideoIDPattern       = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+	courseBlossomHashPattern   = regexp.MustCompile(`^[A-Fa-f0-9]{64}$`)
+	courseBlockIDPattern       = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 )
 
 type courseCodeBlock struct {
@@ -27,6 +37,7 @@ type courseCodeBlock struct {
 
 type courseMultipleChoiceBlock struct {
 	ast.Leaf
+	ID      string
 	Prompt  string
 	Options []courseChoiceOption
 	Err     string
@@ -40,11 +51,23 @@ type courseChoiceOption struct {
 
 type courseCodeChallengeBlock struct {
 	ast.Leaf
+	ID             string
 	Prompt         string
 	StarterCode    string
 	CheckCode      string
 	FailureMessage string
 	Err            string
+}
+
+type courseVideoBlock struct {
+	ast.Leaf
+	Provider string
+	ID       string
+	Title    string
+	MIME     string
+	Poster   string
+	Servers  []string
+	Err      string
 }
 
 type courseMarkdownRenderer struct {
@@ -72,6 +95,9 @@ func courseMarkdownToHTML(md []byte) []byte {
 
 func courseParserHook(data []byte) (ast.Node, []byte, int) {
 	if node, remaining, consumed := parseCourseCodeBlock(data); node != nil {
+		return node, remaining, consumed
+	}
+	if node, remaining, consumed := parseCourseVideoBlock(data); node != nil {
 		return node, remaining, consumed
 	}
 	if node, remaining, consumed := parseCourseMultipleChoiceBlock(data); node != nil {
@@ -111,6 +137,15 @@ func parseCourseCodeChallengeBlock(data []byte) (ast.Node, []byte, int) {
 	return parseCourseCodeChallengeContent(content), nil, consumed
 }
 
+func parseCourseVideoBlock(data []byte) (ast.Node, []byte, int) {
+	content, consumed, ok := parseCourseNamedFencedContent(data, courseVideoFence, "video")
+	if !ok {
+		return nil, nil, 0
+	}
+
+	return parseCourseVideoContent(content), nil, consumed
+}
+
 func parseCourseFencedContent(data []byte, fence []byte) (string, int, bool) {
 	if !bytes.HasPrefix(data, fence) {
 		return "", 0, false
@@ -142,12 +177,54 @@ func parseCourseFencedContent(data []byte, fence []byte) (string, int, bool) {
 	return "", 0, false
 }
 
+func parseCourseNamedFencedContent(data []byte, fence []byte, name string) (string, int, bool) {
+	if !bytes.HasPrefix(data, fence) {
+		return "", 0, false
+	}
+
+	openLineEnd := bytes.IndexByte(data, '\n')
+	if openLineEnd < 0 {
+		return "", 0, false
+	}
+
+	openLine := string(bytes.Trim(data[:openLineEnd], " \t\r"))
+	fields := strings.Fields(openLine)
+	if len(fields) != 2 || fields[0] != string(fence) || fields[1] != name {
+		return "", 0, false
+	}
+
+	contentStart := openLineEnd + 1
+	pos := contentStart
+	for pos < len(data) {
+		lineStart := pos
+		lineEndOffset := bytes.IndexByte(data[pos:], '\n')
+		lineEnd := len(data)
+		next := len(data)
+		if lineEndOffset >= 0 {
+			lineEnd = pos + lineEndOffset
+			next = lineEnd + 1
+		}
+
+		if isCourseFenceLine(data[lineStart:lineEnd], fence) {
+			return strings.Trim(string(data[contentStart:lineStart]), "\r\n"), next, true
+		}
+		pos = next
+	}
+
+	return "", 0, false
+}
+
 func isCourseFenceLine(line []byte, fence []byte) bool {
 	return bytes.Equal(bytes.Trim(line, " \t\r"), fence)
 }
 
 func parseCourseMultipleChoiceContent(content string) *courseMultipleChoiceBlock {
 	lines := splitCourseLines(content)
+	id, lines, err := parseCourseBlockMetadata(lines)
+	if err != "" {
+		return &courseMultipleChoiceBlock{Err: err}
+	}
+
 	var promptLines []string
 	var options []courseChoiceOption
 	optionsStarted := false
@@ -194,6 +271,7 @@ func parseCourseMultipleChoiceContent(content string) *courseMultipleChoiceBlock
 	}
 
 	return &courseMultipleChoiceBlock{
+		ID:      id,
 		Prompt:  prompt,
 		Options: options,
 	}
@@ -210,13 +288,138 @@ func splitCourseChoiceExplanation(raw string) (string, string) {
 	return raw, ""
 }
 
+func parseCourseVideoContent(content string) *courseVideoBlock {
+	fields := make(map[string]string)
+	var servers []string
+	activeList := ""
+
+	for _, line := range splitCourseLines(content) {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "- ") {
+			if activeList == "servers" {
+				servers = append(servers, strings.TrimSpace(trimmed[2:]))
+				continue
+			}
+			return &courseVideoBlock{Err: "Video list items are only supported under servers."}
+		}
+
+		key, value, ok := strings.Cut(trimmed, ":")
+		if !ok {
+			return &courseVideoBlock{Err: "Video block lines must use key: value fields."}
+		}
+		key = strings.ToLower(strings.TrimSpace(key))
+		value = strings.TrimSpace(value)
+		activeList = ""
+		if key == "" {
+			return &courseVideoBlock{Err: "Video block fields need a key before ':'."}
+		}
+		if key == "servers" {
+			activeList = "servers"
+			servers = appendCourseVideoServers(servers, value)
+			continue
+		}
+		fields[key] = value
+	}
+
+	provider := strings.ToLower(fields["provider"])
+	id := fields["id"]
+	if id == "" {
+		id = fields["sha256"]
+	}
+	block := &courseVideoBlock{
+		Provider: provider,
+		ID:       id,
+		Title:    fields["title"],
+		MIME:     fields["type"],
+		Poster:   fields["poster"],
+		Servers:  servers,
+	}
+	if block.MIME == "" {
+		block.MIME = fields["mime"]
+	}
+	if block.MIME == "" {
+		block.MIME = "video/mp4"
+	}
+
+	return validateCourseVideoBlock(block)
+}
+
+func appendCourseVideoServers(servers []string, raw string) []string {
+	for _, server := range strings.Split(raw, ",") {
+		server = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(server), "- "))
+		if server != "" {
+			servers = append(servers, server)
+		}
+	}
+	return servers
+}
+
+func validateCourseVideoBlock(block *courseVideoBlock) *courseVideoBlock {
+	if block.Provider == "" {
+		return &courseVideoBlock{Err: "Video blocks need a provider."}
+	}
+	if !courseVideoProviderPattern.MatchString(block.Provider) {
+		return &courseVideoBlock{Err: "Video provider can only include lowercase letters, numbers, underscores, or hyphens."}
+	}
+	if block.ID == "" {
+		return &courseVideoBlock{Err: "Video blocks need an id."}
+	}
+
+	switch block.Provider {
+	case "youtube", "cloudflare":
+		if !courseVideoIDPattern.MatchString(block.ID) {
+			return &courseVideoBlock{Err: "Video id can only include letters, numbers, underscores, or hyphens."}
+		}
+	case "blossom":
+		if !courseBlossomHashPattern.MatchString(block.ID) {
+			return &courseVideoBlock{Err: "Blossom video blocks need a 64-character sha256 id."}
+		}
+		if len(block.Servers) == 0 {
+			return &courseVideoBlock{Err: "Blossom video blocks need at least one server."}
+		}
+		for _, server := range block.Servers {
+			if !isSafeCourseVideoServer(server) {
+				return &courseVideoBlock{Err: "Blossom servers must be absolute https URLs."}
+			}
+		}
+	default:
+		return &courseVideoBlock{Err: fmt.Sprintf("Unsupported video provider %q.", block.Provider)}
+	}
+
+	if block.Poster != "" && !isSafeCourseVideoServer(block.Poster) {
+		return &courseVideoBlock{Err: "Video poster must be an absolute https URL."}
+	}
+	if strings.ContainsAny(block.MIME, `"<>`) {
+		return &courseVideoBlock{Err: "Video MIME type contains unsupported characters."}
+	}
+
+	return block
+}
+
+func isSafeCourseVideoServer(raw string) bool {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	return parsed.Scheme == "https" && parsed.Host != ""
+}
+
 func parseCourseCodeChallengeContent(content string) *courseCodeChallengeBlock {
 	sections := splitCourseSections(content)
 	if len(sections) < 3 || len(sections) > 4 {
 		return &courseCodeChallengeBlock{Err: "Code challenge blocks need prompt, starter code, hidden check code, and optional failure message sections separated by '---'."}
 	}
 
-	prompt := strings.TrimSpace(sections[0])
+	promptLines := splitCourseLines(sections[0])
+	id, promptLines, err := parseCourseBlockMetadata(promptLines)
+	if err != "" {
+		return &courseCodeChallengeBlock{Err: err}
+	}
+
+	prompt := strings.TrimSpace(strings.Join(promptLines, "\n"))
 	checkCode := strings.TrimSpace(sections[2])
 	if prompt == "" {
 		return &courseCodeChallengeBlock{Err: "Code challenge blocks need a prompt."}
@@ -231,11 +434,37 @@ func parseCourseCodeChallengeContent(content string) *courseCodeChallengeBlock {
 	}
 
 	return &courseCodeChallengeBlock{
+		ID:             id,
 		Prompt:         prompt,
 		StarterCode:    strings.Trim(sections[1], "\r\n"),
 		CheckCode:      checkCode,
 		FailureMessage: failureMessage,
 	}
+}
+
+func parseCourseBlockMetadata(lines []string) (string, []string, string) {
+	if len(lines) == 0 {
+		return "", lines, ""
+	}
+
+	trimmed := strings.TrimSpace(lines[0])
+	if !strings.HasPrefix(strings.ToLower(trimmed), "id:") {
+		return "", lines, ""
+	}
+
+	id := strings.TrimSpace(trimmed[3:])
+	if id == "" {
+		return "", nil, "Course block id cannot be empty."
+	}
+	if !courseBlockIDPattern.MatchString(id) {
+		return "", nil, "Course block id can only include letters, numbers, underscores, or hyphens, and must start with a letter or number."
+	}
+
+	lines = lines[1:]
+	if len(lines) > 0 && strings.TrimSpace(lines[0]) == "" {
+		lines = lines[1:]
+	}
+	return id, lines, ""
 }
 
 func splitCourseLines(content string) []string {
@@ -267,17 +496,31 @@ func (r *courseMarkdownRenderer) renderHook(w io.Writer, node ast.Node, entering
 		}
 		return ast.GoToNext, true
 	}
+	if video, ok := node.(*courseVideoBlock); ok {
+		if entering {
+			renderCourseVideoBlock(w, video)
+		}
+		return ast.GoToNext, true
+	}
 	if mc, ok := node.(*courseMultipleChoiceBlock); ok {
 		if entering {
 			r.multipleChoiceCount++
-			renderCourseMultipleChoiceBlock(w, mc, fmt.Sprintf("mc-%d", r.multipleChoiceCount))
+			blockID := mc.ID
+			if blockID == "" {
+				blockID = fmt.Sprintf("mc-%d", r.multipleChoiceCount)
+			}
+			renderCourseMultipleChoiceBlock(w, mc, blockID)
 		}
 		return ast.GoToNext, true
 	}
 	if challenge, ok := node.(*courseCodeChallengeBlock); ok {
 		if entering {
 			r.codeChallengeCount++
-			renderCourseCodeChallengeBlock(w, challenge, fmt.Sprintf("codecheck-%d", r.codeChallengeCount))
+			blockID := challenge.ID
+			if blockID == "" {
+				blockID = fmt.Sprintf("codecheck-%d", r.codeChallengeCount)
+			}
+			renderCourseCodeChallengeBlock(w, challenge, blockID)
 		}
 		return ast.GoToNext, true
 	}
@@ -299,6 +542,64 @@ func renderCourseCodeBlock(w io.Writer, cb *courseCodeBlock) {
 </div>`, escaped)
 }
 
+func renderCourseVideoBlock(w io.Writer, block *courseVideoBlock) {
+	if block.Err != "" {
+		renderCourseAuthoringError(w, block.Err)
+		return
+	}
+
+	switch block.Provider {
+	case "youtube":
+		renderCourseIframeVideoBlock(w, block, "https://www.youtube-nocookie.com/embed/"+url.PathEscape(block.ID))
+	case "cloudflare":
+		renderCourseIframeVideoBlock(w, block, "https://iframe.videodelivery.net/"+url.PathEscape(block.ID))
+	case "blossom":
+		renderCourseBlossomVideoBlock(w, block)
+	}
+}
+
+func renderCourseIframeVideoBlock(w io.Writer, block *courseVideoBlock, src string) {
+	title := block.Title
+	if title == "" {
+		title = fmt.Sprintf("%s course video", block.Provider)
+	}
+
+	fmt.Fprintf(w, `<figure class="course-video course-video-%s">`, template.HTMLEscapeString(block.Provider))
+	if block.Title != "" {
+		fmt.Fprintf(w, `
+  <figcaption class="course-video-title">%s</figcaption>`, template.HTMLEscapeString(block.Title))
+	}
+	fmt.Fprintf(w, `
+  <div class="course-video-frame">
+    <iframe src="%s" title="%s" loading="lazy" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </div>
+</figure>`, template.HTMLEscapeString(src), template.HTMLEscapeString(title))
+}
+
+func renderCourseBlossomVideoBlock(w io.Writer, block *courseVideoBlock) {
+	fmt.Fprint(w, `<figure class="course-video course-video-blossom">`)
+	if block.Title != "" {
+		fmt.Fprintf(w, `
+  <figcaption class="course-video-title">%s</figcaption>`, template.HTMLEscapeString(block.Title))
+	}
+
+	poster := ""
+	if block.Poster != "" {
+		poster = fmt.Sprintf(` poster="%s"`, template.HTMLEscapeString(block.Poster))
+	}
+	fmt.Fprintf(w, `
+  <video class="course-video-native" controls preload="metadata"%s>`, poster)
+	for _, server := range block.Servers {
+		src := strings.TrimRight(server, "/") + "/" + block.ID
+		fmt.Fprintf(w, `
+    <source src="%s" type="%s">`, template.HTMLEscapeString(src), template.HTMLEscapeString(block.MIME))
+	}
+	fmt.Fprint(w, `
+    Your browser does not support embedded videos.
+  </video>
+</figure>`)
+}
+
 func renderCourseMultipleChoiceBlock(w io.Writer, block *courseMultipleChoiceBlock, blockID string) {
 	if block.Err != "" {
 		renderCourseAuthoringError(w, block.Err)
@@ -311,7 +612,10 @@ func renderCourseMultipleChoiceBlock(w io.Writer, block *courseMultipleChoiceBlo
 		inputType = "checkbox"
 	}
 	fmt.Fprintf(w, `<div class="course-challenge course-multiple-choice" data-course-block-id="%s" data-course-block-type="multiple-choice" data-course-block-correct="false">
-  <div class="course-challenge-prompt">%s</div>
+  <div class="course-challenge-header">
+    <div class="course-challenge-prompt">%s</div>
+    <span class="course-challenge-result-icon" aria-live="polite"></span>
+  </div>
   <fieldset class="course-choice-list">`, escapedID, renderCourseMarkdownFragment(block.Prompt))
 	for i, option := range block.Options {
 		correct := "false"

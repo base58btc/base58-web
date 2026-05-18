@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/config"
 )
 
@@ -24,14 +25,15 @@ var numberedNamePattern = regexp.MustCompile(`^([0-9]+)[_-](.+)$`)
 var safeCourseSlugPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 type CourseNavItem struct {
-	Number        string
-	DisplayNumber string
-	Title         string
-	Path          string
-	URL           string
-	Current       bool
-	Active        bool
-	Children      []*CourseNavItem
+	Number         string
+	DisplayNumber  string
+	Title          string
+	Path           string
+	URL            string
+	Current        bool
+	Active         bool
+	ChallengeCount int
+	Children       []*CourseNavItem
 
 	order    int
 	filePath string
@@ -47,6 +49,8 @@ type CourseLessonData struct {
 	Sidebar     []*CourseNavItem
 	ContentHTML template.HTML
 	HasCode     bool
+	HeroURL     string
+	HeroAlt     string
 }
 
 type localCourseOutline struct {
@@ -69,6 +73,12 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	courseSlug := params["course"]
 	pagePath := params["page"]
 
+	if localCourseRequiresAccess(ctx, courseSlug) && !hasLocalCourseAccess(r, ctx) {
+		w.WriteHeader(http.StatusUnauthorized)
+		Render401(w, r, ctx)
+		return
+	}
+
 	outline, err := loadLocalCourse(localCoursesRoot, courseSlug, pagePath)
 	if err != nil {
 		switch {
@@ -89,6 +99,7 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	}
 
 	furlCard := defaultCard(ctx, r, title)
+	heroURL, heroAlt := localCourseHero(ctx, outline.CourseSlug, outline.CourseTitle)
 	err = ctx.TemplateCache.ExecuteTemplate(w, "courses/lesson.tmpl", CourseLessonData{
 		Page:        getPage(ctx, title, furlCard),
 		CourseSlug:  outline.CourseSlug,
@@ -99,12 +110,39 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		Sidebar:     outline.Items,
 		ContentHTML: template.HTML(courseMarkdownToHTML(outline.Markdown)),
 		HasCode:     markdownHasCourseCode(outline.Markdown),
+		HeroURL:     heroURL,
+		HeroAlt:     heroAlt,
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("courses/lesson.tmpl exec failed %s\n", err.Error())
 		return
 	}
+}
+
+func localCourseHero(ctx *config.AppContext, courseSlug, fallbackTitle string) (string, string) {
+	if ctx == nil || ctx.Notion == nil {
+		return "", ""
+	}
+
+	course, err := getters.GetCourse(ctx.Notion, courseSlug)
+	if err != nil || course == nil || course.HeaderImg == "" {
+		return "", ""
+	}
+
+	altTitle := fallbackTitle
+	if course.Title != "" {
+		altTitle = course.Title
+	}
+	return course.HeaderImg, fmt.Sprintf("%s course header", altTitle)
+}
+
+func localCourseRequiresAccess(ctx *config.AppContext, courseSlug string) bool {
+	return false
+}
+
+func hasLocalCourseAccess(r *http.Request, ctx *config.AppContext) bool {
+	return false
 }
 
 func localCourseExists(courseSlug string) bool {
@@ -299,13 +337,14 @@ func navItemFromFile(courseDir, courseSlug, sectionDir, filename string) (*Cours
 	}
 
 	return &CourseNavItem{
-		Number:        number,
-		DisplayNumber: number,
-		Title:         titleFromMarkdown(markdown, titleFromSlug(label)),
-		Path:          lessonPath,
-		URL:           courseLessonURL(courseSlug, lessonPath),
-		order:         orderFromNumber(number),
-		filePath:      filePath,
+		Number:         number,
+		DisplayNumber:  number,
+		Title:          titleFromMarkdown(markdown, titleFromSlug(label)),
+		Path:           lessonPath,
+		URL:            courseLessonURL(courseSlug, lessonPath),
+		ChallengeCount: countCourseChallengeBlocks(markdown),
+		order:          orderFromNumber(number),
+		filePath:       filePath,
 	}, true, nil
 }
 
@@ -427,4 +466,19 @@ func titleFromSlug(slug string) string {
 
 func courseLessonURL(courseSlug, lessonPath string) string {
 	return fmt.Sprintf("/courses/%s/%s", courseSlug, lessonPath)
+}
+
+func countCourseChallengeBlocks(markdown []byte) int {
+	return countCourseFenceBlocks(markdown, courseMultipleChoiceFence) + countCourseFenceBlocks(markdown, courseCodeChallengeFence)
+}
+
+func countCourseFenceBlocks(markdown, fence []byte) int {
+	count := 0
+	scanner := bufio.NewScanner(bytes.NewReader(markdown))
+	for scanner.Scan() {
+		if isCourseFenceLine(scanner.Bytes(), fence) {
+			count++
+		}
+	}
+	return count / 2
 }

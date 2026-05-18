@@ -15,7 +15,7 @@ func TestLoadLocalCourseBuildsNumberedSidebar(t *testing.T) {
 	}
 
 	writeTestFile(t, filepath.Join(courseDir, "02_counting.md"), "# Counting Fruits\n")
-	writeTestFile(t, filepath.Join(courseDir, "01_intro.md"), "# Welcome to Protocol Thinking\n")
+	writeTestFile(t, filepath.Join(courseDir, "01_intro.md"), "# Welcome to Protocol Thinking\n\n~~~\nPick one.\n\n= A\n- B\n~~~\n")
 	writeTestFile(t, filepath.Join(courseDir, "03_writing.md"), "# Writing Fruits to Send\n")
 	writeTestFile(t, filepath.Join(courseDir, "04_reading", "01_stepone.md"), "## Welcome to step one in reading\n")
 
@@ -29,6 +29,9 @@ func TestLoadLocalCourseBuildsNumberedSidebar(t *testing.T) {
 	}
 	if outline.Items[0].Number != "01" || outline.Items[0].Title != "Welcome to Protocol Thinking" {
 		t.Fatalf("first item = %#v", outline.Items[0])
+	}
+	if outline.Items[0].ChallengeCount != 1 {
+		t.Fatalf("expected first item challenge count 1, got %d", outline.Items[0].ChallengeCount)
 	}
 	if outline.Items[3].Number != "04" || outline.Items[3].Title != "Reading" {
 		t.Fatalf("directory parent = %#v", outline.Items[3])
@@ -124,6 +127,63 @@ func TestCourseMarkdownRendersCodeBlocks(t *testing.T) {
 	}
 }
 
+func TestCourseMarkdownRendersVideoBlocks(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("!!! video\nprovider: youtube\nid: dQw4w9WgXcQ\ntitle: Lesson intro\n!!!\n\n!!! video\nprovider: cloudflare\nid: abc_123-title\n!!!\n")))
+
+	if !strings.Contains(html, `class="course-video course-video-youtube"`) {
+		t.Fatalf("expected youtube video block, got %s", html)
+	}
+	if !strings.Contains(html, `https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ`) {
+		t.Fatalf("expected youtube nocookie embed, got %s", html)
+	}
+	if !strings.Contains(html, `Lesson intro`) {
+		t.Fatalf("expected video title, got %s", html)
+	}
+	if !strings.Contains(html, `class="course-video course-video-cloudflare"`) {
+		t.Fatalf("expected cloudflare video block, got %s", html)
+	}
+	if !strings.Contains(html, `https://iframe.videodelivery.net/abc_123-title`) {
+		t.Fatalf("expected cloudflare iframe embed, got %s", html)
+	}
+	if strings.Contains(html, "!!!") {
+		t.Fatalf("expected video fence to be consumed, got %s", html)
+	}
+}
+
+func TestCourseMarkdownRendersBlossomVideoBlocks(t *testing.T) {
+	hash := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	html := string(courseMarkdownToHTML([]byte("!!! video\nprovider: blossom\nsha256: " + hash + "\nservers:\n  - https://cdn1.example.com\n  - https://cdn2.example.com/base58\nmime: video/mp4\nposter: https://cdn1.example.com/poster.jpg\n!!!\n")))
+
+	if !strings.Contains(html, `class="course-video course-video-blossom"`) {
+		t.Fatalf("expected blossom video block, got %s", html)
+	}
+	if !strings.Contains(html, `poster="https://cdn1.example.com/poster.jpg"`) {
+		t.Fatalf("expected poster attribute, got %s", html)
+	}
+	if !strings.Contains(html, `src="https://cdn1.example.com/`+hash+`"`) {
+		t.Fatalf("expected first blossom source, got %s", html)
+	}
+	if !strings.Contains(html, `src="https://cdn2.example.com/base58/`+hash+`"`) {
+		t.Fatalf("expected second blossom source, got %s", html)
+	}
+}
+
+func TestCourseMarkdownRendersVideoAuthoringErrors(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("!!! video\nprovider: blossom\nsha256: nope\nservers: http://cdn.example.com\n!!!\n")))
+
+	if !strings.Contains(html, `class="course-challenge course-authoring-error"`) {
+		t.Fatalf("expected authoring error block, got %s", html)
+	}
+	if !strings.Contains(html, `64-character sha256`) {
+		t.Fatalf("expected blossom sha256 authoring error, got %s", html)
+	}
+
+	html = string(courseMarkdownToHTML([]byte("!!! video\nprovider: vimeo\nid: abc\n!!!\n")))
+	if !strings.Contains(html, `Unsupported video provider`) {
+		t.Fatalf("expected unsupported provider authoring error, got %s", html)
+	}
+}
+
 func TestCourseMarkdownRendersMultipleChoiceBlocks(t *testing.T) {
 	html := string(courseMarkdownToHTML([]byte("Before\n\n~~~\nWhat byte size can hold `20_000`?\n\n- 1 byte [255 is too small.]\n= 2 bytes [Correct: 65,535 can hold it.]\n- 4 bytes [This works, but is larger than necessary.]\n~~~\n\nAfter\n")))
 
@@ -150,6 +210,17 @@ func TestCourseMarkdownRendersMultipleChoiceBlocks(t *testing.T) {
 	}
 	if strings.Contains(html, "~~~") {
 		t.Fatalf("expected multiple choice fence to be consumed, got %s", html)
+	}
+}
+
+func TestCourseMarkdownRendersStableMultipleChoiceIDs(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("~~~\nid: pineapple-byte-size\n\nWhat byte size can hold `20_000`?\n\n- 1 byte\n= 2 bytes\n~~~\n")))
+
+	if !strings.Contains(html, `data-course-block-id="pineapple-byte-size"`) {
+		t.Fatalf("expected stable multiple choice id, got %s", html)
+	}
+	if strings.Contains(html, `id: pineapple-byte-size`) {
+		t.Fatalf("expected id metadata to be consumed, got %s", html)
 	}
 }
 
@@ -204,6 +275,17 @@ func TestCourseMarkdownRendersCodeChallengeBlocks(t *testing.T) {
 	}
 	if !markdownHasCourseCode([]byte("???\nPrompt\n---\ncode\n---\nassert True\n???\n")) {
 		t.Fatal("expected code challenge to require pyodide")
+	}
+}
+
+func TestCourseMarkdownRendersStableCodeChallengeIDs(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("???\nid: write-answer\n\nWrite `answer`.\n---\ndef answer():\n    pass\n---\nassert answer() == 4\n???\n")))
+
+	if !strings.Contains(html, `data-course-block-id="write-answer"`) {
+		t.Fatalf("expected stable code challenge id, got %s", html)
+	}
+	if strings.Contains(html, `id: write-answer`) {
+		t.Fatalf("expected id metadata to be consumed, got %s", html)
 	}
 }
 

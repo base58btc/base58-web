@@ -20,7 +20,9 @@ type (
 		MailerSecret string
 		MailDomain   string
 		MailEndpoint string
-		Pincode      string
+		DBDriver     string
+		DatabaseURL  string
+		AdminEmails  string
 		Notion       NotionConfig
 		Stripe       StripeConfig
 		OpenNode     OpenNodeConfig
@@ -56,6 +58,7 @@ type (
 		Feature       bool
 		CourseURL     string
 		CourseHost    string
+		HeaderImg     string
 		Rating        float32
 		WelcomeEmail  string
 		WaitlistEmail string
