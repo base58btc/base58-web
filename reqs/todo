@@ -8,20 +8,19 @@
 design fixes:
   - add functional furl card images!
   - emails: add codeblock formatting + color highlighting
+
   - filters fix
   - sort fix
   - higher res background image for your workshop page
   - high res headshots for your instructor images
   - hamburger menu is way too big on desktop, and slightly too big on mobile
 
-  - course infrastructure
+
   - course content
     - notes
     - resources
-    - play next
     - videos (hosting?)
-    - quizzes
-    - implementation exercises
+
   - missives: on course signup??
     - remove from waitlist for that course
     - add to course + alumni newsletters
@@ -46,6 +45,7 @@ design fixes:
 future work?
 - mailer: send nostr notices
 - mailer: send telegram notices
+- mailer: send signal notices
 
 - add ticket(s) to ticketed events
   - integrate with apple wallet
