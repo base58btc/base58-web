@@ -138,6 +138,9 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/courses/{course}/{page:.*}", func(w http.ResponseWriter, r *http.Request) {
 		CourseLesson(w, r, ctx)
 	}).Methods("GET")
+	r.HandleFunc("/api/courses/{course}/progress", func(w http.ResponseWriter, r *http.Request) {
+		CourseProgress(w, r, ctx)
+	}).Methods("GET", "POST")
 	r.HandleFunc("/courses/{course}", func(w http.ResponseWriter, r *http.Request) {
 		Courses(w, r, ctx)
 	}).Methods("GET")

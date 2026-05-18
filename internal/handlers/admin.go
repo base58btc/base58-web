@@ -188,6 +188,7 @@ func AdminAuthToken(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 		return
 	}
 	ctx.Session.Put(r.Context(), "admin_user_id", admin.ID)
+	ctx.Session.Put(r.Context(), "admin_person_id", admin.PersonID)
 	ctx.Session.Put(r.Context(), "admin_role", admin.Role)
 	ctx.Session.Put(r.Context(), "admin_email", admin.Email)
 	writeAudit(ctx, admin.Email, "admin.login", "admin_user", strconv.FormatInt(admin.ID, 10), "")
@@ -200,6 +201,7 @@ func AdminLogout(w http.ResponseWriter, r *http.Request, ctx *config.AppContext)
 		return
 	}
 	ctx.Session.Remove(r.Context(), "admin_user_id")
+	ctx.Session.Remove(r.Context(), "admin_person_id")
 	ctx.Session.Remove(r.Context(), "admin_role")
 	ctx.Session.Remove(r.Context(), "admin_email")
 	ctx.Session.Remove(r.Context(), "admin_csrf")

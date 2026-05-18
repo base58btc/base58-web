@@ -627,15 +627,18 @@
     const courseProgressStorageKey = "base58:course-progress:v1";
 
     document.addEventListener("DOMContentLoaded", function() {
-      setupCourseChallengeMarkers();
-      updateCourseSidebarProgress();
-      updateCourseScrollProgress();
+      hydrateCourseProgressFromServer().finally(function() {
+        setupCourseChallengeMarkers();
+        updateCourseSidebarProgress();
+        updateCourseScrollProgress();
+      });
     });
 
     window.addEventListener("scroll", requestCourseScrollProgressUpdate, { passive: true });
     window.addEventListener("resize", requestCourseScrollProgressUpdate);
     window.addEventListener("course:block-result", function(event) {
       saveCourseBlockProgress(event.detail || {});
+      saveCourseBlockProgressToServer(event.detail || {});
       updateCourseChallengeMarker(event);
       updateCourseSidebarProgress();
     });
@@ -786,6 +789,151 @@
         answeredAt: new Date().toISOString()
       };
       writeCourseProgress(progress);
+    }
+
+    async function hydrateCourseProgressFromServer() {
+      const shell = document.querySelector(".course-platform_shell");
+      if (!shell || !shell.dataset.courseSlug) {
+        return;
+      }
+
+      try {
+        const response = await window.fetch("/api/courses/" + encodeURIComponent(shell.dataset.courseSlug) + "/progress", {
+          method: "GET",
+          credentials: "same-origin",
+          headers: { "Accept": "application/json" }
+        });
+        if (!response.ok) {
+          return;
+        }
+        const payload = await response.json();
+        if (!payload || !payload.authenticated || !Array.isArray(payload.blocks)) {
+          return;
+        }
+        mergeServerCourseProgress(payload.courseSlug || shell.dataset.courseSlug, payload.blocks);
+      } catch (err) {
+        return;
+      }
+    }
+
+    function mergeServerCourseProgress(courseSlug, blocks) {
+      const progress = readCourseProgress();
+      progress.courses[courseSlug] = progress.courses[courseSlug] || { lessons: {} };
+
+      blocks.forEach(function(block) {
+        if (!block.lessonPath || !block.blockId) {
+          return;
+        }
+        progress.courses[courseSlug].lessons[block.lessonPath] = progress.courses[courseSlug].lessons[block.lessonPath] || { blocks: {} };
+        progress.courses[courseSlug].lessons[block.lessonPath].blocks[block.blockId] = {
+          blockId: block.blockId,
+          blockType: block.blockType || "",
+          correct: Boolean(block.correct),
+          selectedOption: block.selectedOption || null,
+          selectedOptions: Array.isArray(block.selectedOptions) ? block.selectedOptions : [],
+          answeredAt: block.updatedAt || block.answeredAt || new Date().toISOString()
+        };
+      });
+      writeCourseProgress(progress);
+      restoreCurrentLessonProgress();
+    }
+
+    function restoreCurrentLessonProgress() {
+      const shell = document.querySelector(".course-platform_shell");
+      if (!shell) {
+        return;
+      }
+
+      const lesson = getStoredCourseLesson(shell.dataset.courseSlug || "", shell.dataset.lessonPath || "");
+      document.querySelectorAll(".course-multiple-choice, .course-code-challenge").forEach(function(block) {
+        const saved = lesson.blocks[block.dataset.courseBlockId || ""];
+        if (!saved) {
+          return;
+        }
+        applySavedCourseBlockState(block, saved);
+      });
+    }
+
+    function applySavedCourseBlockState(block, saved) {
+      block.dataset.courseBlockCorrect = saved.correct ? "true" : "false";
+      block.classList.add("is-answered");
+      block.classList.toggle("is-correct", saved.correct === true);
+      block.classList.toggle("is-incorrect", saved.correct !== true);
+
+      const resultIcon = block.querySelector(".course-challenge-result-icon");
+      if (resultIcon) {
+        resultIcon.textContent = saved.correct ? "✓" : "×";
+        resultIcon.setAttribute("aria-label", saved.correct ? "Correct" : "Incorrect");
+      }
+
+      if (block.classList.contains("course-multiple-choice")) {
+        restoreMultipleChoiceState(block, saved);
+      }
+      if (block.classList.contains("course-code-challenge") && saved.correct === true) {
+        const textarea = block.querySelector(".code-area");
+        const button = block.querySelector(".course-challenge-submit");
+        const output = block.querySelector(".challenge-output");
+        if (textarea) {
+          textarea.disabled = true;
+        }
+        if (button) {
+          button.disabled = true;
+        }
+        if (output && output.textContent.trim() === "") {
+          output.textContent = "Correct.";
+        }
+      }
+    }
+
+    function restoreMultipleChoiceState(block, saved) {
+      const selected = Array.isArray(saved.selectedOptions) ? saved.selectedOptions : [];
+      block.querySelectorAll(".course-choice").forEach(function(choice) {
+        const input = choice.querySelector(".course-choice-input");
+        const explanation = choice.querySelector(".course-choice-explanation");
+        const isSelected = selected.includes(choice.dataset.choiceIndex);
+        const isCorrect = choice.dataset.correct === "true";
+        choice.classList.toggle("is-selected-answer", isSelected);
+        choice.classList.toggle("is-correct-answer", isCorrect);
+        choice.classList.toggle("is-incorrect-answer", isSelected && !isCorrect);
+        if (input) {
+          input.checked = isSelected;
+          input.disabled = true;
+        }
+        if (explanation) {
+          explanation.hidden = !(isSelected || isCorrect);
+        }
+      });
+      const button = block.querySelector(".course-challenge-submit");
+      if (button) {
+        button.disabled = true;
+      }
+    }
+
+    async function saveCourseBlockProgressToServer(detail) {
+      if (!detail.courseSlug || !detail.lessonPath || !detail.blockId) {
+        return;
+      }
+
+      try {
+        await window.fetch("/api/courses/" + encodeURIComponent(detail.courseSlug) + "/progress", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            lessonPath: detail.lessonPath,
+            blockId: detail.blockId,
+            blockType: detail.blockType || "",
+            correct: Boolean(detail.correct),
+            selectedOption: detail.selectedOption || null,
+            selectedOptions: Array.isArray(detail.selectedOptions) ? detail.selectedOptions : []
+          })
+        });
+      } catch (err) {
+        return;
+      }
     }
 
     function getStoredCourseLesson(courseSlug, lessonPath) {
