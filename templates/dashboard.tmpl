@@ -90,18 +90,6 @@
       font-size: 1.35rem;
       line-height: 1.15;
     }
-    .dashboard-attempt {
-      display: inline-flex;
-      width: fit-content;
-      margin-top: 0.5rem;
-      border: 1px solid rgba(25, 25, 25, 0.14);
-      border-radius: 999px;
-      padding: 0.25rem 0.55rem;
-      background: #fffaf0;
-      color: #6f5735;
-      font-size: 0.78rem;
-      font-weight: 800;
-    }
     .dashboard-course-description {
       margin: 0;
       color: #4b4032;
@@ -163,6 +151,78 @@
       cursor: pointer;
       font: inherit;
       font-weight: 800;
+    }
+    .dashboard-reset-dialog {
+      width: min(92vw, 28rem);
+      border: 1px solid rgba(25, 25, 25, 0.16);
+      border-radius: 0.5rem;
+      box-shadow: 0 1.5rem 4rem rgba(25, 25, 25, 0.18);
+      padding: 1.25rem;
+      background: #fffdf8;
+      color: #191919;
+    }
+    .dashboard-reset-dialog::backdrop {
+      background: rgba(25, 25, 25, 0.42);
+    }
+    .dashboard-reset-dialog h3 {
+      margin: 0;
+      font-size: 1.35rem;
+      line-height: 1.15;
+    }
+    .dashboard-reset-dialog p {
+      margin: 0.75rem 0 0;
+      color: #4b4032;
+      line-height: 1.5;
+    }
+    .dashboard-reset-confirm {
+      display: grid;
+      gap: 0.45rem;
+      margin-top: 1rem;
+      color: #665f54;
+      font-weight: 800;
+    }
+    .dashboard-reset-confirm input {
+      box-sizing: border-box;
+      width: 100%;
+      border: 1.5px solid rgba(25, 25, 25, 0.2);
+      border-radius: 0.375rem;
+      padding: 0.75rem 0.85rem;
+      background: #fff;
+      color: #191919;
+      font: inherit;
+      font-weight: 700;
+    }
+    .dashboard-reset-dialog-actions {
+      display: grid;
+      gap: 0.7rem;
+      justify-items: stretch;
+      margin-top: 1rem;
+    }
+    .dashboard-reset-submit {
+      border: 1.5px solid #8a2d22;
+      border-radius: 0.375rem;
+      padding: 0.75rem 1rem;
+      background: #8a2d22;
+      color: #fffdf8;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 850;
+    }
+    .dashboard-reset-submit:disabled {
+      border-color: rgba(25, 25, 25, 0.18);
+      background: #d8d0c1;
+      color: #665f54;
+      cursor: not-allowed;
+    }
+    .dashboard-reset-cancel {
+      justify-self: center;
+      border: 0;
+      background: transparent;
+      color: #665f54;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      text-decoration: underline;
     }
     .dashboard-logout {
       border: 0;
@@ -231,7 +291,6 @@
                 <div class="dashboard-course-body">
                   <div>
                     <h2 class="dashboard-course-title">{{ .Title }}</h2>
-                    <div class="dashboard-attempt">Attempt {{ .AttemptNumber }}</div>
                     <p class="dashboard-course-description">{{ .Description }}</p>
                   </div>
                   <div class="dashboard-stats">
@@ -258,9 +317,22 @@
                       <a class="dashboard-link" href="{{ .CourseURL }}">Course</a>
                     </div>
                     {{ if .AllowReset }}
-                      <form method="post" action="/dashboard/courses/{{ .Slug }}/reset">
-                        <button class="dashboard-reset" type="submit">Reset</button>
-                      </form>
+                      <button class="dashboard-reset" type="button" data-open-reset-dialog data-course-slug="{{ .Slug }}">Reset Course Progress</button>
+                      <dialog class="dashboard-reset-dialog" aria-labelledby="reset-title-{{ .Slug }}">
+                        <form method="post" action="/dashboard/courses/{{ .Slug }}/reset">
+                          <h3 id="reset-title-{{ .Slug }}">Reset course progress?</h3>
+                          <p>This starts a new attempt for {{ .Title }}. Your professor can still review previous attempts.</p>
+                          <p>Type <strong>RESET</strong> or <strong>{{ .Slug }}</strong> to confirm.</p>
+                          <label class="dashboard-reset-confirm">
+                            Confirmation
+                            <input type="text" name="confirm_reset" autocomplete="off" data-reset-confirm-input data-course-slug="{{ .Slug }}">
+                          </label>
+                          <div class="dashboard-reset-dialog-actions">
+                            <button class="dashboard-reset-submit" type="submit" data-reset-submit disabled>Reset Course Progress</button>
+                            <button class="dashboard-reset-cancel" type="button" data-close-reset-dialog>Cancel</button>
+                          </div>
+                        </form>
+                      </dialog>
                     {{ end }}
                   </div>
                 </div>
@@ -278,5 +350,35 @@
     </main>
     {{ block "footer" .Page }} {{ end }}
   </div>
+  <script>
+    document.querySelectorAll("[data-open-reset-dialog]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const dialog = button.parentElement.querySelector(".dashboard-reset-dialog");
+        if (!dialog) return;
+        const input = dialog.querySelector("[data-reset-confirm-input]");
+        const submit = dialog.querySelector("[data-reset-submit]");
+        if (input) input.value = "";
+        if (submit) submit.disabled = true;
+        dialog.showModal();
+        if (input) input.focus();
+      });
+    });
+
+    document.querySelectorAll("[data-close-reset-dialog]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const dialog = button.closest("dialog");
+        if (dialog) dialog.close();
+      });
+    });
+
+    document.querySelectorAll("[data-reset-confirm-input]").forEach((input) => {
+      const submit = input.closest("form").querySelector("[data-reset-submit]");
+      const courseSlug = input.dataset.courseSlug;
+      input.addEventListener("input", () => {
+        const value = input.value.trim();
+        submit.disabled = value !== "RESET" && value !== courseSlug;
+      });
+    });
+  </script>
 </body>
 </html>

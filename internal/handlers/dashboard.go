@@ -39,7 +39,6 @@ type DashboardCourse struct {
 	TotalQuestions    int
 	QuestionsPassed   int
 	QuestionsFailed   int
-	AttemptNumber     int
 	AllowReset        bool
 }
 
@@ -117,6 +116,16 @@ func DashboardResetCourse(w http.ResponseWriter, r *http.Request, ctx *config.Ap
 		return
 	}
 
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/dashboard?reset=confirm", http.StatusSeeOther)
+		return
+	}
+	confirmation := strings.TrimSpace(r.Form.Get("confirm_reset"))
+	if confirmation != "RESET" && confirmation != courseSlug {
+		http.Redirect(w, r, "/dashboard?reset=confirm", http.StatusSeeOther)
+		return
+	}
+
 	if _, err := resetActiveCourseAttempt(ctx, personID, courseSlug, "Student reset from dashboard"); err != nil {
 		http.Error(w, "Unable to reset course", http.StatusInternalServerError)
 		ctx.Err.Printf("course reset failed: %s", err.Error())
@@ -173,7 +182,6 @@ ORDER BY c.title`, personID)
 		if err != nil {
 			return nil, err
 		}
-		course.AttemptNumber = attempt.AttemptNumber
 
 		stats, err := dashboardCourseStats(ctx, attempt.ID)
 		if err != nil {
