@@ -113,6 +113,15 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		RenderPage(w, r, ctx, "index")
 	}).Methods("GET")
+	r.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		StudentLogin(w, r, ctx)
+	}).Methods("GET", "POST")
+	r.HandleFunc("/login/{token}", func(w http.ResponseWriter, r *http.Request) {
+		StudentAuthToken(w, r, ctx)
+	}).Methods("GET")
+	r.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		StudentLogout(w, r, ctx)
+	}).Methods("GET", "POST")
 
 	/* List of 'normie' pages */
 	for _, page := range webpages {
@@ -184,10 +193,6 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/confirm/{token}", func(w http.ResponseWriter, r *http.Request) {
 		ConfirmEmail(w, r, ctx)
 	}).Methods("GET")
-
-	r.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
-	}).Methods("GET", "POST")
 
 	r.HandleFunc("/{newsletter}/schedule", func(w http.ResponseWriter, r *http.Request) {
 		ScheduleNewsMissives(w, r, ctx)

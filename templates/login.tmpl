@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html data-wf-page="login" data-wf-site="67d76c360ee76ed0c60f7a0e">
+<head>
+  {{ block "head" .Page }} {{ end }}
+  <style>
+    .login-main {
+      min-height: 70vh;
+      background: #fffdf8;
+      color: #191919;
+      padding: 7rem 5vw 5rem;
+    }
+    .login-panel {
+      max-width: 32rem;
+      margin: 0 auto;
+      border: 1px solid rgba(25, 25, 25, 0.14);
+      border-radius: 0.5rem;
+      background: #fff;
+      padding: 1.5rem;
+    }
+    .login-title {
+      margin: 0 0 0.5rem;
+      font-size: 2rem;
+      line-height: 1.1;
+    }
+    .login-copy {
+      margin: 0 0 1.25rem;
+      color: #4b4032;
+      line-height: 1.5;
+    }
+    .login-form {
+      display: grid;
+      gap: 0.875rem;
+    }
+    .login-form label {
+      display: grid;
+      gap: 0.35rem;
+      font-weight: 800;
+    }
+    .login-form input {
+      border: 1px solid rgba(25, 25, 25, 0.18);
+      border-radius: 0.375rem;
+      padding: 0.75rem 0.85rem;
+      font: inherit;
+    }
+    .login-button,
+    .login-link {
+      width: fit-content;
+      border: 1.5px solid #191919;
+      border-radius: 0.375rem;
+      background: #f7931a;
+      color: #191919;
+      padding: 0.7rem 1rem;
+      font: inherit;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .login-message {
+      margin: 0 0 1rem;
+      border: 1px solid rgba(47, 111, 78, 0.35);
+      border-radius: 0.375rem;
+      background: #eef7f1;
+      padding: 0.75rem;
+      color: #2f6f4e;
+      font-weight: 750;
+    }
+    .login-message.error {
+      border-color: rgba(138, 45, 34, 0.35);
+      background: #fff1ee;
+      color: #8a2d22;
+    }
+    .login-dev-link {
+      margin-top: 1rem;
+      overflow-wrap: anywhere;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper is-relative">
+    {{ block "nav" .Page }} {{ end }}
+    <main class="login-main">
+      <section class="login-panel">
+        <h1 class="login-title">Sign in</h1>
+        <p class="login-copy">Enter your email and we’ll send you a login link.</p>
+        {{ if .Flash }}
+          <div class="login-message">{{ .Flash }}</div>
+        {{ end }}
+        {{ if .Error }}
+          <div class="login-message error">{{ .Error }}</div>
+        {{ end }}
+        <form class="login-form" method="post" action="/login">
+          <input type="hidden" name="next" value="{{ .Next }}">
+          <label>
+            Email
+            <input type="email" name="email" value="{{ .Email }}" autocomplete="email" required>
+          </label>
+          <button class="login-button" type="submit">Send login link</button>
+        </form>
+        {{ if .LoginLink }}
+          <div class="login-dev-link">
+            <a class="login-link" href="{{ .LoginLink }}">Open dev login link</a>
+          </div>
+        {{ end }}
+      </section>
+    </main>
+    {{ block "footer" .Page }} {{ end }}
+  </div>
+</body>
+</html>

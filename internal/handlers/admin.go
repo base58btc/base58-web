@@ -187,10 +187,9 @@ func AdminAuthToken(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 		renderAdmin(w, r, ctx, "admin/login.tmpl", data)
 		return
 	}
-	ctx.Session.Put(r.Context(), "admin_user_id", admin.ID)
-	ctx.Session.Put(r.Context(), "admin_person_id", admin.PersonID)
-	ctx.Session.Put(r.Context(), "admin_role", admin.Role)
-	ctx.Session.Put(r.Context(), "admin_email", admin.Email)
+	ctx.Session.Put(r.Context(), "person_id", admin.PersonID)
+	ctx.Session.Put(r.Context(), "person_email", admin.Email)
+	putAdminSession(ctx, r, admin)
 	writeAudit(ctx, admin.Email, "admin.login", "admin_user", strconv.FormatInt(admin.ID, 10), "")
 	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }
@@ -446,7 +445,7 @@ func AdminAudit(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 func requireAdmin(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) bool {
 	admin := currentAdminFromSession(r, ctx)
 	if admin.ID == 0 {
-		http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
+		http.Redirect(w, r, loginPathWithNext(r.URL.RequestURI()), http.StatusSeeOther)
 		return false
 	}
 	if r.Method != http.MethodGet && !validateAdminCSRF(w, r, ctx) {
@@ -615,7 +614,7 @@ func createAdminLoginToken(ctx *config.AppContext, email string) (string, error)
 		return "", errors.New("that email is not configured as an admin")
 	}
 	token := randomToken()
-	expires := time.Now().UTC().Add(30 * time.Minute).Format("2006-01-02 15:04:05")
+	expires := time.Now().Add(30 * time.Minute)
 	_, err := execAdmin(ctx, `INSERT INTO admin_login_tokens (token, email, expires_at) VALUES (`+ph(ctx, 1)+`,`+ph(ctx, 2)+`,`+ph(ctx, 3)+`)`, token, email, expires)
 	return token, err
 }

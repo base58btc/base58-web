@@ -306,6 +306,10 @@ func redirectCourseAccessDenied(w http.ResponseWriter, r *http.Request, courseSl
 	if reason == "" {
 		reason = "entitlement"
 	}
+	if reason == "signin" {
+		http.Redirect(w, r, loginPathWithNext(r.URL.RequestURI()), http.StatusSeeOther)
+		return
+	}
 	http.Redirect(w, r, fmt.Sprintf("/courses/%s?access=%s", courseSlug, reason), http.StatusSeeOther)
 }
 
