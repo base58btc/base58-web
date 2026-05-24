@@ -35,6 +35,20 @@
       text-transform: uppercase;
     }
 
+    .course-platform_top-dashboard-link {
+      display: inline-flex;
+      position: fixed;
+      top: 1.1rem;
+      right: 8rem;
+      z-index: 1000;
+      align-items: center;
+      color: #fffdf8;
+      padding: 0.55rem 0;
+      font-weight: 800;
+      text-decoration: none;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.38);
+    }
+
     .course-platform_nav {
       display: grid;
       gap: 0.25rem;
@@ -620,6 +634,12 @@
         justify-content: center;
         gap: 0.5rem;
         order: -1;
+      }
+
+      .course-platform_top-dashboard-link {
+        right: 7rem;
+        padding: 0.5rem 0;
+        font-size: 0.875rem;
       }
     }
   </style>
@@ -1299,6 +1319,7 @@ def __course_check_cell(student_code, check_code):
 <body>
   <div class="page-wrapper course-platform">
     {{ block "nav" .Page }} {{ end }}
+    <a href="/dashboard" class="course-platform_top-dashboard-link">My Dashboard</a>
     <div class="course-scroll-indicator" aria-hidden="true">
       <div class="course-scroll-track">
         <div class="course-scroll-fill"></div>

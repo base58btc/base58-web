@@ -187,6 +187,17 @@ func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 	if outline.Current != nil {
 		startURL = outline.Current.URL
 	}
+	enrolled := false
+	resumeURL := startURL
+	personID := currentProgressPersonID(r, ctx)
+	if personID > 0 && hasActiveCourseEntitlement(ctx, personID, courseSlug) {
+		enrolled = true
+		if attempt, err := ensureActiveCourseAttempt(ctx, personID, courseSlug, "student"); err == nil {
+			if stats, err := dashboardCourseStats(ctx, attempt.ID); err == nil && stats.LastLessonPath != "" {
+				resumeURL = courseLessonURL(courseSlug, stats.LastLessonPath)
+			}
+		}
+	}
 
 	course := &types.Course{
 		Tag:          courseSlug,
@@ -212,9 +223,11 @@ func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 		Course:       course,
 		Page:         getPage(ctx, title, furlCard),
 		LocalCourse:  true,
+		Enrolled:     enrolled,
 		AccessError:  accessError,
 		Notice:       notice,
 		StartURL:     startURL,
+		ResumeURL:    resumeURL,
 		LocalOutline: outline.Items,
 	})
 	if err != nil {

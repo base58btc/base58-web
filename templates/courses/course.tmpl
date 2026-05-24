@@ -70,9 +70,22 @@
 }
 .course-signup-dialog-actions {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 0.75rem;
   margin-top: 1rem;
+}
+.course-signup-cancel {
+  border: 0;
+  background: transparent;
+  color: #665f54;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 750;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
 }
 .course-local-outline {
   display: grid;
@@ -357,9 +370,10 @@ margin: 0rem !important;
                 <div class="margin-bottom margin-medium">
                   <div class="product-header9_add-to-cart">
 		    {{ if .LocalCourse }}
+                    {{ if .Enrolled }}
+                    <a href="{{ .ResumeURL }}" class="secondary-button course-page w-button">Resume Course</a>
+                    {{ else }}
                     <button class="secondary-button course-page w-button" type="button" data-open-course-signup>Register</button>
-                    {{ if .StartURL }}
-                    <a href="{{ .StartURL }}" class="secondary-button course-page w-button">Start Course</a>
                     {{ end }}
 		    {{ else if eq .Course.Availability "Coming Soon" }}
                     <div class="footer2_form-block">
@@ -514,8 +528,8 @@ margin: 0rem !important;
           <input name="email" type="email" autocomplete="email" required>
         </label>
         <div class="course-signup-dialog-actions">
-          <button class="secondary-button course-page w-button" type="button" data-close-course-signup>Cancel</button>
           <button class="secondary-button course-page w-button" type="submit">Create account</button>
+          <button class="course-signup-cancel" type="button" data-close-course-signup>Cancel</button>
         </div>
       </form>
     </div>

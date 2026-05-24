@@ -1660,9 +1660,11 @@ type CourseData struct {
 	SeatsAvail   uint
 	Page         Page
 	LocalCourse  bool
+	Enrolled     bool
 	AccessError  string
 	Notice       string
 	StartURL     string
+	ResumeURL    string
 	LocalOutline []*CourseNavItem
 }
 
