@@ -72,6 +72,7 @@ type courseVideoBlock struct {
 
 type courseMarkdownRenderer struct {
 	multipleChoiceCount int
+	codeBlockCount      int
 	codeChallengeCount  int
 }
 
@@ -492,7 +493,8 @@ func splitCourseSections(content string) []string {
 func (r *courseMarkdownRenderer) renderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
 	if cb, ok := node.(*courseCodeBlock); ok {
 		if entering {
-			renderCourseCodeBlock(w, cb)
+			r.codeBlockCount++
+			renderCourseCodeBlock(w, cb, fmt.Sprintf("code-%d", r.codeBlockCount))
 		}
 		return ast.GoToNext, true
 	}
@@ -528,9 +530,9 @@ func (r *courseMarkdownRenderer) renderHook(w io.Writer, node ast.Node, entering
 	return ast.GoToNext, false
 }
 
-func renderCourseCodeBlock(w io.Writer, cb *courseCodeBlock) {
+func renderCourseCodeBlock(w io.Writer, cb *courseCodeBlock, blockID string) {
 	escaped := template.HTMLEscapeString(cb.Content)
-	fmt.Fprintf(w, `<div class="cell codeset">
+	fmt.Fprintf(w, `<div class="cell codeset course-code-cell" data-course-block-id="%s" data-course-block-type="code-cell">
   <button class="run-btn" type="button" onclick="runCellCode(this)" aria-label="Run code">
     <svg fill="currentColor" height="16" width="16" viewBox="0 0 330 330" aria-hidden="true">
       <path d="M37.728,328.12c2.266,1.256,4.77,1.88,7.272,1.88c2.763,0,5.522-0.763,7.95-2.28l240-149.999c4.386-2.741,7.05-7.548,7.05-12.72c0-5.172-2.664-9.979-7.05-12.72L52.95,2.28c-4.625-2.891-10.453-3.043-15.222-0.4C32.959,4.524,30,9.547,30,15v300C30,320.453,32.959,325.476,37.728,328.12z"></path>
@@ -539,7 +541,7 @@ func renderCourseCodeBlock(w io.Writer, cb *courseCodeBlock) {
   <textarea class="code-area" spellcheck="false">%s</textarea>
   <div class="output-prompt" aria-hidden="true"></div>
   <div class="output" aria-live="polite"></div>
-</div>`, escaped)
+</div>`, template.HTMLEscapeString(blockID), escaped)
 }
 
 func renderCourseVideoBlock(w io.Writer, block *courseVideoBlock) {

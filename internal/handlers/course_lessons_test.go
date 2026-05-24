@@ -116,8 +116,11 @@ func TestLoadLocalCourseDirectoryPathUsesSiblingMarkdownWhenPresent(t *testing.T
 func TestCourseMarkdownRendersCodeBlocks(t *testing.T) {
 	html := string(courseMarkdownToHTML([]byte("Before\n\n+++\nprint(\"hello\")\n+++\n\nAfter\n")))
 
-	if !strings.Contains(html, `class="cell codeset"`) {
+	if !strings.Contains(html, `class="cell codeset course-code-cell"`) {
 		t.Fatalf("expected rendered code cell, got %s", html)
+	}
+	if !strings.Contains(html, `data-course-block-id="code-1"`) {
+		t.Fatalf("expected stable code cell id, got %s", html)
 	}
 	if !strings.Contains(html, `print(&#34;hello&#34;)`) {
 		t.Fatalf("expected escaped code content, got %s", html)

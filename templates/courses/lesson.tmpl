@@ -799,13 +799,21 @@
 
       const progress = readCourseProgress();
       progress.courses[courseSlug] = progress.courses[courseSlug] || { lessons: {} };
-      progress.courses[courseSlug].lessons[lessonPath] = progress.courses[courseSlug].lessons[lessonPath] || { blocks: {} };
-      progress.courses[courseSlug].lessons[lessonPath].blocks[blockId] = {
+      progress.courses[courseSlug].lessons[lessonPath] = progress.courses[courseSlug].lessons[lessonPath] || { blocks: {}, codeBlocks: {} };
+      const lesson = progress.courses[courseSlug].lessons[lessonPath];
+      lesson.blocks = lesson.blocks || {};
+      lesson.codeBlocks = lesson.codeBlocks || {};
+      const target = detail.blockType === "code-cell" ? lesson.codeBlocks : lesson.blocks;
+      target[blockId] = {
         blockId: blockId,
         blockType: detail.blockType || "",
         correct: Boolean(detail.correct),
         selectedOption: detail.selectedOption || null,
         selectedOptions: Array.isArray(detail.selectedOptions) ? detail.selectedOptions : [],
+        codeText: typeof detail.codeText === "string" ? detail.codeText : undefined,
+        outputText: typeof detail.outputText === "string" ? detail.outputText : undefined,
+        outputOk: typeof detail.outputOk === "boolean" ? detail.outputOk : undefined,
+        executionCount: Number.isInteger(detail.executionCount) ? detail.executionCount : undefined,
         answeredAt: new Date().toISOString()
       };
       writeCourseProgress(progress);
@@ -830,21 +838,21 @@
         if (!payload || !payload.authenticated || !Array.isArray(payload.blocks)) {
           return;
         }
-        mergeServerCourseProgress(payload.courseSlug || shell.dataset.courseSlug, payload.blocks);
+        mergeServerCourseProgress(payload.courseSlug || shell.dataset.courseSlug, payload.blocks, payload.codeBlocks);
       } catch (err) {
         return;
       }
     }
 
-    function mergeServerCourseProgress(courseSlug, blocks) {
+    function mergeServerCourseProgress(courseSlug, blocks, codeBlocks) {
       const progress = readCourseProgress();
       progress.courses[courseSlug] = { lessons: {} };
 
-      blocks.forEach(function(block) {
+      (blocks || []).forEach(function(block) {
         if (!block.lessonPath || !block.blockId) {
           return;
         }
-        progress.courses[courseSlug].lessons[block.lessonPath] = progress.courses[courseSlug].lessons[block.lessonPath] || { blocks: {} };
+        progress.courses[courseSlug].lessons[block.lessonPath] = progress.courses[courseSlug].lessons[block.lessonPath] || { blocks: {}, codeBlocks: {} };
         progress.courses[courseSlug].lessons[block.lessonPath].blocks[block.blockId] = {
           blockId: block.blockId,
           blockType: block.blockType || "",
@@ -853,6 +861,26 @@
           selectedOptions: Array.isArray(block.selectedOptions) ? block.selectedOptions : [],
           answeredAt: block.updatedAt || block.answeredAt || new Date().toISOString()
         };
+      });
+      (codeBlocks || []).forEach(function(block) {
+        if (!block.lessonPath || !block.blockId) {
+          return;
+        }
+        progress.courses[courseSlug].lessons[block.lessonPath] = progress.courses[courseSlug].lessons[block.lessonPath] || { blocks: {}, codeBlocks: {} };
+        const lesson = progress.courses[courseSlug].lessons[block.lessonPath];
+        lesson.blocks = lesson.blocks || {};
+        lesson.codeBlocks = lesson.codeBlocks || {};
+        const target = block.blockType === "code-cell" ? lesson.codeBlocks : lesson.blocks;
+        const saved = target[block.blockId] || {};
+        target[block.blockId] = Object.assign(saved, {
+          blockId: block.blockId,
+          blockType: block.blockType || saved.blockType || "",
+          codeText: block.codeText || "",
+          outputText: block.outputText || "",
+          outputOk: typeof block.outputOk === "boolean" ? block.outputOk : null,
+          executionCount: Number.isInteger(block.executionCount) ? block.executionCount : null,
+          answeredAt: block.updatedAt || saved.answeredAt || new Date().toISOString()
+        });
       });
       writeCourseProgress(progress);
       restoreCurrentLessonProgress();
@@ -871,6 +899,13 @@
           return;
         }
         applySavedCourseBlockState(block, saved);
+      });
+      document.querySelectorAll(".course-code-cell").forEach(function(block) {
+        const saved = lesson.codeBlocks[block.dataset.courseBlockId || ""];
+        if (!saved) {
+          return;
+        }
+        applySavedCodeBlockState(block, saved);
       });
     }
 
@@ -902,6 +937,25 @@
         if (output && output.textContent.trim() === "") {
           output.textContent = "Correct.";
         }
+      }
+      if (block.classList.contains("course-code-challenge")) {
+        applySavedCodeBlockState(block, saved);
+      }
+    }
+
+    function applySavedCodeBlockState(block, saved) {
+      const textarea = block.querySelector(".code-area");
+      const output = block.querySelector(".output");
+      const prompt = block.querySelector(".output-prompt");
+      if (textarea && typeof saved.codeText === "string") {
+        textarea.value = saved.codeText;
+      }
+      if (output && typeof saved.outputText === "string" && saved.outputText !== "") {
+        output.textContent = saved.outputText;
+        output.classList.toggle("is-error", saved.outputOk === false);
+      }
+      if (prompt && Number.isInteger(saved.executionCount)) {
+        prompt.textContent = saved.outputOk === false ? "Err[" + saved.executionCount + "]:" : "Out[" + saved.executionCount + "]:";
       }
     }
 
@@ -948,7 +1002,11 @@
             blockType: detail.blockType || "",
             correct: Boolean(detail.correct),
             selectedOption: detail.selectedOption || null,
-            selectedOptions: Array.isArray(detail.selectedOptions) ? detail.selectedOptions : []
+            selectedOptions: Array.isArray(detail.selectedOptions) ? detail.selectedOptions : [],
+            codeText: typeof detail.codeText === "string" ? detail.codeText : undefined,
+            outputText: typeof detail.outputText === "string" ? detail.outputText : undefined,
+            outputOk: typeof detail.outputOk === "boolean" ? detail.outputOk : undefined,
+            executionCount: Number.isInteger(detail.executionCount) ? detail.executionCount : undefined
           })
         });
       } catch (err) {
@@ -956,9 +1014,35 @@
       }
     }
 
+    function saveRunnableCodeBlock(cell, result, executionCount) {
+      const shell = document.querySelector(".course-platform_shell");
+      const textarea = cell ? cell.querySelector(".code-area") : null;
+      if (!shell || !cell || !textarea || !cell.dataset.courseBlockId) {
+        return;
+      }
+
+      const detail = {
+        blockId: cell.dataset.courseBlockId || "",
+        blockType: cell.dataset.courseBlockType || "code-cell",
+        correct: Boolean(result && result.ok),
+        codeText: textarea.value,
+        outputText: result && typeof result.output === "string" ? result.output : "",
+        outputOk: Boolean(result && result.ok),
+        executionCount: executionCount,
+        courseSlug: shell.dataset.courseSlug || "",
+        lessonPath: shell.dataset.lessonPath || ""
+      };
+
+      saveCourseBlockProgress(detail);
+      saveCourseBlockProgressToServer(detail);
+    }
+
     function getStoredCourseLesson(courseSlug, lessonPath) {
       const progress = readCourseProgress();
-      return (((progress.courses[courseSlug] || {}).lessons || {})[lessonPath]) || { blocks: {} };
+      const lesson = (((progress.courses[courseSlug] || {}).lessons || {})[lessonPath]) || { blocks: {}, codeBlocks: {} };
+      lesson.blocks = lesson.blocks || {};
+      lesson.codeBlocks = lesson.codeBlocks || {};
+      return lesson;
     }
 
     function readCourseProgress() {
@@ -1127,6 +1211,9 @@
           correct: correct,
           selectedOption: result && result.selectedOption ? result.selectedOption : null,
           selectedOptions: result && result.selectedOptions ? result.selectedOptions : [],
+          codeText: result && typeof result.codeText === "string" ? result.codeText : undefined,
+          outputText: result && typeof result.outputText === "string" ? result.outputText : undefined,
+          outputOk: result && typeof result.outputOk === "boolean" ? result.outputOk : undefined,
           courseSlug: shell ? shell.dataset.courseSlug || "" : "",
           lessonPath: shell ? shell.dataset.lessonPath || "" : ""
         }
@@ -1260,6 +1347,7 @@ def __course_check_cell(student_code, check_code):
         if (prompt) {
           prompt.textContent = result.ok ? "Out[" + executionCount + "]:" : "Err[" + executionCount + "]:";
         }
+        saveRunnableCodeBlock(cell, result, executionCount);
       } catch (err) {
         const executionCount = ++courseExecutionCount;
         output.classList.add("is-error");
@@ -1267,6 +1355,7 @@ def __course_check_cell(student_code, check_code):
         if (prompt) {
           prompt.textContent = "Err[" + executionCount + "]:";
         }
+        saveRunnableCodeBlock(cell, { ok: false, output: err.message }, executionCount);
       } finally {
         button.disabled = false;
       }
@@ -1298,17 +1387,32 @@ def __course_check_cell(student_code, check_code):
           output.textContent = result.output ? result.output + "\nCorrect." : "Correct.";
           textarea.disabled = true;
           keepDisabled = true;
-          markCourseBlockResult(block, { correct: true });
+          markCourseBlockResult(block, {
+            correct: true,
+            codeText: textarea.value,
+            outputText: output.textContent,
+            outputOk: true
+          });
           return;
         }
 
         output.classList.add("is-error");
         output.textContent = result.phase === "student" && result.output ? result.output : failureMessage;
-        markCourseBlockResult(block, { correct: false });
+        markCourseBlockResult(block, {
+          correct: false,
+          codeText: textarea.value,
+          outputText: output.textContent,
+          outputOk: false
+        });
       } catch (err) {
         output.classList.add("is-error");
         output.textContent = err.message;
-        markCourseBlockResult(block, { correct: false });
+        markCourseBlockResult(block, {
+          correct: false,
+          codeText: textarea.value,
+          outputText: output.textContent,
+          outputOk: false
+        });
       } finally {
         button.disabled = keepDisabled;
       }

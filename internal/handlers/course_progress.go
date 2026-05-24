@@ -18,6 +18,7 @@ type CourseProgressResponse struct {
 	AttemptID     int64                      `json:"attemptId,omitempty"`
 	AttemptNumber int                        `json:"attemptNumber,omitempty"`
 	Blocks        []CourseProgressBlockState `json:"blocks"`
+	CodeBlocks    []CourseCodeBlockState     `json:"codeBlocks"`
 }
 
 type CourseProgressBlockState struct {
@@ -39,6 +40,21 @@ type CourseProgressSaveRequest struct {
 	Correct         bool     `json:"correct"`
 	SelectedOption  *string  `json:"selectedOption"`
 	SelectedOptions []string `json:"selectedOptions"`
+	CodeText        *string  `json:"codeText"`
+	OutputText      *string  `json:"outputText"`
+	OutputOK        *bool    `json:"outputOk"`
+	ExecutionCount  *int     `json:"executionCount"`
+}
+
+type CourseCodeBlockState struct {
+	LessonPath     string `json:"lessonPath"`
+	BlockID        string `json:"blockId"`
+	BlockType      string `json:"blockType"`
+	CodeText       string `json:"codeText"`
+	OutputText     string `json:"outputText"`
+	OutputOK       *bool  `json:"outputOk,omitempty"`
+	ExecutionCount *int   `json:"executionCount,omitempty"`
+	UpdatedAt      string `json:"updatedAt"`
 }
 
 func CourseProgress(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -78,12 +94,19 @@ func CourseProgress(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 			ctx.Err.Printf("course progress load failed: %s", err.Error())
 			return
 		}
+		codeBlocks, err := listCourseCodeBlocks(ctx, attempt.ID)
+		if err != nil {
+			http.Error(w, "Unable to load course code work", http.StatusInternalServerError)
+			ctx.Err.Printf("course code work load failed: %s", err.Error())
+			return
+		}
 		writeCourseProgressJSON(w, http.StatusOK, CourseProgressResponse{
 			Authenticated: true,
 			CourseSlug:    courseSlug,
 			AttemptID:     attempt.ID,
 			AttemptNumber: attempt.AttemptNumber,
 			Blocks:        blocks,
+			CodeBlocks:    codeBlocks,
 		})
 	case http.MethodPost:
 		var req CourseProgressSaveRequest
@@ -163,6 +186,15 @@ func saveCourseProgress(ctx *config.AppContext, attemptID int64, personID int64,
 		return errInvalidCourseProgress
 	}
 
+	if req.CodeText != nil {
+		if err := saveCourseCodeBlock(ctx, attemptID, personID, courseSlug, req); err != nil {
+			return err
+		}
+	}
+	if req.BlockType == "code-cell" {
+		return nil
+	}
+
 	selectedJSON, err := json.Marshal(req.SelectedOptions)
 	if err != nil {
 		return err
@@ -178,6 +210,59 @@ ON CONFLICT (attempt_id, lesson_path, block_id) DO UPDATE SET
   answered_at = CURRENT_TIMESTAMP,
   updated_at = CURRENT_TIMESTAMP`,
 		personID, courseSlug, attemptID, req.LessonPath, req.BlockID, req.BlockType, req.Correct, req.SelectedOption, string(selectedJSON))
+	return err
+}
+
+func listCourseCodeBlocks(ctx *config.AppContext, attemptID int64) ([]CourseCodeBlockState, error) {
+	rows, err := ctx.DB.Query(`SELECT lesson_path, block_id, block_type, code_text, output_text, output_ok, execution_count, CAST(updated_at AS TEXT)
+FROM course_code_blocks
+WHERE attempt_id=`+ph(ctx, 1), attemptID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	blocks := make([]CourseCodeBlockState, 0)
+	for rows.Next() {
+		var block CourseCodeBlockState
+		var outputOK sql.NullBool
+		var executionCount sql.NullInt64
+		if err := rows.Scan(&block.LessonPath, &block.BlockID, &block.BlockType, &block.CodeText, &block.OutputText, &outputOK, &executionCount, &block.UpdatedAt); err != nil {
+			return nil, err
+		}
+		if outputOK.Valid {
+			value := outputOK.Bool
+			block.OutputOK = &value
+		}
+		if executionCount.Valid {
+			value := int(executionCount.Int64)
+			block.ExecutionCount = &value
+		}
+		blocks = append(blocks, block)
+	}
+	return blocks, rows.Err()
+}
+
+func saveCourseCodeBlock(ctx *config.AppContext, attemptID int64, personID int64, courseSlug string, req CourseProgressSaveRequest) error {
+	codeText := ""
+	if req.CodeText != nil {
+		codeText = *req.CodeText
+	}
+	outputText := ""
+	if req.OutputText != nil {
+		outputText = *req.OutputText
+	}
+
+	_, err := ctx.DB.Exec(`INSERT INTO course_code_blocks (person_id, course_slug, attempt_id, lesson_path, block_id, block_type, code_text, output_text, output_ok, execution_count)
+VALUES (`+ph(ctx, 1)+`, `+ph(ctx, 2)+`, `+ph(ctx, 3)+`, `+ph(ctx, 4)+`, `+ph(ctx, 5)+`, `+ph(ctx, 6)+`, `+ph(ctx, 7)+`, `+ph(ctx, 8)+`, `+ph(ctx, 9)+`, `+ph(ctx, 10)+`)
+ON CONFLICT (attempt_id, lesson_path, block_id) DO UPDATE SET
+  block_type = EXCLUDED.block_type,
+  code_text = EXCLUDED.code_text,
+  output_text = EXCLUDED.output_text,
+  output_ok = EXCLUDED.output_ok,
+  execution_count = EXCLUDED.execution_count,
+  updated_at = CURRENT_TIMESTAMP`,
+		personID, courseSlug, attemptID, req.LessonPath, req.BlockID, req.BlockType, codeText, outputText, req.OutputOK, req.ExecutionCount)
 	return err
 }
 
