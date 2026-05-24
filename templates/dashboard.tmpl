@@ -322,10 +322,10 @@
                         <form method="post" action="/dashboard/courses/{{ .Slug }}/reset">
                           <h3 id="reset-title-{{ .Slug }}">Reset course progress?</h3>
                           <p>This starts a new attempt for {{ .Title }}. Your professor can still review previous attempts.</p>
-                          <p>Type <strong>RESET</strong> or <strong>{{ .Slug }}</strong> to confirm.</p>
+                          <p>Type <strong>reset</strong> to confirm.</p>
                           <label class="dashboard-reset-confirm">
                             Confirmation
-                            <input type="text" name="confirm_reset" autocomplete="off" data-reset-confirm-input data-course-slug="{{ .Slug }}">
+                            <input type="text" name="confirm_reset" autocomplete="off" data-reset-confirm-input>
                           </label>
                           <div class="dashboard-reset-dialog-actions">
                             <button class="dashboard-reset-submit" type="submit" data-reset-submit disabled>Reset Course Progress</button>
@@ -373,10 +373,9 @@
 
     document.querySelectorAll("[data-reset-confirm-input]").forEach((input) => {
       const submit = input.closest("form").querySelector("[data-reset-submit]");
-      const courseSlug = input.dataset.courseSlug;
       input.addEventListener("input", () => {
-        const value = input.value.trim();
-        submit.disabled = value !== "RESET" && value !== courseSlug;
+        const value = input.value.trim().toLowerCase();
+        submit.disabled = value !== "reset";
       });
     });
   </script>

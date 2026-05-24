@@ -121,7 +121,7 @@ func DashboardResetCourse(w http.ResponseWriter, r *http.Request, ctx *config.Ap
 		return
 	}
 	confirmation := strings.TrimSpace(r.Form.Get("confirm_reset"))
-	if confirmation != "RESET" && confirmation != courseSlug {
+	if !strings.EqualFold(confirmation, "reset") {
 		http.Redirect(w, r, "/dashboard?reset=confirm", http.StatusSeeOther)
 		return
 	}

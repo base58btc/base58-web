@@ -32,7 +32,7 @@ func StudentLogin(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 
 	data := LoginData{
 		Page: getPage(ctx, "Login", defaultCard(ctx, r, "Login")),
-		Next: safeNextPath(r.URL.Query().Get("next"), "/dashboard"),
+		Next: "/dashboard",
 	}
 	if r.Method == http.MethodPost {
 		if err := r.ParseForm(); err != nil {
@@ -42,7 +42,7 @@ func StudentLogin(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		}
 		email := normalizeEmail(r.Form.Get("email"))
 		data.Email = email
-		data.Next = safeNextPath(r.Form.Get("next"), "/dashboard")
+		data.Next = "/dashboard"
 		token, err := createStudentLoginToken(ctx, email, data.Next)
 		if err != nil {
 			data.Error = err.Error()
@@ -66,7 +66,7 @@ func StudentAuthToken(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 	}
 
 	token := mux.Vars(r)["token"]
-	email, nextPath, err := consumeStudentLoginToken(ctx, token)
+	email, _, err := consumeStudentLoginToken(ctx, token)
 	if err != nil {
 		data := LoginData{
 			Page:  getPage(ctx, "Login", defaultCard(ctx, r, "Login")),
@@ -89,11 +89,8 @@ func StudentAuthToken(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 	if admin, err := adminForLogin(ctx, email); err == nil && admin.ID > 0 {
 		putAdminSession(ctx, r, admin)
 		writeAudit(ctx, admin.Email, "admin.login", "admin_user", strconv.FormatInt(admin.ID, 10), "via student login")
-		if nextPath == "" || nextPath == "/dashboard" {
-			nextPath = "/admin"
-		}
 	}
-	http.Redirect(w, r, safeNextPath(nextPath, "/dashboard"), http.StatusSeeOther)
+	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 }
 
 func StudentLogout(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
