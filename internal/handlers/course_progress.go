@@ -109,6 +109,9 @@ func CourseProgress(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 			CodeBlocks:    codeBlocks,
 		})
 	case http.MethodPost:
+		if !validateStudentCSRF(w, r, ctx) {
+			return
+		}
 		var req CourseProgressSaveRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid progress payload", http.StatusBadRequest)

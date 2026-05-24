@@ -521,6 +521,7 @@ margin: 0rem !important;
       <h2>Register for {{ .Course.Title }}</h2>
       <p>Create your course account and get access to the lessons.</p>
       <form class="course-signup-form" method="post" action="/courses/{{ .Course.Tag }}/signup">
+        {{ .CSRFField }}
         <label>Name
           <input name="display_name" autocomplete="name">
         </label>

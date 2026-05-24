@@ -1666,6 +1666,7 @@ type CourseData struct {
 	StartURL     string
 	ResumeURL    string
 	LocalOutline []*CourseNavItem
+	CSRFField    template.HTML
 }
 
 type sessionList []*types.CourseSession

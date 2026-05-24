@@ -52,6 +52,7 @@ type CourseLessonData struct {
 	HasCode     bool
 	HeroURL     string
 	HeroAlt     string
+	CSRFToken   string
 }
 
 type localCourseOutline struct {
@@ -118,6 +119,7 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		HasCode:     markdownHasCourseCode(outline.Markdown),
 		HeroURL:     heroURL,
 		HeroAlt:     heroAlt,
+		CSRFToken:   studentCSRFToken(r, ctx),
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -229,6 +231,7 @@ func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 		StartURL:     startURL,
 		ResumeURL:    resumeURL,
 		LocalOutline: outline.Items,
+		CSRFField:    studentCSRFField(r, ctx),
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -253,6 +256,9 @@ func LocalCourseSignup(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Unable to read registration", http.StatusBadRequest)
+		return
+	}
+	if !validateStudentCSRF(w, r, ctx) {
 		return
 	}
 	email := normalizeEmail(r.Form.Get("email"))

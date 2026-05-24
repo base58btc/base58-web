@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 
@@ -16,6 +17,7 @@ type DashboardData struct {
 	Person     DashboardPerson
 	Courses    []DashboardCourse
 	AdminPanel bool
+	CSRFField  template.HTML
 }
 
 type DashboardPerson struct {
@@ -80,6 +82,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		Person:     person,
 		Courses:    courses,
 		AdminPanel: dashboardHasAdminPanel(ctx, personID),
+		CSRFField:  studentCSRFField(r, ctx),
 	})
 	if err != nil {
 		http.Error(w, "Unable to load dashboard", http.StatusInternalServerError)
@@ -107,6 +110,9 @@ func DashboardResetCourse(w http.ResponseWriter, r *http.Request, ctx *config.Ap
 	personID := currentProgressPersonID(r, ctx)
 	if personID == 0 {
 		http.Redirect(w, r, loginPathWithNext("/dashboard"), http.StatusSeeOther)
+		return
+	}
+	if !validateStudentCSRF(w, r, ctx) {
 		return
 	}
 

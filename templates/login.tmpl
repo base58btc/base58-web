@@ -88,6 +88,7 @@
           <div class="login-message error">{{ .Error }}</div>
         {{ end }}
         <form class="login-form" method="post" action="/login">
+          {{ .CSRFField }}
           <input type="hidden" name="next" value="{{ .Next }}">
           <label>
             Email

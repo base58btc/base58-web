@@ -274,6 +274,7 @@
                 <div><strong>{{ .Person.DisplayName }}</strong></div>
                 <div class="dashboard-email">{{ .Person.Email }}</div>
                 <form method="post" action="/logout">
+                  {{ $.CSRFField }}
                   <button class="dashboard-logout" type="submit">Logout</button>
                 </form>
               </div>
@@ -320,6 +321,7 @@
                       <button class="dashboard-reset" type="button" data-open-reset-dialog data-course-slug="{{ .Slug }}">Reset Course Progress</button>
                       <dialog class="dashboard-reset-dialog" aria-labelledby="reset-title-{{ .Slug }}">
                         <form method="post" action="/dashboard/courses/{{ .Slug }}/reset">
+                          {{ $.CSRFField }}
                           <h3 id="reset-title-{{ .Slug }}">Reset course progress?</h3>
                           <p>This starts a new attempt for {{ .Title }}. Your professor can still review previous attempts.</p>
                           <p>Type <strong>reset</strong> to confirm.</p>

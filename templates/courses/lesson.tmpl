@@ -987,6 +987,7 @@
       if (!detail.courseSlug || !detail.lessonPath || !detail.blockId) {
         return;
       }
+      const shell = document.querySelector(".course-platform_shell");
 
       try {
         await window.fetch("/api/courses/" + encodeURIComponent(detail.courseSlug) + "/progress", {
@@ -994,7 +995,8 @@
           credentials: "same-origin",
           headers: {
             "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-CSRF-Token": shell ? shell.dataset.csrfToken || "" : ""
           },
           body: JSON.stringify({
             lessonPath: detail.lessonPath,
@@ -1430,7 +1432,7 @@ def __course_check_cell(student_code, check_code):
       </div>
       <div class="course-challenge-markers" hidden></div>
     </div>
-    <main class="course-platform_shell" data-course-slug="{{ .CourseSlug }}" data-lesson-path="{{ .Current.Path }}"{{ if .Previous }} data-prev-url="{{ .Previous.URL }}"{{ end }}{{ if .Next }} data-next-url="{{ .Next.URL }}"{{ end }}>
+    <main class="course-platform_shell" data-course-slug="{{ .CourseSlug }}" data-lesson-path="{{ .Current.Path }}" data-csrf-token="{{ .CSRFToken }}"{{ if .Previous }} data-prev-url="{{ .Previous.URL }}"{{ end }}{{ if .Next }} data-next-url="{{ .Next.URL }}"{{ end }}>
       <aside class="course-platform_sidebar" aria-label="Course pages">
         <h2 class="course-platform_course-title">{{ .CourseTitle }}</h2>
         <nav class="course-platform_nav">

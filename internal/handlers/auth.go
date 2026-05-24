@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -22,6 +23,7 @@ type LoginData struct {
 	Error     string
 	Flash     string
 	LoginLink string
+	CSRFField template.HTML
 }
 
 func StudentLogin(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -31,10 +33,14 @@ func StudentLogin(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	}
 
 	data := LoginData{
-		Page: getPage(ctx, "Login", defaultCard(ctx, r, "Login")),
-		Next: "/dashboard",
+		Page:      getPage(ctx, "Login", defaultCard(ctx, r, "Login")),
+		Next:      "/dashboard",
+		CSRFField: studentCSRFField(r, ctx),
 	}
 	if r.Method == http.MethodPost {
+		if !validateStudentCSRF(w, r, ctx) {
+			return
+		}
 		if err := r.ParseForm(); err != nil {
 			data.Error = "Unable to read login form."
 			renderLogin(w, r, ctx, data)
@@ -94,6 +100,13 @@ func StudentAuthToken(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 }
 
 func StudentLogout(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if !validateStudentCSRF(w, r, ctx) {
+		return
+	}
 	if ctx != nil && ctx.Session != nil {
 		ctx.Session.Remove(r.Context(), "person_id")
 		ctx.Session.Remove(r.Context(), "person_email")
@@ -107,10 +120,46 @@ func StudentLogout(w http.ResponseWriter, r *http.Request, ctx *config.AppContex
 }
 
 func renderLogin(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, data LoginData) {
+	if data.CSRFField == "" {
+		data.CSRFField = studentCSRFField(r, ctx)
+	}
 	if err := ctx.TemplateCache.ExecuteTemplate(w, "login.tmpl", data); err != nil {
 		http.Error(w, "Unable to load login page", http.StatusInternalServerError)
 		ctx.Err.Printf("login.tmpl exec failed: %s", err.Error())
 	}
+}
+
+func studentCSRFToken(r *http.Request, ctx *config.AppContext) string {
+	if ctx == nil || ctx.Session == nil {
+		return ""
+	}
+	token := ctx.Session.GetString(r.Context(), "student_csrf")
+	if token == "" {
+		token = randomToken()
+		ctx.Session.Put(r.Context(), "student_csrf", token)
+	}
+	return token
+}
+
+func studentCSRFField(r *http.Request, ctx *config.AppContext) template.HTML {
+	return template.HTML(fmt.Sprintf(`<input type="hidden" name="csrf_token" value="%s">`, template.HTMLEscapeString(studentCSRFToken(r, ctx))))
+}
+
+func validateStudentCSRF(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) bool {
+	expected := ""
+	if ctx != nil && ctx.Session != nil {
+		expected = ctx.Session.GetString(r.Context(), "student_csrf")
+	}
+	actual := r.Header.Get("X-CSRF-Token")
+	if actual == "" {
+		_ = r.ParseForm()
+		actual = r.Form.Get("csrf_token")
+	}
+	if expected == "" || actual == "" || actual != expected {
+		http.Error(w, "Invalid form token", http.StatusForbidden)
+		return false
+	}
+	return true
 }
 
 func createStudentLoginToken(ctx *config.AppContext, email, nextPath string) (string, error) {
