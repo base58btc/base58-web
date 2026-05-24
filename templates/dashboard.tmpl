@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html data-wf-page="dashboard" data-wf-site="67d76c360ee76ed0c60f7a0e">
+<head>
+  {{ block "head" .Page }} {{ end }}
+  <style>
+    .dashboard-main {
+      background: #fffdf8;
+      color: #191919;
+      min-height: 70vh;
+      padding: 7rem 5vw 5rem;
+    }
+    .dashboard-wrap {
+      max-width: 72rem;
+      margin: 0 auto;
+    }
+    .dashboard-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1.5rem;
+      border-bottom: 1px solid rgba(25, 25, 25, 0.14);
+      padding-bottom: 1.5rem;
+    }
+    .dashboard-kicker {
+      color: #6f5735;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .dashboard-title {
+      margin: 0.25rem 0 0;
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: 1;
+    }
+    .dashboard-person {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+    .dashboard-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .dashboard-avatar {
+      display: grid;
+      width: 2.75rem;
+      height: 2.75rem;
+      place-items: center;
+      border-radius: 50%;
+      background: #191919;
+      color: #fffdf8;
+      font-weight: 800;
+    }
+    .dashboard-email {
+      color: #665f54;
+      font-size: 0.95rem;
+      overflow-wrap: anywhere;
+    }
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    .dashboard-course {
+      display: grid;
+      overflow: hidden;
+      border: 1px solid rgba(25, 25, 25, 0.14);
+      border-radius: 0.5rem;
+      background: #ffffff;
+    }
+    .dashboard-course-image {
+      width: 100%;
+      aspect-ratio: 16 / 7;
+      background: #ece6d8;
+      object-fit: cover;
+    }
+    .dashboard-course-body {
+      display: grid;
+      gap: 1rem;
+      padding: 1rem;
+    }
+    .dashboard-course-title {
+      margin: 0;
+      font-size: 1.35rem;
+      line-height: 1.15;
+    }
+    .dashboard-attempt {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 0.5rem;
+      border: 1px solid rgba(25, 25, 25, 0.14);
+      border-radius: 999px;
+      padding: 0.25rem 0.55rem;
+      background: #fffaf0;
+      color: #6f5735;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .dashboard-course-description {
+      margin: 0;
+      color: #4b4032;
+      line-height: 1.5;
+    }
+    .dashboard-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.65rem;
+    }
+    .dashboard-stat {
+      border: 1px solid rgba(25, 25, 25, 0.12);
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      background: #fffaf0;
+    }
+    .dashboard-stat-label {
+      color: #665f54;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .dashboard-stat-value {
+      margin-top: 0.25rem;
+      font-size: 1.25rem;
+      font-weight: 850;
+      line-height: 1;
+    }
+    .dashboard-stat-value.pass {
+      color: #2f6f4e;
+    }
+    .dashboard-stat-value.fail {
+      color: #9b2f24;
+    }
+    .dashboard-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid rgba(25, 25, 25, 0.12);
+      padding-top: 1rem;
+    }
+    .dashboard-link {
+      border: 1.5px solid #191919;
+      border-radius: 0.375rem;
+      padding: 0.7rem 1rem;
+      color: #191919;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .dashboard-link.primary {
+      background: #f7931a;
+    }
+    .dashboard-reset {
+      border: 0;
+      background: transparent;
+      color: #8a2d22;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+    }
+    .dashboard-logout {
+      border: 0;
+      background: transparent;
+      color: #665f54;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      padding: 0;
+    }
+    .dashboard-empty {
+      margin-top: 2rem;
+      border: 1px solid rgba(25, 25, 25, 0.14);
+      border-radius: 0.5rem;
+      background: #fff;
+      padding: 1.25rem;
+    }
+    @media (max-width: 700px) {
+      .dashboard-main {
+        padding-top: 5rem;
+      }
+      .dashboard-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .dashboard-stats {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper is-relative">
+    {{ block "nav" .Page }} {{ end }}
+    <main class="dashboard-main">
+      <div class="dashboard-wrap">
+        <header class="dashboard-head">
+          <div>
+            <div class="dashboard-kicker">Student Dashboard</div>
+            <h1 class="dashboard-title">Courses</h1>
+          </div>
+          <div class="dashboard-head-actions">
+            {{ if .AdminPanel }}
+              <a class="dashboard-link primary" href="/admin">Admin panel</a>
+            {{ end }}
+            <div class="dashboard-person">
+              <div class="dashboard-avatar">{{ dashboardInitials .Person }}</div>
+              <div>
+                <div><strong>{{ .Person.DisplayName }}</strong></div>
+                <div class="dashboard-email">{{ .Person.Email }}</div>
+                <form method="post" action="/logout">
+                  <button class="dashboard-logout" type="submit">Logout</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {{ if .Courses }}
+          <section class="dashboard-grid" aria-label="Enrolled courses">
+            {{ range .Courses }}
+              <article class="dashboard-course">
+                {{ if .HeaderImg }}
+                  <img class="dashboard-course-image" src="{{ .HeaderImg }}" alt="{{ .Title }} course header" loading="lazy">
+                {{ end }}
+                <div class="dashboard-course-body">
+                  <div>
+                    <h2 class="dashboard-course-title">{{ .Title }}</h2>
+                    <div class="dashboard-attempt">Attempt {{ .AttemptNumber }}</div>
+                    <p class="dashboard-course-description">{{ .Description }}</p>
+                  </div>
+                  <div class="dashboard-stats">
+                    <div class="dashboard-stat">
+                      <div class="dashboard-stat-label">Pages viewed</div>
+                      <div class="dashboard-stat-value">{{ dashboardProgressLabel .PagesViewed .TotalPages }}</div>
+                    </div>
+                    <div class="dashboard-stat">
+                      <div class="dashboard-stat-label">Questions answered</div>
+                      <div class="dashboard-stat-value">{{ dashboardProgressLabel .QuestionsAnswered .TotalQuestions }}</div>
+                    </div>
+                    <div class="dashboard-stat">
+                      <div class="dashboard-stat-label">Passed</div>
+                      <div class="dashboard-stat-value pass">{{ .QuestionsPassed }}</div>
+                    </div>
+                    <div class="dashboard-stat">
+                      <div class="dashboard-stat-label">Failed</div>
+                      <div class="dashboard-stat-value fail">{{ .QuestionsFailed }}</div>
+                    </div>
+                  </div>
+                  <div class="dashboard-actions">
+                    <div>
+                      <a class="dashboard-link primary" href="{{ .ResumeURL }}">Resume</a>
+                      <a class="dashboard-link" href="{{ .CourseURL }}">Course</a>
+                    </div>
+                    {{ if .AllowReset }}
+                      <form method="post" action="/dashboard/courses/{{ .Slug }}/reset">
+                        <button class="dashboard-reset" type="submit">Reset</button>
+                      </form>
+                    {{ end }}
+                  </div>
+                </div>
+              </article>
+            {{ end }}
+          </section>
+        {{ else }}
+          <section class="dashboard-empty">
+            <h2>No courses yet</h2>
+            <p>Your enrolled courses will appear here.</p>
+            <a class="dashboard-link primary" href="/courses">Browse courses</a>
+          </section>
+        {{ end }}
+      </div>
+    </main>
+    {{ block "footer" .Page }} {{ end }}
+  </div>
+</body>
+</html>

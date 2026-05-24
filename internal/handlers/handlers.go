@@ -84,6 +84,8 @@ func BuildTemplateCache(ctx *config.AppContext) error {
 			b := helpers.ConvertMdToHTML(ctx, "text", s)
 			return template.HTML(string(b))
 		},
+		"dashboardProgressLabel": dashboardProgressLabel,
+		"dashboardInitials":      dashboardInitials,
 		"ishtml": func(s string) template.HTML {
 			return template.HTML(s)
 		},
@@ -113,6 +115,12 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		RenderPage(w, r, ctx, "index")
 	}).Methods("GET")
+	r.HandleFunc("/dashboard", func(w http.ResponseWriter, r *http.Request) {
+		Dashboard(w, r, ctx)
+	}).Methods("GET")
+	r.HandleFunc("/dashboard/courses/{course}/reset", func(w http.ResponseWriter, r *http.Request) {
+		DashboardResetCourse(w, r, ctx)
+	}).Methods("POST")
 	r.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		StudentLogin(w, r, ctx)
 	}).Methods("GET", "POST")

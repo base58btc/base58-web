@@ -624,7 +624,7 @@
     }
   </style>
   <script>
-    const courseProgressStorageKey = "base58:course-progress:v1";
+    let courseProgressState = { version: 1, courses: {} };
 
     document.addEventListener("DOMContentLoaded", function() {
       hydrateCourseProgressFromServer().finally(function() {
@@ -818,7 +818,7 @@
 
     function mergeServerCourseProgress(courseSlug, blocks) {
       const progress = readCourseProgress();
-      progress.courses[courseSlug] = progress.courses[courseSlug] || { lessons: {} };
+      progress.courses[courseSlug] = { lessons: {} };
 
       blocks.forEach(function(block) {
         if (!block.lessonPath || !block.blockId) {
@@ -942,26 +942,14 @@
     }
 
     function readCourseProgress() {
-      try {
-        const stored = window.localStorage.getItem(courseProgressStorageKey);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed && parsed.version === 1 && parsed.courses) {
-            return parsed;
-          }
-        }
-      } catch (err) {
-        return { version: 1, courses: {} };
+      if (!courseProgressState || courseProgressState.version !== 1 || !courseProgressState.courses) {
+        courseProgressState = { version: 1, courses: {} };
       }
-      return { version: 1, courses: {} };
+      return courseProgressState;
     }
 
     function writeCourseProgress(progress) {
-      try {
-        window.localStorage.setItem(courseProgressStorageKey, JSON.stringify(progress));
-      } catch (err) {
-        return;
-      }
+      courseProgressState = progress && progress.version === 1 ? progress : { version: 1, courses: {} };
     }
 
     document.addEventListener("keydown", function(event) {

@@ -15,6 +15,8 @@ import (
 type CourseProgressResponse struct {
 	Authenticated bool                       `json:"authenticated"`
 	CourseSlug    string                     `json:"courseSlug"`
+	AttemptID     int64                      `json:"attemptId,omitempty"`
+	AttemptNumber int                        `json:"attemptNumber,omitempty"`
 	Blocks        []CourseProgressBlockState `json:"blocks"`
 }
 
@@ -56,10 +58,21 @@ func CourseProgress(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 		http.Error(w, "Invalid course", http.StatusBadRequest)
 		return
 	}
+	if !hasActiveCourseEntitlement(ctx, personID, courseSlug) {
+		http.Error(w, "Course access required", http.StatusForbidden)
+		return
+	}
+
+	attempt, err := ensureActiveCourseAttempt(ctx, personID, courseSlug, "student")
+	if err != nil {
+		http.Error(w, "Unable to load course attempt", http.StatusInternalServerError)
+		ctx.Err.Printf("course attempt load failed: %s", err.Error())
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:
-		blocks, err := listCourseProgress(ctx, personID, courseSlug)
+		blocks, err := listCourseProgress(ctx, attempt.ID)
 		if err != nil {
 			http.Error(w, "Unable to load course progress", http.StatusInternalServerError)
 			ctx.Err.Printf("course progress load failed: %s", err.Error())
@@ -68,6 +81,8 @@ func CourseProgress(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 		writeCourseProgressJSON(w, http.StatusOK, CourseProgressResponse{
 			Authenticated: true,
 			CourseSlug:    courseSlug,
+			AttemptID:     attempt.ID,
+			AttemptNumber: attempt.AttemptNumber,
 			Blocks:        blocks,
 		})
 	case http.MethodPost:
@@ -76,7 +91,7 @@ func CourseProgress(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 			http.Error(w, "Invalid progress payload", http.StatusBadRequest)
 			return
 		}
-		if err := saveCourseProgress(ctx, personID, courseSlug, req); err != nil {
+		if err := saveCourseProgress(ctx, attempt.ID, personID, courseSlug, req); err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, errInvalidCourseProgress) {
 				status = http.StatusBadRequest
@@ -110,16 +125,16 @@ func currentProgressPersonID(r *http.Request, ctx *config.AppContext) int64 {
 	return 0
 }
 
-func listCourseProgress(ctx *config.AppContext, personID int64, courseSlug string) ([]CourseProgressBlockState, error) {
+func listCourseProgress(ctx *config.AppContext, attemptID int64) ([]CourseProgressBlockState, error) {
 	rows, err := ctx.DB.Query(`SELECT lesson_path, block_id, block_type, correct, selected_option, selected_options_json, CAST(answered_at AS TEXT), CAST(updated_at AS TEXT)
 FROM course_progress
-WHERE person_id=`+ph(ctx, 1)+` AND course_slug=`+ph(ctx, 2), personID, courseSlug)
+WHERE attempt_id=`+ph(ctx, 1), attemptID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var blocks []CourseProgressBlockState
+	blocks := make([]CourseProgressBlockState, 0)
 	for rows.Next() {
 		var block CourseProgressBlockState
 		var selected sql.NullString
@@ -137,7 +152,7 @@ WHERE person_id=`+ph(ctx, 1)+` AND course_slug=`+ph(ctx, 2), personID, courseSlu
 	return blocks, rows.Err()
 }
 
-func saveCourseProgress(ctx *config.AppContext, personID int64, courseSlug string, req CourseProgressSaveRequest) error {
+func saveCourseProgress(ctx *config.AppContext, attemptID int64, personID int64, courseSlug string, req CourseProgressSaveRequest) error {
 	req.LessonPath = strings.TrimSpace(req.LessonPath)
 	req.BlockID = strings.TrimSpace(req.BlockID)
 	req.BlockType = strings.TrimSpace(req.BlockType)
@@ -153,30 +168,16 @@ func saveCourseProgress(ctx *config.AppContext, personID int64, courseSlug strin
 		return err
 	}
 
-	if adminPostgres(ctx) {
-		_, err = ctx.DB.Exec(`INSERT INTO course_progress (person_id, course_slug, lesson_path, block_id, block_type, correct, selected_option, selected_options_json)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-ON CONFLICT (person_id, course_slug, lesson_path, block_id) DO UPDATE SET
+	_, err = ctx.DB.Exec(`INSERT INTO course_progress (person_id, course_slug, attempt_id, lesson_path, block_id, block_type, correct, selected_option, selected_options_json)
+VALUES (`+ph(ctx, 1)+`, `+ph(ctx, 2)+`, `+ph(ctx, 3)+`, `+ph(ctx, 4)+`, `+ph(ctx, 5)+`, `+ph(ctx, 6)+`, `+ph(ctx, 7)+`, `+ph(ctx, 8)+`, `+ph(ctx, 9)+`)
+ON CONFLICT (attempt_id, lesson_path, block_id) DO UPDATE SET
   block_type = EXCLUDED.block_type,
   correct = EXCLUDED.correct,
   selected_option = EXCLUDED.selected_option,
   selected_options_json = EXCLUDED.selected_options_json,
   answered_at = CURRENT_TIMESTAMP,
   updated_at = CURRENT_TIMESTAMP`,
-			personID, courseSlug, req.LessonPath, req.BlockID, req.BlockType, req.Correct, req.SelectedOption, string(selectedJSON))
-		return err
-	}
-
-	_, err = ctx.DB.Exec(`INSERT INTO course_progress (person_id, course_slug, lesson_path, block_id, block_type, correct, selected_option, selected_options_json)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(person_id, course_slug, lesson_path, block_id) DO UPDATE SET
-  block_type = excluded.block_type,
-  correct = excluded.correct,
-  selected_option = excluded.selected_option,
-  selected_options_json = excluded.selected_options_json,
-  answered_at = CURRENT_TIMESTAMP,
-  updated_at = CURRENT_TIMESTAMP`,
-		personID, courseSlug, req.LessonPath, req.BlockID, req.BlockType, req.Correct, req.SelectedOption, string(selectedJSON))
+		personID, courseSlug, attemptID, req.LessonPath, req.BlockID, req.BlockType, req.Correct, req.SelectedOption, string(selectedJSON))
 	return err
 }
 

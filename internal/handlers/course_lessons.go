@@ -105,6 +105,7 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 
 	furlCard := defaultCard(ctx, r, title)
 	heroURL, heroAlt := localCourseHero(ctx, outline.CourseSlug, outline.CourseTitle)
+	recordCoursePageView(r, ctx, outline.CourseSlug, outline.Current.Path)
 	err = ctx.TemplateCache.ExecuteTemplate(w, "courses/lesson.tmpl", CourseLessonData{
 		Page:        getPage(ctx, title, furlCard),
 		CourseSlug:  outline.CourseSlug,
@@ -122,6 +123,33 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("courses/lesson.tmpl exec failed %s\n", err.Error())
 		return
+	}
+}
+
+func recordCoursePageView(r *http.Request, ctx *config.AppContext, courseSlug, lessonPath string) {
+	if ctx == nil || ctx.DB == nil || courseSlug == "" || lessonPath == "" {
+		return
+	}
+	personID := currentProgressPersonID(r, ctx)
+	if personID == 0 {
+		return
+	}
+	if !hasActiveCourseEntitlement(ctx, personID, courseSlug) {
+		return
+	}
+	attempt, err := ensureActiveCourseAttempt(ctx, personID, courseSlug, "student")
+	if err != nil {
+		ctx.Err.Printf("course attempt load failed: %s", err.Error())
+		return
+	}
+
+	_, err = ctx.DB.Exec(`INSERT INTO course_page_views (person_id, course_slug, attempt_id, lesson_path)
+VALUES (`+ph(ctx, 1)+`, `+ph(ctx, 2)+`, `+ph(ctx, 3)+`, `+ph(ctx, 4)+`)
+ON CONFLICT (attempt_id, lesson_path) DO UPDATE SET
+  last_viewed_at = CURRENT_TIMESTAMP,
+  view_count = course_page_views.view_count + 1`, personID, courseSlug, attempt.ID, lessonPath)
+	if err != nil {
+		ctx.Err.Printf("course page view save failed: %s", err.Error())
 	}
 }
 
