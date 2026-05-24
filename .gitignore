@@ -4,6 +4,7 @@ stripe
 goals
 reqs/
 base58-dev.db
+.nix-postgres/
 scratch
 tmp/
 

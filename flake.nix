@@ -16,9 +16,17 @@
             jq
             go
             air 
+            postgresql_16
           ];
-          # Automatically run ??? when entering the shell.
-          #shellHook = "???";
+          shellHook = ''
+            export PGDATA="''${PGDATA:-$PWD/.nix-postgres/data}"
+            export PGHOST="''${PGHOST:-127.0.0.1}"
+            export PGPORT="''${PGPORT:-55432}"
+            export PGUSER="''${PGUSER:-base58}"
+            export PGDATABASE="''${PGDATABASE:-base58_dev}"
+            export DB_DRIVER="''${DB_DRIVER:-postgres}"
+            export DATABASE_URL="''${DATABASE_URL:-postgres://$PGUSER@$PGHOST:$PGPORT/$PGDATABASE?sslmode=disable}"
+          '';
         };
       });
 }

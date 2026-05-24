@@ -20,7 +20,7 @@ type migration struct {
 }
 
 func main() {
-	driver := flag.String("driver", os.Getenv("DB_DRIVER"), "database driver: sqlite3 or postgres")
+	driver := flag.String("driver", os.Getenv("DB_DRIVER"), "database driver: postgres")
 	databaseURL := flag.String("database", os.Getenv("DATABASE_URL"), "database connection string")
 	dir := flag.String("dir", "", "migration directory")
 	flag.Parse()
@@ -66,7 +66,7 @@ func migrationDir(driver string) string {
 	case "postgres", "postgresql", "pgx":
 		return "migrations/postgres"
 	default:
-		return "migrations/sqlite"
+		return "migrations/postgres"
 	}
 }
 
@@ -75,7 +75,7 @@ func bindVar(driver string, index int) string {
 	case "postgres", "postgresql", "pgx":
 		return fmt.Sprintf("$%d", index)
 	default:
-		return "?"
+		return fmt.Sprintf("$%d", index)
 	}
 }
 
