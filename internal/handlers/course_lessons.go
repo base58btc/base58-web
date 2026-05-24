@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/internal/types"
 )
 
 const localCoursesRoot = "courses"
@@ -141,19 +142,6 @@ func localCourseHero(ctx *config.AppContext, courseSlug, fallbackTitle string) (
 	return course.HeaderImg, fmt.Sprintf("%s course header", altTitle)
 }
 
-type LocalCourseLandingData struct {
-	Page        Page
-	CourseSlug  string
-	CourseTitle string
-	Description string
-	Error       string
-	Notice      string
-	HeroURL     string
-	HeroAlt     string
-	StartURL    string
-	Sidebar     []*CourseNavItem
-}
-
 func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, courseSlug string) {
 	outline, err := loadLocalCourse(localCoursesRoot, courseSlug, "")
 	if err != nil {
@@ -165,10 +153,6 @@ func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 	if title == "" {
 		title = outline.CourseTitle
 	}
-	heroAlt := ""
-	if heroURL != "" {
-		heroAlt = fmt.Sprintf("%s course header", title)
-	}
 	accessError := localCourseAccessError(r.URL.Query().Get("access"))
 	notice := localCourseNotice(r.URL.Query().Get("registered"))
 	startURL := ""
@@ -176,22 +160,38 @@ func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 		startURL = outline.Current.URL
 	}
 
-	furlCard := defaultCard(ctx, r, title)
-	err = ctx.TemplateCache.ExecuteTemplate(w, "courses/local_course.tmpl", LocalCourseLandingData{
-		Page:        getPage(ctx, title, furlCard),
-		CourseSlug:  courseSlug,
-		CourseTitle: title,
-		Description: description,
-		Error:       accessError,
-		Notice:      notice,
-		HeroURL:     heroURL,
-		HeroAlt:     heroAlt,
-		StartURL:    startURL,
-		Sidebar:     outline.Items,
+	course := &types.Course{
+		Tag:          courseSlug,
+		Title:        title,
+		Availability: "Open",
+		PriceUSD:     0,
+		ShortDesc:    description,
+		LongDesc:     description,
+		CourseURL:    startURL,
+		CourseHost:   "Base58",
+		HeaderImg:    heroURL,
+		Visible:      true,
+	}
+	if course.ShortDesc == "" {
+		course.ShortDesc = "Work through the course lessons and exercises at your own pace."
+	}
+	if course.LongDesc == "" {
+		course.LongDesc = course.ShortDesc
+	}
+
+	furlCard := courseCard(ctx, r, course)
+	err = ctx.TemplateCache.ExecuteTemplate(w, "courses/course.tmpl", CourseData{
+		Course:       course,
+		Page:         getPage(ctx, title, furlCard),
+		LocalCourse:  true,
+		AccessError:  accessError,
+		Notice:       notice,
+		StartURL:     startURL,
+		LocalOutline: outline.Items,
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
-		ctx.Err.Printf("courses/local_course.tmpl exec failed %s\n", err.Error())
+		ctx.Err.Printf("courses/course.tmpl local course exec failed %s\n", err.Error())
 		return
 	}
 }

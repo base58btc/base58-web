@@ -1642,10 +1642,15 @@ func RenderTextPage(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 }
 
 type CourseData struct {
-	Course     *types.Course
-	Sessions   []*types.CourseSession
-	SeatsAvail uint
-	Page       Page
+	Course       *types.Course
+	Sessions     []*types.CourseSession
+	SeatsAvail   uint
+	Page         Page
+	LocalCourse  bool
+	AccessError  string
+	Notice       string
+	StartURL     string
+	LocalOutline []*CourseNavItem
 }
 
 type sessionList []*types.CourseSession
