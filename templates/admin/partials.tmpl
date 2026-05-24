@@ -184,7 +184,7 @@ th { background: #ecece6; font-size: 13px; text-transform: uppercase; }
             <span class="admin-muted">in</span>
             <a href="/admin/courses/{{ .CourseSlug }}">{{ .CourseTitle }}</a>
           </h3>
-          <div class="admin-muted">{{ .Email }} · attempt {{ .AttemptNumber }} · started {{ .StartedAt }}</div>
+          <div class="admin-muted">{{ .Email }} · version {{ .VersionNumber }} · attempt {{ .AttemptNumber }} · started {{ .StartedAt }}</div>
           <div class="admin-muted">Last touched {{ .LastTouchedAt }}</div>
         </div>
         <span class="admin-pill">{{ .Status }}</span>

@@ -161,6 +161,37 @@
       font-weight: 700;
     }
 
+    .course-version-banner {
+      display: grid;
+      gap: 0.75rem;
+      margin: 0 0 1rem;
+      border: 1px solid rgba(247, 147, 26, 0.5);
+      border-radius: 0.5rem;
+      background: #fff6e6;
+      padding: 1rem;
+      color: #191919;
+    }
+
+    .course-version-banner p {
+      margin: 0;
+      line-height: 1.45;
+    }
+
+    .course-version-banner form {
+      margin: 0;
+    }
+
+    .course-version-banner button {
+      border: 1.5px solid #191919;
+      border-radius: 0.375rem;
+      background: #f7931a;
+      color: #191919;
+      cursor: pointer;
+      padding: 0.65rem 0.9rem;
+      font: inherit;
+      font-weight: 800;
+    }
+
     .course-hero {
       margin: 0 0 1.5rem;
       overflow: hidden;
@@ -1460,6 +1491,15 @@ def __course_check_cell(student_code, check_code):
       </aside>
       <section class="course-platform_content">
         <div class="course-platform_current">{{ .Current.DisplayNumber }} / {{ .Current.Title }}</div>
+        {{ if .HasNewVersion }}
+          <div class="course-version-banner" role="status">
+            <p>You are working on version {{ .VersionNumber }}. Version {{ .LatestVersionNumber }} is available.</p>
+            <form method="post" action="/courses/{{ .CourseSlug }}/versions/latest/start">
+              <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
+              <button type="submit">Start Fresh on Latest Version</button>
+            </form>
+          </div>
+        {{ end }}
         {{ if .HeroURL }}
           <figure class="course-hero">
             <img src="{{ .HeroURL }}" alt="{{ .HeroAlt }}" loading="lazy">

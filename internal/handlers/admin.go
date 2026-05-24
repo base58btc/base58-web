@@ -113,6 +113,8 @@ type AdminAttemptReport struct {
 	Email             string
 	CourseSlug        string
 	CourseTitle       string
+	CourseVersionID   int64
+	VersionNumber     int
 	AttemptNumber     int
 	Status            string
 	StartedAt         string
@@ -202,6 +204,7 @@ type AdminCourseStudent struct {
 	Email           string
 	GrantedAt       string
 	AttemptNumber   int
+	VersionNumber   int
 	Status          string
 	LastTouchedAt   string
 	PagesViewed     int
@@ -1156,11 +1159,12 @@ func listCoursePersonAdminAttemptReports(ctx *config.AppContext, slug string, pe
 }
 
 func listAdminAttemptReports(ctx *config.AppContext, where string, limitClause string, args ...any) ([]AdminAttemptReport, error) {
-	query := `SELECT ca.id, ca.person_id, p.display_name, COALESCE(pe.email, ''), ca.course_slug, c.title, ca.attempt_number, ca.status,
+	query := `SELECT ca.id, ca.person_id, p.display_name, COALESCE(pe.email, ''), ca.course_slug, c.title, ca.course_version_id, cv.version_number, ca.attempt_number, ca.status,
 CAST(ca.started_at AS TEXT), COALESCE(CAST(ca.reset_at AS TEXT), '')
 FROM course_attempts ca
 JOIN people p ON p.id = ca.person_id
 JOIN courses c ON c.slug = ca.course_slug
+JOIN course_versions cv ON cv.id = ca.course_version_id
 LEFT JOIN person_emails pe ON pe.person_id = p.id AND pe.is_primary = ` + primarySQL(ctx) + `
 ` + where + `
 ORDER BY ca.started_at DESC, ca.id DESC
@@ -1174,7 +1178,7 @@ ORDER BY ca.started_at DESC, ca.id DESC
 	var reports []AdminAttemptReport
 	for rows.Next() {
 		var report AdminAttemptReport
-		if err := rows.Scan(&report.ID, &report.PersonID, &report.DisplayName, &report.Email, &report.CourseSlug, &report.CourseTitle, &report.AttemptNumber, &report.Status, &report.StartedAt, &report.ResetAt); err != nil {
+		if err := rows.Scan(&report.ID, &report.PersonID, &report.DisplayName, &report.Email, &report.CourseSlug, &report.CourseTitle, &report.CourseVersionID, &report.VersionNumber, &report.AttemptNumber, &report.Status, &report.StartedAt, &report.ResetAt); err != nil {
 			return nil, err
 		}
 		if report.DisplayName == "" {
@@ -1383,6 +1387,7 @@ ORDER BY MAX(ce.granted_at) DESC`, slug)
 		if len(attempts) > 0 {
 			attempt := attempts[0]
 			student.AttemptNumber = attempt.AttemptNumber
+			student.VersionNumber = attempt.VersionNumber
 			student.Status = attempt.Status
 			student.LastTouchedAt = attempt.LastTouchedAt
 			student.PagesViewed = attempt.PagesViewed

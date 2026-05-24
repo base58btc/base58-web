@@ -144,9 +144,12 @@ func run(env *types.EnvConfig) error {
 			result, err := database.SyncCoursesFromNotion(db, env.DBDriver, app.Notion)
 			if err != nil {
 				app.Err.Printf("course sync from Notion failed: %s", err.Error())
-				return
+			} else {
+				app.Infos.Printf("course sync from Notion complete: seen=%d upserts=%d skipped=%d", result.Seen, result.Upserts, result.Skipped)
 			}
-			app.Infos.Printf("course sync from Notion complete: seen=%d upserts=%d skipped=%d", result.Seen, result.Upserts, result.Skipped)
+			if err := handlers.SyncLocalCourseVersions(&app); err != nil {
+				app.Err.Printf("local course version sync failed: %s", err.Error())
+			}
 		}()
 	}
 

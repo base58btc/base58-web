@@ -41,18 +41,21 @@ type CourseNavItem struct {
 }
 
 type CourseLessonData struct {
-	Page        Page
-	CourseSlug  string
-	CourseTitle string
-	Current     *CourseNavItem
-	Previous    *CourseNavItem
-	Next        *CourseNavItem
-	Sidebar     []*CourseNavItem
-	ContentHTML template.HTML
-	HasCode     bool
-	HeroURL     string
-	HeroAlt     string
-	CSRFToken   string
+	Page                Page
+	CourseSlug          string
+	CourseTitle         string
+	Current             *CourseNavItem
+	Previous            *CourseNavItem
+	Next                *CourseNavItem
+	Sidebar             []*CourseNavItem
+	ContentHTML         template.HTML
+	HasCode             bool
+	HeroURL             string
+	HeroAlt             string
+	CSRFToken           string
+	VersionNumber       int
+	LatestVersionNumber int
+	HasNewVersion       bool
 }
 
 type localCourseOutline struct {
@@ -85,7 +88,20 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		return
 	}
 
-	outline, err := loadLocalCourse(localCoursesRoot, courseSlug, pagePath)
+	var attempt CourseAttempt
+	personID := currentProgressPersonID(r, ctx)
+	if ctx != nil && ctx.DB != nil && personID > 0 && hasActiveCourseEntitlement(ctx, personID, courseSlug) {
+		attempt, _ = ensureActiveCourseAttempt(ctx, personID, courseSlug, "student")
+	}
+
+	var outline *localCourseOutline
+	var err error
+	if attempt.CourseVersionID > 0 {
+		outline, err = loadCourseVersion(ctx, attempt.CourseVersionID, courseSlug, pagePath)
+	}
+	if outline == nil || err != nil {
+		outline, err = loadLocalCourse(localCoursesRoot, courseSlug, pagePath)
+	}
 	if err != nil {
 		switch {
 		case errors.Is(err, errLocalCourseNotFound), errors.Is(err, errLocalCoursePageNotFound):
@@ -107,19 +123,23 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	furlCard := defaultCard(ctx, r, title)
 	heroURL, heroAlt := localCourseHero(ctx, outline.CourseSlug, outline.CourseTitle)
 	recordCoursePageView(r, ctx, outline.CourseSlug, outline.Current.Path)
+	versionNumber, latestVersionNumber := courseAttemptVersionNumbers(ctx, attempt)
 	err = ctx.TemplateCache.ExecuteTemplate(w, "courses/lesson.tmpl", CourseLessonData{
-		Page:        getPage(ctx, title, furlCard),
-		CourseSlug:  outline.CourseSlug,
-		CourseTitle: outline.CourseTitle,
-		Current:     outline.Current,
-		Previous:    outline.Previous,
-		Next:        outline.Next,
-		Sidebar:     outline.Items,
-		ContentHTML: template.HTML(courseMarkdownToHTML(outline.Markdown)),
-		HasCode:     markdownHasCourseCode(outline.Markdown),
-		HeroURL:     heroURL,
-		HeroAlt:     heroAlt,
-		CSRFToken:   studentCSRFToken(r, ctx),
+		Page:                getPage(ctx, title, furlCard),
+		CourseSlug:          outline.CourseSlug,
+		CourseTitle:         outline.CourseTitle,
+		Current:             outline.Current,
+		Previous:            outline.Previous,
+		Next:                outline.Next,
+		Sidebar:             outline.Items,
+		ContentHTML:         template.HTML(courseMarkdownToHTML(outline.Markdown)),
+		HasCode:             markdownHasCourseCode(outline.Markdown),
+		HeroURL:             heroURL,
+		HeroAlt:             heroAlt,
+		CSRFToken:           studentCSRFToken(r, ctx),
+		VersionNumber:       versionNumber,
+		LatestVersionNumber: latestVersionNumber,
+		HasNewVersion:       latestVersionNumber > versionNumber && versionNumber > 0,
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -289,6 +309,42 @@ func LocalCourseSignup(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 	startURL := "/courses/" + courseSlug
 	if outline, err := loadLocalCourse(localCoursesRoot, courseSlug, ""); err == nil && outline.Current != nil {
 		startURL = outline.Current.URL + "?registered=1"
+	}
+	http.Redirect(w, r, startURL, http.StatusSeeOther)
+}
+
+func StartLatestCourseVersion(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	if ctx == nil || ctx.DB == nil {
+		http.Error(w, "Database is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	if !validateStudentCSRF(w, r, ctx) {
+		return
+	}
+	courseSlug := mux.Vars(r)["course"]
+	if canonical, ok := canonicalLocalCourseSlug(courseSlug); ok {
+		courseSlug = canonical
+	} else {
+		http.NotFound(w, r)
+		return
+	}
+	personID := currentProgressPersonID(r, ctx)
+	if personID == 0 {
+		http.Redirect(w, r, loginPathWithNext("/dashboard"), http.StatusSeeOther)
+		return
+	}
+	if !hasActiveCourseEntitlement(ctx, personID, courseSlug) {
+		http.Redirect(w, r, "/courses/"+courseSlug+"?access=entitlement", http.StatusSeeOther)
+		return
+	}
+	if _, err := startLatestCourseAttempt(ctx, personID, courseSlug); err != nil {
+		http.Error(w, "Unable to start latest course version", http.StatusInternalServerError)
+		ctx.Err.Printf("start latest course version failed: %s", err.Error())
+		return
+	}
+	startURL := "/courses/" + courseSlug
+	if outline, err := loadLocalCourse(localCoursesRoot, courseSlug, ""); err == nil && outline.Current != nil {
+		startURL = outline.Current.URL
 	}
 	http.Redirect(w, r, startURL, http.StatusSeeOther)
 }
