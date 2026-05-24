@@ -35,8 +35,59 @@ th, td { border-bottom: 1px solid #e1e1dc; padding: 11px 12px; text-align: left;
 th { background: #ecece6; font-size: 13px; text-transform: uppercase; }
 .admin-error { background: #ffe3e3; border: 1px solid #f3a6a6; margin: 14px 0; padding: 12px; }
 .admin-flash { background: #e2f7e8; border: 1px solid #98d4a9; margin: 14px 0; padding: 12px; }
+.admin-attempt-list { display: grid; gap: 18px; margin: 16px 0 28px; }
+.admin-attempt-card { background: #fff; border: 1px solid #e1e1dc; padding: 16px; }
+.admin-attempt-head { align-items: flex-start; display: flex; gap: 18px; justify-content: space-between; }
+.admin-attempt-title { margin: 0; }
+.admin-muted { color: #62665f; font-size: 13px; }
+.admin-pill { background: #ecece6; border-radius: 999px; display: inline-flex; font-size: 12px; font-weight: 800; padding: 4px 8px; text-transform: uppercase; }
+.admin-metrics { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 14px 0; }
+.admin-metric { background: #f7f7f4; border: 1px solid #e1e1dc; padding: 10px; }
+.admin-metric strong { display: block; font-size: 20px; line-height: 1.1; }
+.admin-bar { background: #e5e5df; height: 10px; margin-top: 8px; overflow: hidden; }
+.admin-bar span { background: #111; display: block; height: 100%; }
+.admin-bar.pass span { background: #2f6f4e; }
+.admin-bar.fail span { background: #9b2f24; }
+.admin-page-strip { display: grid; gap: 4px; grid-template-columns: repeat(auto-fit, minmax(16px, 1fr)); margin: 12px 0; }
+.admin-page-dot { background: #e5e5df; border: 1px solid #d4d4ca; height: 14px; }
+.admin-page-dot.is-viewed { background: #f3cf8b; border-color: #dba34c; }
+.admin-page-dot.is-complete { background: #2f6f4e; border-color: #24583d; }
+.admin-progress-table td, .admin-progress-table th { font-size: 13px; padding: 8px 10px; }
+.admin-code-preview { background: #1f2328; color: #fff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; margin: 6px 0 0; overflow: auto; padding: 10px; white-space: pre-wrap; }
+.admin-course-layout { display: grid; gap: 28px; grid-template-columns: 220px minmax(0, 1fr); margin-top: 24px; }
+.admin-course-sidebar { background: #111; min-height: calc(100vh - 140px); padding: 18px; }
+.admin-course-sidebar h2 { color: #fff; font-size: 16px; margin: 0 0 16px; }
+.admin-course-sidebar a { color: #f7f7f4; display: block; font-weight: 800; padding: 10px 0; text-decoration: none; }
+.admin-course-sidebar a.is-active { color: #f7931a; }
+.admin-stat-grid { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 16px 0 22px; }
+.admin-stat-card { background: #fff; border: 1px solid #e1e1dc; padding: 16px; }
+.admin-stat-card strong { display: block; font-size: 30px; line-height: 1; }
+.admin-chart-grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr); }
+.admin-chart-panel { background: #fff; border: 1px solid #e1e1dc; padding: 16px; }
+.admin-signup-line { display: block; height: auto; margin-top: 12px; width: 100%; }
+.admin-signup-line line { stroke: #c9c9c2; stroke-width: 1; }
+.admin-signup-line .grid { stroke: #ecece6; }
+.admin-signup-line text { fill: #62665f; font-size: 13px; }
+.admin-signup-line .date-label { font-weight: 800; text-anchor: middle; }
+.admin-signup-line .count-label { dominant-baseline: text-after-edge; font-size: 12px; font-weight: 800; text-anchor: middle; }
+.admin-signup-line .axis-label { font-weight: 800; }
+.admin-signup-line .y-axis { transform: rotate(-90deg); transform-box: fill-box; transform-origin: center; }
+.admin-signup-line polyline { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
+.admin-signup-line .current-line { stroke: #111; }
+.admin-signup-line .previous-line { stroke: #b9b9ae; }
+.admin-signup-line .current-point { fill: #111; }
+.admin-signup-line .previous-point { fill: #b9b9ae; }
+.admin-signup-line .legend { font-weight: 800; }
+.admin-signup-line .legend.current { fill: #111; }
+.admin-signup-line .legend.previous { fill: #77776f; }
+.admin-donut { align-items: center; aspect-ratio: 1; background: conic-gradient(#2f6f4e var(--value), #e5e5df 0); border-radius: 50%; display: grid; margin: 8px auto 18px; max-width: 210px; place-items: center; }
+.admin-donut span { align-items: center; background: #fff; border-radius: 50%; display: grid; font-size: 30px; font-weight: 850; height: 58%; place-items: center; width: 58%; }
+.admin-bucket-list { display: grid; gap: 10px; }
+.admin-difficulty-row { display: grid; gap: 8px; grid-template-columns: minmax(180px, 1fr) minmax(180px, 2fr) 58px; margin: 10px 0; }
 @media (max-width: 800px) {
-  .admin-grid, .admin-header, .admin-inline-form, .admin-search { display: block; }
+  .admin-grid, .admin-header, .admin-inline-form, .admin-search, .admin-attempt-head, .admin-course-layout, .admin-chart-grid, .admin-difficulty-row { display: block; }
+  .admin-metrics, .admin-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-course-sidebar { min-height: 0; }
   .admin-nav { align-items: flex-start; flex-direction: column; gap: 10px; padding: 16px 20px; }
   .admin-logout { margin-left: 0; }
   .admin-search input { min-width: 0; width: 100%; }
@@ -75,6 +126,15 @@ th { background: #ecece6; font-size: 13px; text-transform: uppercase; }
 <label>Header image URL<input name="header_img" value="{{ .HeaderImg }}"></label>
 {{ end }}
 
+{{ define "admin/course_sidebar.tmpl" }}
+<aside class="admin-course-sidebar">
+  <h2>{{ .Course.Title }}</h2>
+  <a href="/admin/courses/{{ .Course.Slug }}" class="{{ if eq .ActiveTab "stats" }}is-active{{ end }}">Stats</a>
+  <a href="/admin/courses/{{ .Course.Slug }}/students" class="{{ if eq .ActiveTab "students" }}is-active{{ end }}">Students</a>
+  <a href="/admin/courses/{{ .Course.Slug }}/content" class="{{ if eq .ActiveTab "content" }}is-active{{ end }}">Course Content</a>
+</aside>
+{{ end }}
+
 {{ define "admin/entitlements_table.tmpl" }}
 <table>
   <thead><tr><th>Course</th><th>Email</th><th>Status</th><th>Source</th><th>Granted</th><th>Notes</th><th></th></tr></thead>
@@ -111,4 +171,88 @@ th { background: #ecece6; font-size: 13px; text-transform: uppercase; }
   {{ end }}
   </tbody>
 </table>
+{{ end }}
+
+{{ define "admin/attempts.tmpl" }}
+<div class="admin-attempt-list">
+  {{ range .Attempts }}
+    <article class="admin-attempt-card">
+      <div class="admin-attempt-head">
+        <div>
+          <h3 class="admin-attempt-title">
+            <a href="/admin/people/{{ .PersonID }}">{{ .DisplayName }}</a>
+            <span class="admin-muted">in</span>
+            <a href="/admin/courses/{{ .CourseSlug }}">{{ .CourseTitle }}</a>
+          </h3>
+          <div class="admin-muted">{{ .Email }} · attempt {{ .AttemptNumber }} · started {{ .StartedAt }}</div>
+          <div class="admin-muted">Last touched {{ .LastTouchedAt }}</div>
+        </div>
+        <span class="admin-pill">{{ .Status }}</span>
+      </div>
+
+      <div class="admin-metrics">
+        <div class="admin-metric">
+          <strong>{{ .PagesViewed }} / {{ .TotalPages }}</strong>
+          <span class="admin-muted">pages viewed</span>
+          <div class="admin-bar"><span style="width: {{ .PageProgressPct }}%"></span></div>
+        </div>
+        <div class="admin-metric">
+          <strong>{{ .QuestionsAnswered }} / {{ .TotalQuestions }}</strong>
+          <span class="admin-muted">questions answered</span>
+          <div class="admin-bar"><span style="width: {{ .QuestionPct }}%"></span></div>
+        </div>
+        <div class="admin-metric">
+          <strong>{{ .QuestionsPassed }}</strong>
+          <span class="admin-muted">passed</span>
+          <div class="admin-bar pass"><span style="width: {{ .PassPct }}%"></span></div>
+        </div>
+        <div class="admin-metric">
+          <strong>{{ .CodeBlocksSaved }}</strong>
+          <span class="admin-muted">code blocks saved</span>
+        </div>
+      </div>
+
+      <div class="admin-page-strip" aria-label="Page completion">
+        {{ range .Pages }}
+          <span class="admin-page-dot{{ if .Viewed }} is-viewed{{ end }}{{ if .Complete }} is-complete{{ end }}" title="{{ .Title }}: {{ .ProgressPct }}%"></span>
+        {{ end }}
+      </div>
+
+      <table class="admin-progress-table">
+        <thead><tr><th>Page</th><th>Viewed</th><th>Questions</th><th>Complete</th><th>Completed/touched</th></tr></thead>
+        <tbody>
+        {{ range .Pages }}
+          <tr>
+            <td>{{ .Title }}<div class="admin-muted">{{ .LessonPath }}</div></td>
+            <td>{{ if .Viewed }}Yes{{ else }}No{{ end }}</td>
+            <td>{{ .Passed }} passed / {{ .Failed }} failed / {{ .ChallengeCount }} total</td>
+            <td>{{ if .Complete }}Yes{{ else }}No{{ end }}</td>
+            <td>{{ if .CompletedAt }}{{ .CompletedAt }}{{ else }}{{ .LastViewedAt }}{{ end }}</td>
+          </tr>
+        {{ else }}
+          <tr><td colspan="5">No local course outline found for this course.</td></tr>
+        {{ end }}
+        </tbody>
+      </table>
+
+      {{ if .CodeBlocks }}
+        <h4>Recent Saved Code</h4>
+        <table class="admin-progress-table">
+          <thead><tr><th>Block</th><th>Updated</th><th>Preview</th></tr></thead>
+          <tbody>
+          {{ range .CodeBlocks }}
+            <tr>
+              <td>{{ .BlockID }}<div class="admin-muted">{{ .LessonPath }} · {{ .BlockType }}</div></td>
+              <td>{{ .UpdatedAt }}</td>
+              <td><pre class="admin-code-preview">{{ .CodePreview }}</pre></td>
+            </tr>
+          {{ end }}
+          </tbody>
+        </table>
+      {{ end }}
+    </article>
+  {{ else }}
+    <div class="admin-attempt-card">No course attempts yet.</div>
+  {{ end }}
+</div>
 {{ end }}

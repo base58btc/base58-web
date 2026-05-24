@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  {{ block "head" .Page }} {{ end }}
+  {{ template "admin/style.tmpl" . }}
+</head>
+<body class="admin-body">
+  {{ template "admin/nav.tmpl" . }}
+  <main class="admin-main">
+    <section class="admin-header">
+      <div>
+        <h1>{{ .Course.Title }}</h1>
+        <div class="admin-muted">{{ .Course.Slug }} · {{ .Course.Status }}</div>
+      </div>
+      <a href="/admin/courses">Back to courses</a>
+    </section>
+    {{ if .Flash }}<div class="admin-flash">{{ .Flash }}</div>{{ end }}
+    {{ if .Error }}<div class="admin-error">{{ .Error }}</div>{{ end }}
+    <div class="admin-course-layout">
+      {{ template "admin/course_sidebar.tmpl" . }}
+      <section>
+        <div class="admin-stat-grid">
+          <div class="admin-stat-card"><strong>{{ .Stats.TotalStudents }}</strong><span class="admin-muted">students enrolled</span></div>
+          <div class="admin-stat-card"><strong>{{ .Stats.ActiveAttempts }}</strong><span class="admin-muted">active attempts</span></div>
+          <div class="admin-stat-card"><strong>{{ .Stats.CompletedAttempts }}</strong><span class="admin-muted">completed attempts</span></div>
+          <div class="admin-stat-card"><strong>{{ .Stats.AverageProgress }}%</strong><span class="admin-muted">average page progress</span></div>
+        </div>
+
+        <div class="admin-chart-grid">
+          <section class="admin-chart-panel">
+            <h2>Signup Trend</h2>
+            <div class="admin-muted">Dark line is this week. Light line is the previous week.</div>
+            <svg class="admin-signup-line" viewBox="0 0 700 260" role="img" aria-label="Course signup trend for this week and last week">
+              <line x1="86" y1="34" x2="86" y2="220"></line>
+              <line x1="86" y1="220" x2="640" y2="220"></line>
+              <text class="axis-label y-axis" x="18" y="126">Signups</text>
+              {{ range .Stats.SignupBars }}
+                <line class="grid" x1="{{ .X }}" y1="34" x2="{{ .X }}" y2="220"></line>
+                <text class="date-label" x="{{ .X }}" y="242">{{ .Label }}</text>
+                <text class="count-label" x="{{ .X }}" y="{{ .CurrentY }}">{{ .Current }}</text>
+                <circle class="previous-point" cx="{{ .PreviousX }}" cy="{{ .PreviousY }}" r="4"></circle>
+                <circle class="current-point" cx="{{ .CurrentX }}" cy="{{ .CurrentY }}" r="4"></circle>
+              {{ end }}
+              <polyline class="previous-line" points="{{ .Stats.PreviousSignupLine }}"></polyline>
+              <polyline class="current-line" points="{{ .Stats.CurrentSignupLine }}"></polyline>
+              <text class="legend current" x="430" y="20">This week</text>
+              <text class="legend previous" x="540" y="20">Last week</text>
+            </svg>
+          </section>
+
+          <section class="admin-chart-panel">
+            <h2>Aggregate Progress</h2>
+            <div class="admin-donut" style="--value: {{ .Stats.AverageProgress }}%"><span>{{ .Stats.AverageProgress }}%</span></div>
+            <div class="admin-bucket-list">
+              {{ range .Stats.ProgressBuckets }}
+                <div>
+                  <div class="admin-muted">{{ .Label }} · {{ .Count }} students</div>
+                  <div class="admin-bar"><span style="width: {{ .Percent }}%"></span></div>
+                </div>
+              {{ end }}
+            </div>
+          </section>
+        </div>
+
+        <section class="admin-chart-panel">
+          <h2>Hardest Pages</h2>
+          {{ range .Stats.DifficultyPages }}
+            <div class="admin-difficulty-row">
+              <div><strong>{{ .Title }}</strong><div class="admin-muted">{{ .LessonPath }}</div></div>
+              <div class="admin-bar fail"><span style="width: {{ .FailPercent }}%"></span></div>
+              <div>{{ .PassPercent }}% pass</div>
+            </div>
+          {{ else }}
+            <p>No answered questions yet.</p>
+          {{ end }}
+        </section>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

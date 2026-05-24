@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  {{ block "head" .Page }} {{ end }}
+  {{ template "admin/style.tmpl" . }}
+</head>
+<body class="admin-body">
+  {{ template "admin/nav.tmpl" . }}
+  <main class="admin-main">
+    <section class="admin-header">
+      <div>
+        <h1>{{ .Course.Title }}</h1>
+        <div class="admin-muted">Students ranked newest signup first</div>
+      </div>
+      <a href="/admin/courses">Back to courses</a>
+    </section>
+    <div class="admin-course-layout">
+      {{ template "admin/course_sidebar.tmpl" . }}
+      <section>
+        <table>
+          <thead><tr><th>Student</th><th>Email</th><th>Signed up</th><th>Page progress</th><th>Score</th><th>Last touched</th><th>Code</th></tr></thead>
+          <tbody>
+          {{ range .Students }}
+            <tr>
+              <td><a href="/admin/courses/{{ $.Course.Slug }}/students/{{ .PersonID }}">{{ .DisplayName }}</a></td>
+              <td>{{ .Email }}</td>
+              <td>{{ .GrantedAt }}</td>
+              <td>
+                {{ .PagesViewed }} / {{ .TotalPages }}
+                <div class="admin-bar"><span style="width: {{ .PageProgressPct }}%"></span></div>
+              </td>
+              <td>
+                {{ .QuestionsPassed }} / {{ .TotalQuestions }}
+                <div class="admin-bar pass"><span style="width: {{ .PassPct }}%"></span></div>
+              </td>
+              <td>{{ .LastTouchedAt }}</td>
+              <td>{{ .CodeBlocksSaved }}</td>
+            </tr>
+          {{ else }}
+            <tr><td colspan="7">No enrolled students yet.</td></tr>
+          {{ end }}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

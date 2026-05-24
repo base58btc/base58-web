@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  {{ block "head" .Page }} {{ end }}
+  {{ template "admin/style.tmpl" . }}
+</head>
+<body class="admin-body">
+  {{ template "admin/nav.tmpl" . }}
+  <main class="admin-main">
+    <section class="admin-header">
+      <div>
+        <h1>{{ .Course.Title }}</h1>
+        <div class="admin-muted">Course content and metadata</div>
+      </div>
+      <a href="/admin/courses">Back to courses</a>
+    </section>
+    {{ if .Flash }}<div class="admin-flash">{{ .Flash }}</div>{{ end }}
+    {{ if .Error }}<div class="admin-error">{{ .Error }}</div>{{ end }}
+    <div class="admin-course-layout">
+      {{ template "admin/course_sidebar.tmpl" . }}
+      <section>
+        <form class="admin-form" method="post" action="/admin/courses/{{ .Course.Slug }}/content">
+          {{ .CSRFField }}
+          {{ template "admin/course_fields.tmpl" .Course }}
+          <button type="submit">Save course</button>
+        </form>
+        <section class="admin-chart-panel">
+          <h2>Course Editor</h2>
+          <p class="admin-muted">The full course content editor will live here after courses move out of Notion.</p>
+        </section>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

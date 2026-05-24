@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -29,12 +30,16 @@ type AdminPage struct {
 	Courses      []AdminCourse
 	Course       AdminCourse
 	Entitlements []AdminEntitlement
+	Attempts     []AdminAttemptReport
+	Stats        AdminCourseStats
+	Students     []AdminCourseStudent
 	AuditEvents  []AdminAuditEvent
 	CurrentAdmin AdminUser
 	CSRFField    template.HTML
 	Email        string
 	LoginLink    string
 	Query        string
+	ActiveTab    string
 }
 
 type AdminUser struct {
@@ -101,6 +106,114 @@ type AdminAuditEvent struct {
 	CreatedAt  string
 }
 
+type AdminAttemptReport struct {
+	ID                int64
+	PersonID          int64
+	DisplayName       string
+	Email             string
+	CourseSlug        string
+	CourseTitle       string
+	AttemptNumber     int
+	Status            string
+	StartedAt         string
+	ResetAt           string
+	LastTouchedAt     string
+	PagesViewed       int
+	TotalPages        int
+	QuestionsAnswered int
+	QuestionsPassed   int
+	QuestionsFailed   int
+	TotalQuestions    int
+	CodeBlocksSaved   int
+	PageProgressPct   int
+	QuestionPct       int
+	PassPct           int
+	Pages             []AdminPageProgress
+	CodeBlocks        []AdminCodeWork
+}
+
+type AdminPageProgress struct {
+	LessonPath     string
+	Title          string
+	Viewed         bool
+	LastViewedAt   string
+	ChallengeCount int
+	Answered       int
+	Passed         int
+	Failed         int
+	Complete       bool
+	CompletedAt    string
+	ProgressPct    int
+}
+
+type AdminCodeWork struct {
+	LessonPath  string
+	BlockID     string
+	BlockType   string
+	UpdatedAt   string
+	CodePreview string
+}
+
+type AdminCourseStats struct {
+	PeriodLabel        string
+	TotalStudents      int
+	CurrentSignups     int
+	PreviousSignups    int
+	SignupDelta        int
+	ActiveAttempts     int
+	CompletedAttempts  int
+	AverageProgress    int
+	AveragePassRate    int
+	SignupBars         []AdminSignupBar
+	CurrentSignupLine  string
+	PreviousSignupLine string
+	ProgressBuckets    []AdminChartBucket
+	DifficultyPages    []AdminDifficultyPage
+}
+
+type AdminSignupBar struct {
+	Label     string
+	Current   int
+	Previous  int
+	CurrentX  int
+	PreviousX int
+	CurrentY  int
+	PreviousY int
+	X         int
+}
+
+type AdminChartBucket struct {
+	Label   string
+	Count   int
+	Percent int
+}
+
+type AdminDifficultyPage struct {
+	Title       string
+	LessonPath  string
+	PassPercent int
+	FailPercent int
+	Attempts    int
+}
+
+type AdminCourseStudent struct {
+	PersonID        int64
+	DisplayName     string
+	Email           string
+	GrantedAt       string
+	AttemptNumber   int
+	Status          string
+	LastTouchedAt   string
+	PagesViewed     int
+	TotalPages      int
+	PageProgressPct int
+	QuestionsPassed int
+	TotalQuestions  int
+	PassPct         int
+	QuestionsFailed int
+	CodeBlocksSaved int
+}
+
 func RegisterAdminRoutes(r *mux.Router, ctx *config.AppContext) {
 	r.HandleFunc("/admin/login", func(w http.ResponseWriter, r *http.Request) {
 		AdminLogin(w, r, ctx)
@@ -135,6 +248,15 @@ func RegisterAdminRoutes(r *mux.Router, ctx *config.AppContext) {
 	r.HandleFunc("/admin/courses/new", func(w http.ResponseWriter, r *http.Request) {
 		AdminNewCourse(w, r, ctx)
 	}).Methods("GET", "POST")
+	r.HandleFunc("/admin/courses/{slug}/content", func(w http.ResponseWriter, r *http.Request) {
+		AdminCourseContent(w, r, ctx)
+	}).Methods("GET", "POST")
+	r.HandleFunc("/admin/courses/{slug}/students", func(w http.ResponseWriter, r *http.Request) {
+		AdminCourseStudents(w, r, ctx)
+	}).Methods("GET")
+	r.HandleFunc("/admin/courses/{slug}/students/{id:[0-9]+}", func(w http.ResponseWriter, r *http.Request) {
+		AdminCourseStudentDetail(w, r, ctx)
+	}).Methods("GET")
 	r.HandleFunc("/admin/courses/{slug}", func(w http.ResponseWriter, r *http.Request) {
 		AdminCourseDetail(w, r, ctx)
 	}).Methods("GET", "POST")
@@ -143,6 +265,9 @@ func RegisterAdminRoutes(r *mux.Router, ctx *config.AppContext) {
 	}).Methods("POST")
 	r.HandleFunc("/admin/audit", func(w http.ResponseWriter, r *http.Request) {
 		AdminAudit(w, r, ctx)
+	}).Methods("GET")
+	r.HandleFunc("/admin/{slug:[A-Za-z0-9_-]+}", func(w http.ResponseWriter, r *http.Request) {
+		AdminCourseSlugRedirect(w, r, ctx)
 	}).Methods("GET")
 }
 
@@ -217,12 +342,8 @@ func AdminDashboard(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 	data := baseAdminPage(ctx, "Admin")
 	data.HasDB = ctx.DB != nil
 	if ctx.DB != nil {
-		data.People, _ = listPeople(ctx, "")
 		data.Courses, _ = listAdminCourses(ctx)
 		data.AuditEvents, _ = listAuditEvents(ctx, 8)
-		if len(data.People) > 8 {
-			data.People = data.People[:8]
-		}
 		if len(data.Courses) > 8 {
 			data.Courses = data.Courses[:8]
 		}
@@ -300,6 +421,7 @@ func AdminPersonDetail(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 	data.Person = person
 	data.Entitlements, _ = listPersonEntitlements(ctx, id)
 	data.Courses, _ = listAdminCourses(ctx)
+	data.Attempts, _ = listPersonAdminAttemptReports(ctx, id)
 	data.Flash = r.URL.Query().Get("flash")
 	renderAdmin(w, r, ctx, "admin/person_detail.tmpl", data)
 }
@@ -389,7 +511,32 @@ func AdminCourseDetail(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		return
 	}
 	slug := mux.Vars(r)["slug"]
-	data := baseAdminPage(ctx, "Course")
+	if r.Method == http.MethodPost {
+		AdminCourseContent(w, r, ctx)
+		return
+	}
+	course, err := getAdminCourse(ctx, slug)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	data := baseAdminPage(ctx, course.Title+" Stats")
+	data.Course = course
+	data.ActiveTab = "stats"
+	data.Stats = buildAdminCourseStats(ctx, slug)
+	data.Flash = r.URL.Query().Get("flash")
+	renderAdmin(w, r, ctx, "admin/course_stats.tmpl", data)
+}
+
+func AdminCourseContent(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	if !requireAdmin(w, r, ctx) {
+		return
+	}
+	if !requireAdminDB(w, r, ctx, "Course Content") {
+		return
+	}
+	slug := mux.Vars(r)["slug"]
+	data := baseAdminPage(ctx, "Course Content")
 	if r.Method == http.MethodPost {
 		r.ParseForm()
 		course := courseFromForm(r)
@@ -398,7 +545,7 @@ func AdminCourseDetail(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 			data.Error = err.Error()
 		} else {
 			writeAudit(ctx, adminActor(r, ctx), "course.update", "course", slug, "")
-			http.Redirect(w, r, "/admin/courses/"+slug+"?flash=saved", http.StatusSeeOther)
+			http.Redirect(w, r, "/admin/courses/"+slug+"/content?flash=saved", http.StatusSeeOther)
 			return
 		}
 	}
@@ -408,9 +555,56 @@ func AdminCourseDetail(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		return
 	}
 	data.Course = course
-	data.Entitlements, _ = listCourseEntitlements(ctx, slug)
+	data.ActiveTab = "content"
 	data.Flash = r.URL.Query().Get("flash")
-	renderAdmin(w, r, ctx, "admin/course_detail.tmpl", data)
+	renderAdmin(w, r, ctx, "admin/course_content.tmpl", data)
+}
+
+func AdminCourseStudents(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	if !requireAdmin(w, r, ctx) {
+		return
+	}
+	if !requireAdminDB(w, r, ctx, "Course Students") {
+		return
+	}
+	slug := mux.Vars(r)["slug"]
+	course, err := getAdminCourse(ctx, slug)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	data := baseAdminPage(ctx, course.Title+" Students")
+	data.Course = course
+	data.ActiveTab = "students"
+	data.Students, _ = listAdminCourseStudents(ctx, slug)
+	renderAdmin(w, r, ctx, "admin/course_students.tmpl", data)
+}
+
+func AdminCourseStudentDetail(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	if !requireAdmin(w, r, ctx) {
+		return
+	}
+	if !requireAdminDB(w, r, ctx, "Course Student") {
+		return
+	}
+	slug := mux.Vars(r)["slug"]
+	personID, _ := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	course, err := getAdminCourse(ctx, slug)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	person, err := getPerson(ctx, personID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	data := baseAdminPage(ctx, course.Title+" Student")
+	data.Course = course
+	data.Person = person
+	data.ActiveTab = "students"
+	data.Attempts, _ = listCoursePersonAdminAttemptReports(ctx, slug, personID)
+	renderAdmin(w, r, ctx, "admin/course_student_detail.tmpl", data)
 }
 
 func AdminRevokeEntitlement(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -440,6 +634,14 @@ func AdminAudit(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) 
 	data := baseAdminPage(ctx, "Audit")
 	data.AuditEvents, _ = listAuditEvents(ctx, 100)
 	renderAdmin(w, r, ctx, "admin/audit.tmpl", data)
+}
+
+func AdminCourseSlugRedirect(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	if !requireAdmin(w, r, ctx) {
+		return
+	}
+	slug := mux.Vars(r)["slug"]
+	http.Redirect(w, r, "/admin/courses/"+slug, http.StatusSeeOther)
 }
 
 func requireAdmin(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) bool {
@@ -932,6 +1134,514 @@ LEFT JOIN person_emails pe ON pe.person_id = p.id AND pe.is_primary = `+primaryS
 		ents = append(ents, e)
 	}
 	return ents, rows.Err()
+}
+
+func listRecentAdminAttemptReports(ctx *config.AppContext, limit int) ([]AdminAttemptReport, error) {
+	if limit <= 0 {
+		limit = 8
+	}
+	return listAdminAttemptReports(ctx, "", fmt.Sprintf("LIMIT %d", limit))
+}
+
+func listPersonAdminAttemptReports(ctx *config.AppContext, personID int64) ([]AdminAttemptReport, error) {
+	return listAdminAttemptReports(ctx, `WHERE ca.person_id=`+ph(ctx, 1), "", personID)
+}
+
+func listCourseAdminAttemptReports(ctx *config.AppContext, slug string) ([]AdminAttemptReport, error) {
+	return listAdminAttemptReports(ctx, `WHERE ca.course_slug=`+ph(ctx, 1), "", slug)
+}
+
+func listCoursePersonAdminAttemptReports(ctx *config.AppContext, slug string, personID int64) ([]AdminAttemptReport, error) {
+	return listAdminAttemptReports(ctx, `WHERE ca.course_slug=`+ph(ctx, 1)+` AND ca.person_id=`+ph(ctx, 2), "", slug, personID)
+}
+
+func listAdminAttemptReports(ctx *config.AppContext, where string, limitClause string, args ...any) ([]AdminAttemptReport, error) {
+	query := `SELECT ca.id, ca.person_id, p.display_name, COALESCE(pe.email, ''), ca.course_slug, c.title, ca.attempt_number, ca.status,
+CAST(ca.started_at AS TEXT), COALESCE(CAST(ca.reset_at AS TEXT), '')
+FROM course_attempts ca
+JOIN people p ON p.id = ca.person_id
+JOIN courses c ON c.slug = ca.course_slug
+LEFT JOIN person_emails pe ON pe.person_id = p.id AND pe.is_primary = ` + primarySQL(ctx) + `
+` + where + `
+ORDER BY ca.started_at DESC, ca.id DESC
+` + limitClause
+	rows, err := ctx.DB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reports []AdminAttemptReport
+	for rows.Next() {
+		var report AdminAttemptReport
+		if err := rows.Scan(&report.ID, &report.PersonID, &report.DisplayName, &report.Email, &report.CourseSlug, &report.CourseTitle, &report.AttemptNumber, &report.Status, &report.StartedAt, &report.ResetAt); err != nil {
+			return nil, err
+		}
+		if report.DisplayName == "" {
+			report.DisplayName = report.Email
+		}
+		fillAdminAttemptReport(ctx, &report)
+		reports = append(reports, report)
+	}
+	return reports, rows.Err()
+}
+
+func buildAdminCourseStats(ctx *config.AppContext, slug string) AdminCourseStats {
+	stats := AdminCourseStats{PeriodLabel: "Last 7 days"}
+	entitlements, _ := listCourseEntitlements(ctx, slug)
+	attempts, _ := listCourseAdminAttemptReports(ctx, slug)
+	students := make(map[int64]bool)
+	for _, entitlement := range entitlements {
+		if entitlement.Status == "active" {
+			students[entitlement.PersonID] = true
+		}
+	}
+	stats.TotalStudents = len(students)
+
+	now := time.Now()
+	currentStart := beginningOfDay(now.AddDate(0, 0, -6))
+	previousStart := currentStart.AddDate(0, 0, -7)
+	currentCounts := make([]int, 7)
+	previousCounts := make([]int, 7)
+	for _, entitlement := range entitlements {
+		grantedAt, ok := parseAdminTime(entitlement.GrantedAt)
+		if !ok {
+			continue
+		}
+		day := beginningOfDay(grantedAt)
+		if !day.Before(currentStart) && !day.After(beginningOfDay(now)) {
+			index := int(day.Sub(currentStart).Hours() / 24)
+			if index >= 0 && index < len(currentCounts) {
+				currentCounts[index]++
+				stats.CurrentSignups++
+			}
+			continue
+		}
+		if !day.Before(previousStart) && day.Before(currentStart) {
+			index := int(day.Sub(previousStart).Hours() / 24)
+			if index >= 0 && index < len(previousCounts) {
+				previousCounts[index]++
+				stats.PreviousSignups++
+			}
+		}
+	}
+	stats.SignupDelta = stats.CurrentSignups - stats.PreviousSignups
+	maxCount := 1
+	for i := 0; i < 7; i++ {
+		if currentCounts[i] > maxCount {
+			maxCount = currentCounts[i]
+		}
+		if previousCounts[i] > maxCount {
+			maxCount = previousCounts[i]
+		}
+	}
+	var currentLine []string
+	var previousLine []string
+	for i := 0; i < 7; i++ {
+		x := 120 + i*82
+		currentY := 220 - percent(currentCounts[i], maxCount)*180/100
+		previousY := 220 - percent(previousCounts[i], maxCount)*180/100
+		stats.SignupBars = append(stats.SignupBars, AdminSignupBar{
+			Label:     currentStart.AddDate(0, 0, i).Format("Jan 2"),
+			Current:   currentCounts[i],
+			Previous:  previousCounts[i],
+			CurrentX:  x,
+			PreviousX: x,
+			CurrentY:  currentY,
+			PreviousY: previousY,
+			X:         x,
+		})
+		currentLine = append(currentLine, fmt.Sprintf("%d,%d", x, currentY))
+		previousLine = append(previousLine, fmt.Sprintf("%d,%d", x, previousY))
+	}
+	stats.CurrentSignupLine = strings.Join(currentLine, " ")
+	stats.PreviousSignupLine = strings.Join(previousLine, " ")
+
+	latest := latestAttemptsByPerson(attempts)
+	var progressTotal, passTotal int
+	progressBuckets := []AdminChartBucket{
+		{Label: "0%"},
+		{Label: "1-25%"},
+		{Label: "26-50%"},
+		{Label: "51-75%"},
+		{Label: "76-99%"},
+		{Label: "100%"},
+	}
+	type pageAggregate struct {
+		Title      string
+		Path       string
+		Possible   int
+		Passed     int
+		AttemptCnt int
+	}
+	pageStats := make(map[string]*pageAggregate)
+
+	for _, attempt := range latest {
+		if attempt.Status == "active" {
+			stats.ActiveAttempts++
+		}
+		if attempt.PageProgressPct == 100 && (attempt.TotalQuestions == 0 || attempt.PassPct == 100) {
+			stats.CompletedAttempts++
+		}
+		progressTotal += attempt.PageProgressPct
+		passTotal += attempt.PassPct
+		switch {
+		case attempt.PageProgressPct == 0:
+			progressBuckets[0].Count++
+		case attempt.PageProgressPct <= 25:
+			progressBuckets[1].Count++
+		case attempt.PageProgressPct <= 50:
+			progressBuckets[2].Count++
+		case attempt.PageProgressPct <= 75:
+			progressBuckets[3].Count++
+		case attempt.PageProgressPct < 100:
+			progressBuckets[4].Count++
+		default:
+			progressBuckets[5].Count++
+		}
+		for _, page := range attempt.Pages {
+			if page.ChallengeCount <= 0 {
+				continue
+			}
+			aggregate := pageStats[page.LessonPath]
+			if aggregate == nil {
+				aggregate = &pageAggregate{Title: page.Title, Path: page.LessonPath}
+				pageStats[page.LessonPath] = aggregate
+			}
+			aggregate.Possible += page.ChallengeCount
+			aggregate.Passed += page.Passed
+			aggregate.AttemptCnt++
+		}
+	}
+	if len(latest) > 0 {
+		stats.AverageProgress = progressTotal / len(latest)
+		stats.AveragePassRate = passTotal / len(latest)
+	}
+	for i := range progressBuckets {
+		progressBuckets[i].Percent = percent(progressBuckets[i].Count, len(latest))
+	}
+	stats.ProgressBuckets = progressBuckets
+
+	for _, aggregate := range pageStats {
+		passPct := percent(aggregate.Passed, aggregate.Possible)
+		stats.DifficultyPages = append(stats.DifficultyPages, AdminDifficultyPage{
+			Title:       aggregate.Title,
+			LessonPath:  aggregate.Path,
+			PassPercent: passPct,
+			FailPercent: 100 - passPct,
+			Attempts:    aggregate.AttemptCnt,
+		})
+	}
+	sort.Slice(stats.DifficultyPages, func(i, j int) bool {
+		if stats.DifficultyPages[i].FailPercent == stats.DifficultyPages[j].FailPercent {
+			return stats.DifficultyPages[i].LessonPath < stats.DifficultyPages[j].LessonPath
+		}
+		return stats.DifficultyPages[i].FailPercent > stats.DifficultyPages[j].FailPercent
+	})
+	if len(stats.DifficultyPages) > 10 {
+		stats.DifficultyPages = stats.DifficultyPages[:10]
+	}
+	return stats
+}
+
+func latestAttemptsByPerson(attempts []AdminAttemptReport) []AdminAttemptReport {
+	seen := make(map[int64]bool)
+	var latest []AdminAttemptReport
+	for _, attempt := range attempts {
+		if seen[attempt.PersonID] {
+			continue
+		}
+		seen[attempt.PersonID] = true
+		latest = append(latest, attempt)
+	}
+	return latest
+}
+
+func listAdminCourseStudents(ctx *config.AppContext, slug string) ([]AdminCourseStudent, error) {
+	rows, err := ctx.DB.Query(`SELECT ce.person_id, p.display_name, COALESCE(pe.email, ''), CAST(MAX(ce.granted_at) AS TEXT)
+FROM course_entitlements ce
+JOIN people p ON p.id = ce.person_id
+LEFT JOIN person_emails pe ON pe.person_id = p.id AND pe.is_primary = `+primarySQL(ctx)+`
+WHERE ce.course_slug=`+ph(ctx, 1)+` AND ce.status='active'
+GROUP BY ce.person_id, p.display_name, pe.email
+ORDER BY MAX(ce.granted_at) DESC`, slug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var students []AdminCourseStudent
+	for rows.Next() {
+		var student AdminCourseStudent
+		if err := rows.Scan(&student.PersonID, &student.DisplayName, &student.Email, &student.GrantedAt); err != nil {
+			return nil, err
+		}
+		if student.DisplayName == "" {
+			student.DisplayName = student.Email
+		}
+		attempts, _ := listCoursePersonAdminAttemptReports(ctx, slug, student.PersonID)
+		if len(attempts) > 0 {
+			attempt := attempts[0]
+			student.AttemptNumber = attempt.AttemptNumber
+			student.Status = attempt.Status
+			student.LastTouchedAt = attempt.LastTouchedAt
+			student.PagesViewed = attempt.PagesViewed
+			student.TotalPages = attempt.TotalPages
+			student.PageProgressPct = attempt.PageProgressPct
+			student.QuestionsPassed = attempt.QuestionsPassed
+			student.QuestionsFailed = attempt.QuestionsFailed
+			student.TotalQuestions = attempt.TotalQuestions
+			student.PassPct = attempt.PassPct
+			student.CodeBlocksSaved = attempt.CodeBlocksSaved
+		}
+		students = append(students, student)
+	}
+	return students, rows.Err()
+}
+
+func fillAdminAttemptReport(ctx *config.AppContext, report *AdminAttemptReport) {
+	outline := adminCourseOutlineProgress(report.CourseSlug)
+	report.TotalPages = len(outline)
+	for _, page := range outline {
+		report.TotalQuestions += page.ChallengeCount
+	}
+
+	report.PagesViewed = adminCount(ctx, `SELECT COUNT(*) FROM course_page_views WHERE attempt_id=`+ph(ctx, 1), report.ID)
+	report.QuestionsAnswered = adminCount(ctx, `SELECT COUNT(*) FROM course_progress WHERE attempt_id=`+ph(ctx, 1), report.ID)
+	report.QuestionsPassed = adminCount(ctx, `SELECT COUNT(*) FROM course_progress WHERE attempt_id=`+ph(ctx, 1)+` AND correct=`+trueSQL(ctx), report.ID)
+	report.QuestionsFailed = adminCount(ctx, `SELECT COUNT(*) FROM course_progress WHERE attempt_id=`+ph(ctx, 1)+` AND correct=`+falseSQL(ctx), report.ID)
+	report.CodeBlocksSaved = adminCount(ctx, `SELECT COUNT(*) FROM course_code_blocks WHERE attempt_id=`+ph(ctx, 1), report.ID)
+	report.LastTouchedAt = adminLastTouchedAt(ctx, report.ID, report.StartedAt)
+	report.PageProgressPct = percent(report.PagesViewed, report.TotalPages)
+	report.QuestionPct = percent(report.QuestionsAnswered, report.TotalQuestions)
+	report.PassPct = percent(report.QuestionsPassed, report.TotalQuestions)
+	report.Pages = listAdminPageProgress(ctx, report.ID, outline)
+	report.CodeBlocks = listAdminCodeWork(ctx, report.ID, 6)
+}
+
+type adminOutlinePage struct {
+	Path           string
+	Title          string
+	ChallengeCount int
+}
+
+func adminCourseOutlineProgress(courseSlug string) []adminOutlinePage {
+	outline, err := loadLocalCourse(localCoursesRoot, courseSlug, "")
+	if err != nil {
+		return nil
+	}
+	var pages []adminOutlinePage
+	var walk func(items []*CourseNavItem)
+	walk = func(items []*CourseNavItem) {
+		for _, item := range items {
+			if item.Path != "" {
+				pages = append(pages, adminOutlinePage{
+					Path:           item.Path,
+					Title:          item.Title,
+					ChallengeCount: item.ChallengeCount,
+				})
+			}
+			walk(item.Children)
+		}
+	}
+	walk(outline.Items)
+	return pages
+}
+
+func listAdminPageProgress(ctx *config.AppContext, attemptID int64, outline []adminOutlinePage) []AdminPageProgress {
+	viewed := adminViewedPages(ctx, attemptID)
+	progress := adminLessonQuestionStats(ctx, attemptID)
+	pages := make([]AdminPageProgress, 0, len(outline))
+	for _, item := range outline {
+		page := AdminPageProgress{
+			LessonPath:     item.Path,
+			Title:          item.Title,
+			ChallengeCount: item.ChallengeCount,
+		}
+		if lastViewed, ok := viewed[item.Path]; ok {
+			page.Viewed = true
+			page.LastViewedAt = lastViewed
+		}
+		if stats, ok := progress[item.Path]; ok {
+			page.Answered = stats.Answered
+			page.Passed = stats.Passed
+			page.Failed = stats.Failed
+			page.CompletedAt = stats.CompletedAt
+		}
+		if page.ChallengeCount == 0 {
+			page.Complete = page.Viewed
+			page.ProgressPct = percent(boolInt(page.Viewed), 1)
+		} else {
+			page.Complete = page.Passed >= page.ChallengeCount
+			page.ProgressPct = percent(page.Passed, page.ChallengeCount)
+		}
+		pages = append(pages, page)
+	}
+	return pages
+}
+
+func adminViewedPages(ctx *config.AppContext, attemptID int64) map[string]string {
+	rows, err := ctx.DB.Query(`SELECT lesson_path, CAST(last_viewed_at AS TEXT) FROM course_page_views WHERE attempt_id=`+ph(ctx, 1), attemptID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	viewed := make(map[string]string)
+	for rows.Next() {
+		var path, last string
+		if rows.Scan(&path, &last) == nil {
+			viewed[path] = last
+		}
+	}
+	return viewed
+}
+
+type adminLessonStats struct {
+	Answered    int
+	Passed      int
+	Failed      int
+	CompletedAt string
+}
+
+func adminLessonQuestionStats(ctx *config.AppContext, attemptID int64) map[string]adminLessonStats {
+	rows, err := ctx.DB.Query(`SELECT lesson_path, COUNT(*),
+COALESCE(SUM(CASE WHEN correct THEN 1 ELSE 0 END), 0),
+COALESCE(SUM(CASE WHEN correct THEN 0 ELSE 1 END), 0),
+CAST(MAX(updated_at) AS TEXT)
+FROM course_progress
+WHERE attempt_id=`+ph(ctx, 1)+`
+GROUP BY lesson_path`, attemptID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	stats := make(map[string]adminLessonStats)
+	for rows.Next() {
+		var path string
+		var item adminLessonStats
+		if rows.Scan(&path, &item.Answered, &item.Passed, &item.Failed, &item.CompletedAt) == nil {
+			stats[path] = item
+		}
+	}
+	return stats
+}
+
+func listAdminCodeWork(ctx *config.AppContext, attemptID int64, limit int) []AdminCodeWork {
+	query := `SELECT lesson_path, block_id, block_type, CAST(updated_at AS TEXT), code_text
+FROM course_code_blocks
+WHERE attempt_id=` + ph(ctx, 1) + `
+ORDER BY updated_at DESC`
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+	}
+	rows, err := ctx.DB.Query(query, attemptID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var blocks []AdminCodeWork
+	for rows.Next() {
+		var block AdminCodeWork
+		var code string
+		if rows.Scan(&block.LessonPath, &block.BlockID, &block.BlockType, &block.UpdatedAt, &code) == nil {
+			block.CodePreview = previewCode(code, 160)
+			blocks = append(blocks, block)
+		}
+	}
+	return blocks
+}
+
+func adminCount(ctx *config.AppContext, query string, args ...any) int {
+	var count int
+	_ = ctx.DB.QueryRow(query, args...).Scan(&count)
+	return count
+}
+
+func adminLastTouchedAt(ctx *config.AppContext, attemptID int64, fallback string) string {
+	query := `SELECT CAST(MAX(touched_at) AS TEXT)
+FROM (
+  SELECT started_at AS touched_at FROM course_attempts WHERE id=` + ph(ctx, 1) + `
+  UNION ALL SELECT last_viewed_at FROM course_page_views WHERE attempt_id=` + ph(ctx, 2) + `
+  UNION ALL SELECT updated_at FROM course_progress WHERE attempt_id=` + ph(ctx, 3) + `
+  UNION ALL SELECT updated_at FROM course_code_blocks WHERE attempt_id=` + ph(ctx, 4) + `
+) activity`
+	var last sql.NullString
+	if err := ctx.DB.QueryRow(query, attemptID, attemptID, attemptID, attemptID).Scan(&last); err == nil && last.Valid {
+		return last.String
+	}
+	return fallback
+}
+
+func percent(done, total int) int {
+	if total <= 0 {
+		return 0
+	}
+	value := done * 100 / total
+	if value > 100 {
+		return 100
+	}
+	return value
+}
+
+func beginningOfDay(value time.Time) time.Time {
+	year, month, day := value.Date()
+	return time.Date(year, month, day, 0, 0, 0, 0, value.Location())
+}
+
+func parseAdminTime(value string) (time.Time, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, false
+	}
+	layouts := []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05.999999999-07",
+		"2006-01-02 15:04:05.999999-07",
+		"2006-01-02 15:04:05-07",
+		"2006-01-02 15:04:05.999999999Z07:00",
+		"2006-01-02 15:04:05.999999Z07:00",
+		"2006-01-02 15:04:05Z07:00",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05.999999",
+		"2006-01-02 15:04:05",
+	}
+	for _, layout := range layouts {
+		parsed, err := time.Parse(layout, value)
+		if err == nil {
+			return parsed, true
+		}
+	}
+	return time.Time{}, false
+}
+
+func boolInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func trueSQL(ctx *config.AppContext) string {
+	if adminPostgres(ctx) {
+		return "true"
+	}
+	return "1"
+}
+
+func falseSQL(ctx *config.AppContext) string {
+	if adminPostgres(ctx) {
+		return "false"
+	}
+	return "0"
+}
+
+func previewCode(code string, limit int) string {
+	code = strings.TrimSpace(code)
+	if len(code) <= limit {
+		return code
+	}
+	return code[:limit] + "..."
 }
 
 func primarySQL(ctx *config.AppContext) string {
