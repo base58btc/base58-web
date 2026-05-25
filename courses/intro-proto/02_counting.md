@@ -97,8 +97,15 @@ What byte size can hold `70_000`?
 = 4 bytes [This works! It's smallest set that can hold the highest count.]
 ~~~
 
+Fill in the rest of the bytes.
 
-+++
+???
+id: byte-count
+
+Have `bytecounts` return a dict with the correct byte sizes for each of the fruits
+
+---
+
 bytecounts = {
     'bananas': 0,
     'mangos': 0,
@@ -106,7 +113,22 @@ bytecounts = {
     'pineapple': 2,
     'watermelon': 0,
 }
-print(bytecounts)
-+++
+bytecounts
 
-Fill in the rest of the bytes.
+---
+assert bytecounts == {
+    'bananas': 2,
+    'mangos': 4,
+    'apples': 2,
+    'pineapple': 2,
+    'watermelon': 1,
+}
+---
+Try again. As a reminder, here's the maximum of each fruit you can bring home.
+- 1,000 bananas,
+- 70,000 mangos,
+- 260 apples,
+- 20,0000 pineapples, and
+- 15 watermelon.
+???
+
