@@ -245,6 +245,23 @@
       padding-left: 1.35rem;
     }
 
+    .course-platform_article ul {
+      list-style: disc;
+    }
+
+    .course-platform_article ol {
+      list-style: decimal;
+    }
+
+    .course-platform_article li {
+      margin: 0.35rem 0;
+    }
+
+    .course-platform_article li > ul,
+    .course-platform_article li > ol {
+      margin: 0.35rem 0 0;
+    }
+
     .course-platform_article code {
       border-radius: 0.25rem;
       background: #eee8dc;
@@ -298,6 +315,7 @@
     .codeset .code-area {
       width: 100%;
       min-height: 8rem;
+      overflow: hidden;
       resize: vertical;
       border: 1px solid rgba(20, 20, 20, 0.16);
       border-radius: 0.5rem;
@@ -679,6 +697,7 @@
 
     document.addEventListener("DOMContentLoaded", function() {
       hydrateCourseProgressFromServer().finally(function() {
+        setupAutoResizeCodeAreas();
         setupCourseChallengeMarkers();
         updateCourseSidebarProgress();
         updateCourseScrollProgress();
@@ -956,15 +975,7 @@
         restoreMultipleChoiceState(block, saved);
       }
       if (block.classList.contains("course-code-challenge") && saved.correct === true) {
-        const textarea = block.querySelector(".code-area");
-        const button = block.querySelector(".course-challenge-submit");
         const output = block.querySelector(".challenge-output");
-        if (textarea) {
-          textarea.disabled = true;
-        }
-        if (button) {
-          button.disabled = true;
-        }
         if (output && output.textContent.trim() === "") {
           output.textContent = "Correct.";
         }
@@ -980,6 +991,7 @@
       const prompt = block.querySelector(".output-prompt");
       if (textarea && typeof saved.codeText === "string") {
         textarea.value = saved.codeText;
+        resizeCodeArea(textarea);
       }
       if (output && typeof saved.outputText === "string" && saved.outputText !== "") {
         output.textContent = saved.outputText;
@@ -1140,6 +1152,24 @@
       }
     });
 
+    function setupAutoResizeCodeAreas() {
+      document.querySelectorAll(".code-area").forEach(function(textarea) {
+        resizeCodeArea(textarea);
+        textarea.addEventListener("input", function() {
+          resizeCodeArea(textarea);
+        });
+      });
+    }
+
+    function resizeCodeArea(textarea) {
+      if (!(textarea instanceof HTMLTextAreaElement)) {
+        return;
+      }
+
+      textarea.style.height = "auto";
+      textarea.style.height = textarea.scrollHeight + "px";
+    }
+
     function isEditableTarget(target) {
       if (!(target instanceof Element)) {
         return false;
@@ -1274,9 +1304,20 @@
     const courseCellRunnerSource = `
 import ast
 import json
+import pprint
 import sys
 import traceback
 from io import StringIO
+
+def __course_display(value):
+    if value is None:
+        return
+
+    if isinstance(value, (dict, list, tuple, set, frozenset)):
+        print(pprint.pformat(value, width=72, compact=False, sort_dicts=False))
+        return
+
+    sys.displayhook(value)
 
 def __course_exec_cell(code):
     tree = ast.parse(code, filename="<course cell>", mode="exec")
@@ -1289,7 +1330,7 @@ def __course_exec_cell(code):
         expr = ast.Expression(tree.body[-1].value)
         ast.fix_missing_locations(expr)
         value = eval(compile(expr, "<course cell>", "eval"), globals())
-        sys.displayhook(value)
+        __course_display(value)
         return
 
     exec(compile(tree, "<course cell>", "exec"), globals())
@@ -1402,7 +1443,6 @@ def __course_check_cell(student_code, check_code):
 
       const textarea = block.querySelector(".code-area");
       const output = block.querySelector(".challenge-output");
-      let keepDisabled = false;
 
       output.classList.remove("is-error");
       output.textContent = "Checking...";
@@ -1418,8 +1458,6 @@ def __course_check_cell(student_code, check_code):
 
         if (result.ok) {
           output.textContent = result.output ? result.output + "\nCorrect." : "Correct.";
-          textarea.disabled = true;
-          keepDisabled = true;
           markCourseBlockResult(block, {
             correct: true,
             codeText: textarea.value,
@@ -1447,7 +1485,7 @@ def __course_check_cell(student_code, check_code):
           outputOk: false
         });
       } finally {
-        button.disabled = keepDisabled;
+        button.disabled = false;
       }
     }
   </script>
