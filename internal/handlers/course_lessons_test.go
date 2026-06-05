@@ -270,6 +270,24 @@ func TestCourseMarkdownRendersCodeChallengeBlocks(t *testing.T) {
 	if !strings.Contains(html, `def answer():`) {
 		t.Fatalf("expected starter code, got %s", html)
 	}
+	if !strings.Contains(html, `class="code-editor-shell"`) {
+		t.Fatalf("expected code editor shell, got %s", html)
+	}
+	if !strings.Contains(html, `class="code-highlight"`) {
+		t.Fatalf("expected code highlight layer, got %s", html)
+	}
+	if !strings.Contains(html, `class="run-btn"`) {
+		t.Fatalf("expected code challenge run button, got %s", html)
+	}
+	if !strings.Contains(html, `class="output-prompt"`) {
+		t.Fatalf("expected code challenge output prompt, got %s", html)
+	}
+	if !strings.Contains(html, `Run Tests`) {
+		t.Fatalf("expected code challenge test button label, got %s", html)
+	}
+	if !strings.Contains(html, `class="course-challenge-result-icon"`) {
+		t.Fatalf("expected code challenge result icon, got %s", html)
+	}
 	if strings.Contains(html, `assert answer() == 4`) {
 		t.Fatalf("expected hidden check code to be encoded, got %s", html)
 	}

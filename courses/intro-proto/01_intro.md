@@ -10,7 +10,7 @@ To do explore this, we'll use the example of communicating to your friend how ma
 
 In this mini-course, we'll design a byte-level protocol and parser that lets us write information to bytes and then read it back into programming data.
 
-By the end, you should be able to:
+### By the end, you should be able to:
 - calculate how many bytes are necessary for sending data
 - be able to write variable length datafields over bytes
 - have implemented a custom TLV data struct

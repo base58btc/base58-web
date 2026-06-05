@@ -11,7 +11,7 @@
     .course-platform_shell {
       display: grid;
       grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
-      gap: 3rem;
+      gap: 6rem;
       width: min(100%, 76rem);
       margin: 0 auto;
       padding: 7rem 2rem 5rem;
@@ -293,7 +293,16 @@
       margin: 1.25rem 0 1.25rem -4.75rem;
     }
 
+    .codeset .code-runner {
+      align-self: stretch;
+      justify-self: end;
+      min-height: 100%;
+    }
+
     .codeset .run-btn {
+      position: sticky;
+      top: 4.5rem;
+      z-index: 5;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -304,7 +313,6 @@
       background: #191919;
       color: #f7c35f;
       cursor: pointer;
-      justify-self: end;
     }
 
     .codeset .run-btn:disabled {
@@ -312,19 +320,94 @@
       opacity: 0.62;
     }
 
-    .codeset .code-area {
+    .codeset .code-editor-shell {
+      position: relative;
+      box-sizing: border-box;
       width: 100%;
       min-height: 8rem;
       overflow: hidden;
-      resize: vertical;
       border: 1px solid rgba(20, 20, 20, 0.16);
       border-radius: 0.5rem;
       background: #fffdf8;
+    }
+
+    .codeset .code-highlight {
+      position: absolute;
+      inset: 0;
+      box-sizing: border-box;
+      margin: 0;
+      overflow: hidden;
+      border: 0;
+      background: transparent;
       padding: 0.85rem 1rem;
       color: #191919;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       font-size: 0.925rem;
       line-height: 1.5;
+      pointer-events: none;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .codeset .code-highlight code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+      font: inherit;
+    }
+
+    .codeset .code-area {
+      position: relative;
+      z-index: 1;
+      display: block;
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 8rem;
+      overflow: hidden;
+      resize: vertical;
+      border: 0;
+      background: transparent;
+      padding: 0.85rem 1rem;
+      color: transparent;
+      caret-color: #191919;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.925rem;
+      line-height: 1.5;
+    }
+
+    .codeset .code-area::selection {
+      background: rgba(247, 195, 95, 0.42);
+      color: transparent;
+    }
+
+    .code-token.keyword {
+      color: #8b3f9f;
+      font-weight: 700;
+    }
+
+    .code-token.builtin {
+      color: #1d668f;
+    }
+
+    .code-token.string {
+      color: #7a4b00;
+    }
+
+    .code-token.number {
+      color: #2f6f4e;
+    }
+
+    .code-token.comment {
+      color: #6b7280;
+      font-style: italic;
+    }
+
+    .code-token.variable {
+      color: #243b6b;
+    }
+
+    .code-token.operator {
+      color: #8a2d22;
     }
 
     .codeset .output-prompt {
@@ -530,6 +613,10 @@
       margin-bottom: 0;
     }
 
+    .course-code-challenge .code-runner {
+      transform: translateX(-1rem);
+    }
+
     .course-authoring-error {
       border-color: rgba(138, 45, 34, 0.5);
       background: #fff1ee;
@@ -659,6 +746,10 @@
         margin-left: 0;
       }
 
+      .course-code-challenge .code-runner {
+        transform: none;
+      }
+
       .course-scroll-indicator {
         right: 1rem;
         left: 1rem;
@@ -694,6 +785,7 @@
   </style>
   <script>
     let courseProgressState = { version: 1, courses: {} };
+    const codeIndent = "    ";
 
     document.addEventListener("DOMContentLoaded", function() {
       hydrateCourseProgressFromServer().finally(function() {
@@ -950,7 +1042,7 @@
         }
         applySavedCourseBlockState(block, saved);
       });
-      document.querySelectorAll(".course-code-cell").forEach(function(block) {
+      document.querySelectorAll(".course-code-cell, .course-code-challenge .code-challenge-cell").forEach(function(block) {
         const saved = lesson.codeBlocks[block.dataset.courseBlockId || ""];
         if (!saved) {
           return;
@@ -991,7 +1083,9 @@
       const prompt = block.querySelector(".output-prompt");
       if (textarea && typeof saved.codeText === "string") {
         textarea.value = saved.codeText;
+        normalizeCodeAreaTabs(textarea);
         resizeCodeArea(textarea);
+        updateCodeHighlight(textarea);
       }
       if (output && typeof saved.outputText === "string" && saved.outputText !== "") {
         output.textContent = saved.outputText;
@@ -1105,6 +1199,12 @@
       const target = event.target;
       const isCodeArea = target instanceof HTMLTextAreaElement && target.classList.contains("code-area");
 
+      if (isCodeArea && event.key === "Tab" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        insertTextInCodeArea(target, codeIndent);
+        return;
+      }
+
       if (isCodeArea && event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
         const challenge = target.closest(".course-code-challenge");
         if (challenge && typeof submitCodeChallenge === "function") {
@@ -1152,11 +1252,39 @@
       }
     });
 
+    function insertTextInCodeArea(textarea, text) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      const textareaScrollTop = textarea.scrollTop;
+      const textareaScrollLeft = textarea.scrollLeft;
+      textarea.value = textarea.value.slice(0, start) + text + textarea.value.slice(end);
+      textarea.selectionStart = start + text.length;
+      textarea.selectionEnd = start + text.length;
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      textarea.scrollTop = textareaScrollTop;
+      textarea.scrollLeft = textareaScrollLeft;
+      window.scrollTo(scrollX, scrollY);
+      window.requestAnimationFrame(function() {
+        textarea.scrollTop = textareaScrollTop;
+        textarea.scrollLeft = textareaScrollLeft;
+        window.scrollTo(scrollX, scrollY);
+      });
+    }
+
     function setupAutoResizeCodeAreas() {
       document.querySelectorAll(".code-area").forEach(function(textarea) {
+        normalizeCodeAreaTabs(textarea);
         resizeCodeArea(textarea);
+        updateCodeHighlight(textarea);
         textarea.addEventListener("input", function() {
+          normalizeCodeAreaTabs(textarea);
           resizeCodeArea(textarea);
+          updateCodeHighlight(textarea);
+        });
+        textarea.addEventListener("scroll", function() {
+          syncCodeHighlightScroll(textarea);
         });
       });
     }
@@ -1166,8 +1294,157 @@
         return;
       }
 
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
       textarea.style.height = "auto";
       textarea.style.height = textarea.scrollHeight + "px";
+
+      const shell = textarea.closest(".code-editor-shell");
+      if (shell) {
+        shell.style.height = textarea.style.height;
+      }
+      window.scrollTo(scrollX, scrollY);
+    }
+
+    function normalizeCodeAreaTabs(textarea) {
+      if (!(textarea instanceof HTMLTextAreaElement) || !textarea.value.includes("\t")) {
+        return false;
+      }
+
+      const selectionStart = textarea.selectionStart;
+      const selectionEnd = textarea.selectionEnd;
+      const value = textarea.value;
+      textarea.value = value.replace(/\t/g, codeIndent);
+      textarea.selectionStart = normalizedCodeSelectionOffset(value, selectionStart);
+      textarea.selectionEnd = normalizedCodeSelectionOffset(value, selectionEnd);
+      return true;
+    }
+
+    function normalizedCodeSelectionOffset(value, offset) {
+      const tabsBeforeOffset = (value.slice(0, offset).match(/\t/g) || []).length;
+      return offset + tabsBeforeOffset * (codeIndent.length - 1);
+    }
+
+    function updateCodeHighlight(textarea) {
+      const shell = textarea.closest(".code-editor-shell");
+      const target = shell ? shell.querySelector(".code-highlight code") : null;
+      if (!target) {
+        return;
+      }
+
+      target.innerHTML = highlightPythonCode(textarea.value);
+      syncCodeHighlightScroll(textarea);
+    }
+
+    function syncCodeHighlightScroll(textarea) {
+      const shell = textarea.closest(".code-editor-shell");
+      const highlight = shell ? shell.querySelector(".code-highlight") : null;
+      if (!highlight) {
+        return;
+      }
+
+      highlight.scrollTop = textarea.scrollTop;
+      highlight.scrollLeft = textarea.scrollLeft;
+    }
+
+    function highlightPythonCode(code) {
+      const keywords = new Set([
+        "and", "as", "assert", "async", "await", "break", "class", "continue",
+        "def", "del", "elif", "else", "except", "False", "finally", "for",
+        "from", "global", "if", "import", "in", "is", "lambda", "None",
+        "nonlocal", "not", "or", "pass", "raise", "return", "True", "try",
+        "while", "with", "yield"
+      ]);
+      const builtins = new Set([
+        "bool", "bytes", "dict", "enumerate", "float", "hex", "int", "len",
+        "list", "max", "min", "print", "range", "set", "str", "sum", "tuple"
+      ]);
+
+      let out = "";
+      let index = 0;
+      while (index < code.length) {
+        const char = code[index];
+
+        if (char === "#") {
+          const end = code.indexOf("\n", index);
+          const next = end === -1 ? code.length : end;
+          out += wrapCodeToken("comment", code.slice(index, next));
+          index = next;
+          continue;
+        }
+
+        if (char === "'" || char === '"') {
+          const quote = char;
+          const triple = code.slice(index, index + 3) === quote + quote + quote;
+          let next = index + (triple ? 3 : 1);
+          while (next < code.length) {
+            if (!triple && code[next] === "\\") {
+              next += 2;
+              continue;
+            }
+            if (triple && code.slice(next, next + 3) === quote + quote + quote) {
+              next += 3;
+              break;
+            }
+            if (!triple && code[next] === quote) {
+              next++;
+              break;
+            }
+            next++;
+          }
+          out += wrapCodeToken("string", code.slice(index, next));
+          index = next;
+          continue;
+        }
+
+        const numberMatch = code.slice(index).match(/^\b\d+(?:_\d+)*(?:\.\d+(?:_\d+)*)?\b/);
+        if (numberMatch) {
+          out += wrapCodeToken("number", numberMatch[0]);
+          index += numberMatch[0].length;
+          continue;
+        }
+
+        const identifierMatch = code.slice(index).match(/^[A-Za-z_][A-Za-z0-9_]*/);
+        if (identifierMatch) {
+          const token = identifierMatch[0];
+          if (keywords.has(token)) {
+            out += wrapCodeToken("keyword", token);
+          } else if (builtins.has(token)) {
+            out += wrapCodeToken("builtin", token);
+          } else {
+            out += wrapCodeToken("variable", token);
+          }
+          index += token.length;
+          continue;
+        }
+
+        if ("+-*/%=!<>&|^~:.,()[]{}".includes(char)) {
+          out += wrapCodeToken("operator", char);
+          index++;
+          continue;
+        }
+
+        out += escapeCodeHTML(char);
+        index++;
+      }
+
+      return out || "\n";
+    }
+
+    function wrapCodeToken(type, value) {
+      return '<span class="code-token ' + type + '">' + escapeCodeHTML(value) + '</span>';
+    }
+
+    function escapeCodeHTML(value) {
+      return value.replace(/[&<>"']/g, function(char) {
+        return {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        }[char];
+      });
     }
 
     function isEditableTarget(target) {
@@ -1266,6 +1543,12 @@
       block.classList.toggle("is-correct", correct);
       block.classList.toggle("is-incorrect", !correct);
 
+      const resultIcon = block.querySelector(".course-challenge-result-icon");
+      if (resultIcon) {
+        resultIcon.textContent = correct ? "✓" : "×";
+        resultIcon.setAttribute("aria-label", correct ? "Correct" : "Incorrect");
+      }
+
       const shell = document.querySelector(".course-platform_shell");
       window.dispatchEvent(new CustomEvent("course:block-result", {
         detail: {
@@ -1356,6 +1639,14 @@ def __course_run_cell(code):
 
     return json.dumps({"ok": ok, "output": output})
 
+def __course_challenge_globals():
+    challenge_globals = {}
+    for name, value in globals().items():
+        if name.startswith("__course_"):
+            continue
+        challenge_globals[name] = value
+    return challenge_globals
+
 def __course_check_cell(student_code, check_code):
     old_stdout = sys.stdout
     old_stderr = sys.stderr
@@ -1367,9 +1658,10 @@ def __course_check_cell(student_code, check_code):
     phase = "student"
 
     try:
-        exec(compile(student_code, "<course challenge>", "exec"), globals())
+        challenge_globals = __course_challenge_globals()
+        exec(compile(student_code, "<course challenge>", "exec"), challenge_globals)
         phase = "check"
-        exec(compile(check_code, "<course checks>", "exec"), globals())
+        exec(compile(check_code, "<course checks>", "exec"), challenge_globals)
     except BaseException:
         ok = False
         if phase == "student":
@@ -1454,7 +1746,13 @@ def __course_check_cell(student_code, check_code):
         const failureMessage = decodeCourseBlockData(block.dataset.failureMessage || "") || "Not quite. Try again.";
         pyodide.globals.set("__course_challenge_code", textarea.value);
         pyodide.globals.set("__course_challenge_check", checkCode);
-        const result = JSON.parse(pyodide.runPython("__course_check_cell(__course_challenge_code, __course_challenge_check)"));
+        let result;
+        try {
+          result = JSON.parse(pyodide.runPython("__course_check_cell(__course_challenge_code, __course_challenge_check)"));
+        } finally {
+          pyodide.globals.delete("__course_challenge_code");
+          pyodide.globals.delete("__course_challenge_check");
+        }
 
         if (result.ok) {
           output.textContent = result.output ? result.output + "\nCorrect." : "Correct.";

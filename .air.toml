@@ -1,0 +1,14 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "make build-all"
+bin = "target/base58-website"
+delay = 1000
+include_dir = ["cmd", "courses", "internal", "static", "templates"]
+include_ext = ["css", "go", "html", "js", "md", "tmpl"]
+exclude_dir = [".git", ".nix-postgres", "target", "tmp"]
+stop_on_error = true
+
+[log]
+time = true

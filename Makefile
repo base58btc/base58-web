@@ -1,19 +1,27 @@
 APP_NAME = base58-website
 PGDATA ?= .nix-postgres/data
-PGHOST ?= 127.0.0.1
+PGLOG ?= $(CURDIR)/.nix-postgres/postgres.log
+PGSOCKETDIR ?= $(CURDIR)/.nix-postgres
+PGHOST = $(PGSOCKETDIR)
 PGPORT ?= 55432
 PGUSER ?= base58
 PGDATABASE ?= base58_dev
-PGLOG ?= $(CURDIR)/.nix-postgres/postgres.log
-PGSOCKETDIR ?= $(CURDIR)/.nix-postgres
 
 DB_DRIVER ?= postgres
-DATABASE_URL ?= postgres://$(PGUSER)@$(PGHOST):$(PGPORT)/$(PGDATABASE)?sslmode=disable
+DATABASE_URL = postgres://$(PGUSER)@localhost:$(PGPORT)/$(PGDATABASE)?host=$(PGHOST)&sslmode=disable
 DB_MIGRATIONS_DIR = migrations/postgres
+
+export DB_DRIVER
+export DATABASE_URL
+export PGDATA
+export PGDATABASE
+export PGHOST
+export PGPORT
+export PGUSER
 
 .PHONY: dev-run
 dev-run: build-all
-	air -build.bin target/$(APP_NAME) -build.cmd="make build-all"
+	air -c .air.toml
 
 .PHONY: build
 build:
@@ -42,7 +50,7 @@ postgres-init:
 .PHONY: postgres-start
 postgres-start: postgres-init
 	mkdir -p $(PGSOCKETDIR)
-	pg_ctl -D $(PGDATA) -l $(PGLOG) -o "-p $(PGPORT) -k $(PGSOCKETDIR)" start
+	pg_ctl -D $(PGDATA) -l $(PGLOG) -o "-p $(PGPORT) -k $(PGSOCKETDIR) -c listen_addresses=''" start
 	createdb -h $(PGHOST) -p $(PGPORT) -U $(PGUSER) $(PGDATABASE) || true
 
 .PHONY: postgres-stop
