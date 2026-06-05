@@ -6,6 +6,7 @@ toolchain go1.24.4
 
 require (
 	github.com/akamensky/base58 v0.0.0-20210829145138-ce8bf8802e8f
+	github.com/alexedwards/scs/postgresstore v0.0.0-20251002162104-209de6e426de
 	github.com/alexedwards/scs/v2 v2.5.0
 	github.com/base58btc/mailer v0.0.0-20250703225241-27f47714b725
 	github.com/btcsuite/btcutil v1.0.2

@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/alexedwards/scs/postgresstore"
 	"github.com/alexedwards/scs/v2"
 	"github.com/joho/godotenv"
 	"github.com/kodylow/base58-website/internal/config"
@@ -140,6 +141,8 @@ func run(env *types.EnvConfig) error {
 	}
 	app.DB = db
 	if db != nil {
+		app.Session.Store = postgresstore.New(db)
+
 		go func() {
 			result, err := database.SyncCoursesFromNotion(db, env.DBDriver, app.Notion)
 			if err != nil {
