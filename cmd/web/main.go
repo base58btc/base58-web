@@ -45,6 +45,10 @@ func loadConfig() (*types.EnvConfig, bool) {
 	config.DBDriver = os.Getenv("DB_DRIVER")
 	config.DatabaseURL = os.Getenv("DATABASE_URL")
 	config.AdminEmails = os.Getenv("ADMIN_BOOTSTRAP_EMAILS")
+	config.EditorSyncToken = os.Getenv("EDITOR_SYNC_TOKEN")
+	config.CourseAssetBucket = os.Getenv("COURSE_ASSET_BUCKET")
+	config.CourseAssetRegion = os.Getenv("COURSE_ASSET_REGION")
+	config.CourseAssetPrefix = os.Getenv("COURSE_ASSET_PREFIX")
 
 	config.Notion = types.NotionConfig{
 		Token:          os.Getenv("NOTION_TOKEN"),

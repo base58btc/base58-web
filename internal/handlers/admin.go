@@ -74,11 +74,17 @@ type AdminEmail struct {
 }
 
 type AdminCourse struct {
-	Slug        string
-	Title       string
-	Description string
-	HeaderImg   string
-	Status      string
+	Slug                        string
+	Title                       string
+	Description                 string
+	HeaderImg                   string
+	Status                      string
+	PublishedVersionNumber      int
+	DraftVersionNumber          int
+	HasDraft                    bool
+	DraftPreviewEnabled         bool
+	DraftPreviewDestinationURL  string
+	NormalPreviewDestinationURL string
 }
 
 type AdminEntitlement struct {
@@ -260,6 +266,9 @@ func RegisterAdminRoutes(r *mux.Router, ctx *config.AppContext) {
 	r.HandleFunc("/admin/courses/{slug}/students/{id:[0-9]+}", func(w http.ResponseWriter, r *http.Request) {
 		AdminCourseStudentDetail(w, r, ctx)
 	}).Methods("GET")
+	r.HandleFunc("/admin/courses/{slug}/preview", func(w http.ResponseWriter, r *http.Request) {
+		AdminCoursePreview(w, r, ctx)
+	}).Methods("POST")
 	r.HandleFunc("/admin/courses/{slug}", func(w http.ResponseWriter, r *http.Request) {
 		AdminCourseDetail(w, r, ctx)
 	}).Methods("GET", "POST")
@@ -480,6 +489,7 @@ func AdminCourses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 	if err != nil {
 		data.Error = err.Error()
 	}
+	enrichAdminCoursesForPreview(ctx, r, data.Courses)
 	renderAdmin(w, r, ctx, "admin/courses.tmpl", data)
 }
 
@@ -523,6 +533,7 @@ func AdminCourseDetail(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		http.NotFound(w, r)
 		return
 	}
+	enrichAdminCourseForPreview(ctx, r, &course)
 	data := baseAdminPage(ctx, course.Title+" Stats")
 	data.Course = course
 	data.ActiveTab = "stats"
@@ -557,10 +568,47 @@ func AdminCourseContent(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 		http.NotFound(w, r)
 		return
 	}
+	enrichAdminCourseForPreview(ctx, r, &course)
 	data.Course = course
 	data.ActiveTab = "content"
 	data.Flash = r.URL.Query().Get("flash")
 	renderAdmin(w, r, ctx, "admin/course_content.tmpl", data)
+}
+
+func AdminCoursePreview(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	if !requireAdmin(w, r, ctx) {
+		return
+	}
+	if !requireAdminDB(w, r, ctx, "Course Preview") {
+		return
+	}
+	if !validateAdminCSRF(w, r, ctx) {
+		return
+	}
+
+	slug := mux.Vars(r)["slug"]
+	if !isSafeCourseSlug(slug) {
+		http.NotFound(w, r)
+		return
+	}
+
+	mode := strings.ToLower(strings.TrimSpace(r.Form.Get("mode")))
+	switch mode {
+	case "draft":
+		if _, err := latestDraftCourseVersion(ctx, slug); err != nil {
+			http.Redirect(w, r, "/admin/courses/"+slug+"?flash=no-draft", http.StatusSeeOther)
+			return
+		}
+		ctx.Session.Put(r.Context(), courseDraftPreviewSessionKey(slug), true)
+		writeAudit(ctx, adminActor(r, ctx), "course.preview_draft", "course", slug, "")
+		http.Redirect(w, r, adminCoursePreviewDestination(ctx, slug, true), http.StatusSeeOther)
+	case "off", "published":
+		ctx.Session.Remove(r.Context(), courseDraftPreviewSessionKey(slug))
+		writeAudit(ctx, adminActor(r, ctx), "course.preview_published", "course", slug, "")
+		http.Redirect(w, r, adminCoursePreviewDestination(ctx, slug, false), http.StatusSeeOther)
+	default:
+		http.Redirect(w, r, "/admin/courses/"+slug, http.StatusSeeOther)
+	}
 }
 
 func AdminCourseStudents(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -576,6 +624,7 @@ func AdminCourseStudents(w http.ResponseWriter, r *http.Request, ctx *config.App
 		http.NotFound(w, r)
 		return
 	}
+	enrichAdminCourseForPreview(ctx, r, &course)
 	data := baseAdminPage(ctx, course.Title+" Students")
 	data.Course = course
 	data.ActiveTab = "students"
@@ -597,6 +646,7 @@ func AdminCourseStudentDetail(w http.ResponseWriter, r *http.Request, ctx *confi
 		http.NotFound(w, r)
 		return
 	}
+	enrichAdminCourseForPreview(ctx, r, &course)
 	person, err := getPerson(ctx, personID)
 	if err != nil {
 		http.NotFound(w, r)
@@ -1078,6 +1128,42 @@ func listAdminCourses(ctx *config.AppContext) ([]AdminCourse, error) {
 		courses = append(courses, c)
 	}
 	return courses, rows.Err()
+}
+
+func enrichAdminCoursesForPreview(ctx *config.AppContext, r *http.Request, courses []AdminCourse) {
+	for i := range courses {
+		enrichAdminCourseForPreview(ctx, r, &courses[i])
+	}
+}
+
+func enrichAdminCourseForPreview(ctx *config.AppContext, r *http.Request, course *AdminCourse) {
+	if course == nil || course.Slug == "" || ctx == nil || ctx.DB == nil {
+		return
+	}
+	if published, err := latestCourseVersion(ctx, course.Slug); err == nil {
+		course.PublishedVersionNumber = published.VersionNumber
+	}
+	if draft, err := latestDraftCourseVersion(ctx, course.Slug); err == nil {
+		course.HasDraft = true
+		course.DraftVersionNumber = draft.VersionNumber
+	}
+	course.DraftPreviewEnabled = courseDraftPreviewEnabled(r, ctx, course.Slug)
+	course.DraftPreviewDestinationURL = adminCoursePreviewDestination(ctx, course.Slug, true)
+	course.NormalPreviewDestinationURL = adminCoursePreviewDestination(ctx, course.Slug, false)
+}
+
+func adminCoursePreviewDestination(ctx *config.AppContext, courseSlug string, draft bool) string {
+	if draft {
+		if version, err := latestDraftCourseVersion(ctx, courseSlug); err == nil && version.ID > 0 {
+			if outline, outlineErr := loadCourseVersion(ctx, version.ID, courseSlug, ""); outlineErr == nil && outline.Current != nil {
+				return outline.Current.URL
+			}
+		}
+	}
+	if outline, err := loadLocalCourse(localCoursesRoot, courseSlug, ""); err == nil && outline.Current != nil {
+		return outline.Current.URL
+	}
+	return "/courses/" + courseSlug
 }
 
 func grantEntitlement(ctx *config.AppContext, personID int64, courseSlug, source, notes string) (int64, error) {

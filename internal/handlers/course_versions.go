@@ -72,6 +72,14 @@ func syncLocalCourseVersion(ctx *config.AppContext, courseSlug string) (CourseVe
 		}
 		return latest, nil
 	}
+	if existing, existingErr := publishedCourseVersionByHash(ctx, courseSlug, snapshot.ContentHash); existingErr == nil {
+		if err := ensureCourseVersionFiles(ctx, existing.ID, snapshot.Files); err != nil {
+			return CourseVersion{}, err
+		}
+		return existing, nil
+	} else if !errors.Is(existingErr, sql.ErrNoRows) {
+		return CourseVersion{}, existingErr
+	}
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return CourseVersion{}, err
 	}
@@ -93,6 +101,13 @@ WHERE id=`+ph(ctx, 3), snapshot.ContentHash, snapshot.StoragePrefix, latest.ID)
 	diff := ""
 	if err == nil {
 		nextNumber = latest.VersionNumber + 1
+		var maxNumber sql.NullInt64
+		if scanErr := ctx.DB.QueryRow(`SELECT MAX(version_number) FROM course_versions WHERE course_slug=`+ph(ctx, 1), courseSlug).Scan(&maxNumber); scanErr != nil {
+			return CourseVersion{}, scanErr
+		}
+		if maxNumber.Valid && int(maxNumber.Int64) >= nextNumber {
+			nextNumber = int(maxNumber.Int64) + 1
+		}
 		previousFiles, _ := listCourseVersionFileContents(ctx, latest.ID)
 		diff = buildCourseVersionDiff(previousFiles, snapshot.Files)
 	}
@@ -125,6 +140,26 @@ FROM course_versions
 WHERE course_slug=`+ph(ctx, 1)+` AND status='published'
 ORDER BY version_number DESC
 LIMIT 1`, courseSlug).Scan(&version.ID, &version.CourseSlug, &version.VersionNumber, &version.Status, &version.ContentHash)
+	return version, err
+}
+
+func latestDraftCourseVersion(ctx *config.AppContext, courseSlug string) (CourseVersion, error) {
+	var version CourseVersion
+	err := ctx.DB.QueryRow(`SELECT id, course_slug, version_number, status, content_hash
+FROM course_versions
+WHERE course_slug=`+ph(ctx, 1)+` AND status='draft' AND source='cli_sync'
+ORDER BY version_number DESC
+LIMIT 1`, courseSlug).Scan(&version.ID, &version.CourseSlug, &version.VersionNumber, &version.Status, &version.ContentHash)
+	return version, err
+}
+
+func publishedCourseVersionByHash(ctx *config.AppContext, courseSlug, contentHash string) (CourseVersion, error) {
+	var version CourseVersion
+	err := ctx.DB.QueryRow(`SELECT id, course_slug, version_number, status, content_hash
+FROM course_versions
+WHERE course_slug=`+ph(ctx, 1)+` AND status='published' AND content_hash=`+ph(ctx, 2)+` AND content_hash <> ''
+ORDER BY version_number DESC
+LIMIT 1`, courseSlug, contentHash).Scan(&version.ID, &version.CourseSlug, &version.VersionNumber, &version.Status, &version.ContentHash)
 	return version, err
 }
 

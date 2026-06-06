@@ -13,12 +13,38 @@
     </section>
     {{ if .Error }}<div class="admin-error">{{ .Error }}</div>{{ end }}
     <table>
-      <thead><tr><th>Title</th><th>Slug</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Title</th><th>Slug</th><th>Status</th><th>Versions</th><th>Preview</th><th></th></tr></thead>
       <tbody>
       {{ range .Courses }}
-        <tr><td>{{ .Title }}</td><td>{{ .Slug }}</td><td>{{ .Status }}</td><td><a href="/admin/courses/{{ .Slug }}">Open</a></td></tr>
+        <tr>
+          <td>{{ .Title }}</td>
+          <td>{{ .Slug }}</td>
+          <td>{{ .Status }}</td>
+          <td>
+            <div class="admin-muted">Published: {{ if .PublishedVersionNumber }}v{{ .PublishedVersionNumber }}{{ else }}none{{ end }}</div>
+            <div class="admin-muted">Draft: {{ if .HasDraft }}v{{ .DraftVersionNumber }}{{ else }}none{{ end }}</div>
+          </td>
+          <td>
+            {{ if .DraftPreviewEnabled }}
+              <form class="admin-inline-form compact" method="post" action="/admin/courses/{{ .Slug }}/preview">
+                {{ $.CSRFField }}
+                <input type="hidden" name="mode" value="off">
+                <button type="submit">Return to Published</button>
+              </form>
+            {{ else if .HasDraft }}
+              <form class="admin-inline-form compact" method="post" action="/admin/courses/{{ .Slug }}/preview">
+                {{ $.CSRFField }}
+                <input type="hidden" name="mode" value="draft">
+                <button type="submit">Preview Draft</button>
+              </form>
+            {{ else }}
+              <span class="admin-muted">No synced draft</span>
+            {{ end }}
+          </td>
+          <td><a href="/admin/courses/{{ .Slug }}">Open</a></td>
+        </tr>
       {{ else }}
-        <tr><td colspan="4">No courses yet.</td></tr>
+        <tr><td colspan="6">No courses yet.</td></tr>
       {{ end }}
       </tbody>
     </table>

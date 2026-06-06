@@ -14,6 +14,7 @@ import (
 	"github.com/gomarkdown/markdown/ast"
 	mdhtml "github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
+	"github.com/kodylow/base58-website/internal/config"
 )
 
 var (
@@ -74,6 +75,8 @@ type courseMarkdownRenderer struct {
 	multipleChoiceCount int
 	codeBlockCount      int
 	codeChallengeCount  int
+	courseSlug          string
+	assetBaseURL        string
 }
 
 func markdownHasCourseCode(md []byte) bool {
@@ -81,17 +84,43 @@ func markdownHasCourseCode(md []byte) bool {
 }
 
 func courseMarkdownToHTML(md []byte) []byte {
+	return renderCourseMarkdownToHTML(md, "", "")
+}
+
+func courseMarkdownToHTMLForCourse(ctx *config.AppContext, courseSlug string, md []byte) []byte {
+	return renderCourseMarkdownToHTML(md, courseSlug, courseAssetBaseURL(ctx))
+}
+
+func renderCourseMarkdownToHTML(md []byte, courseSlug, assetBaseURL string) []byte {
 	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
 	p := parser.NewWithExtensions(extensions)
 	p.Opts.ParserHook = courseParserHook
 
-	courseRenderer := &courseMarkdownRenderer{}
+	courseRenderer := &courseMarkdownRenderer{
+		courseSlug:   courseSlug,
+		assetBaseURL: assetBaseURL,
+	}
 	renderer := mdhtml.NewRenderer(mdhtml.RendererOptions{
 		Flags:          mdhtml.CommonFlags | mdhtml.HrefTargetBlank,
 		RenderNodeHook: courseRenderer.renderHook,
 	})
 
 	return markdown.Render(p.Parse(md), renderer)
+}
+
+func courseAssetBaseURL(ctx *config.AppContext) string {
+	if ctx == nil || ctx.Env == nil || strings.TrimSpace(ctx.Env.CourseAssetBucket) == "" {
+		return ""
+	}
+	region := strings.TrimSpace(ctx.Env.CourseAssetRegion)
+	if region == "" {
+		region = "nyc3"
+	}
+	base := "https://" + strings.TrimSpace(ctx.Env.CourseAssetBucket) + "." + region + ".cdn.digitaloceanspaces.com"
+	if prefix := strings.Trim(strings.TrimSpace(ctx.Env.CourseAssetPrefix), "/"); prefix != "" {
+		base += "/" + prefix
+	}
+	return base
 }
 
 func courseParserHook(data []byte) (ast.Node, []byte, int) {
@@ -491,6 +520,10 @@ func splitCourseSections(content string) []string {
 }
 
 func (r *courseMarkdownRenderer) renderHook(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+	if image, ok := node.(*ast.Image); ok && entering {
+		image.Destination = []byte(r.resolveImageDestination(string(image.Destination)))
+		return ast.GoToNext, false
+	}
 	if cb, ok := node.(*courseCodeBlock); ok {
 		if entering {
 			r.codeBlockCount++
@@ -528,6 +561,34 @@ func (r *courseMarkdownRenderer) renderHook(w io.Writer, node ast.Node, entering
 	}
 
 	return ast.GoToNext, false
+}
+
+func (r *courseMarkdownRenderer) resolveImageDestination(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || r.courseSlug == "" {
+		return raw
+	}
+	parsed, err := url.Parse(raw)
+	if err == nil && (parsed.IsAbs() || strings.HasPrefix(raw, "/") || parsed.Fragment != "") {
+		return raw
+	}
+	clean := strings.TrimLeft(raw, "/")
+	if strings.HasPrefix(clean, "../") || strings.Contains(clean, "/../") || clean == ".." {
+		return raw
+	}
+	base := strings.TrimRight(r.assetBaseURL, "/")
+	if base == "" {
+		return raw
+	}
+	return base + "/" + url.PathEscape(r.courseSlug) + "/" + pathEscapeCourseAsset(clean)
+}
+
+func pathEscapeCourseAsset(assetPath string) string {
+	parts := strings.Split(assetPath, "/")
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+	return strings.Join(parts, "/")
 }
 
 func renderCourseCodeBlock(w io.Writer, cb *courseCodeBlock, blockID string) {

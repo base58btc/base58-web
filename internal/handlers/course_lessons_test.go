@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/internal/types"
 )
 
 func TestLoadLocalCourseBuildsNumberedSidebar(t *testing.T) {
@@ -127,6 +130,48 @@ func TestCourseMarkdownRendersCodeBlocks(t *testing.T) {
 	}
 	if strings.Contains(html, "+++") {
 		t.Fatalf("expected code fence to be consumed, got %s", html)
+	}
+}
+
+func TestCourseMarkdownResolvesRelativeCourseImages(t *testing.T) {
+	html := string(renderCourseMarkdownToHTML([]byte("![Fruit market](fruit_market.png)\n\n![Diagram](diagrams/one two.png)"), "intro-proto", "https://base58.nyc3.cdn.digitaloceanspaces.com/courses"))
+
+	if !strings.Contains(html, `src="https://base58.nyc3.cdn.digitaloceanspaces.com/courses/intro-proto/fruit_market.png"`) {
+		t.Fatalf("expected relative image to resolve to course asset CDN path, got %s", html)
+	}
+	if !strings.Contains(html, `src="https://base58.nyc3.cdn.digitaloceanspaces.com/courses/intro-proto/diagrams/one%20two.png"`) {
+		t.Fatalf("expected nested relative image to be path-escaped, got %s", html)
+	}
+}
+
+func TestCourseMarkdownResolvesRelativeCourseImagesWithRemoteBase(t *testing.T) {
+	html := string(renderCourseMarkdownToHTML([]byte("![Fruit market](fruit_market.png)"), "intro-proto", "https://base58-course-assets.nyc3.cdn.digitaloceanspaces.com/courses"))
+
+	if !strings.Contains(html, `src="https://base58-course-assets.nyc3.cdn.digitaloceanspaces.com/courses/intro-proto/fruit_market.png"`) {
+		t.Fatalf("expected relative image to resolve to remote course asset path, got %s", html)
+	}
+}
+
+func TestCourseAssetBaseURLIsDerivedFromSpacesConfig(t *testing.T) {
+	ctx := &config.AppContext{Env: &types.EnvConfig{
+		CourseAssetBucket: "base58",
+		CourseAssetRegion: "nyc3",
+		CourseAssetPrefix: "courses",
+	}}
+
+	if got := courseAssetBaseURL(ctx); got != "https://base58.nyc3.cdn.digitaloceanspaces.com/courses" {
+		t.Fatalf("courseAssetBaseURL = %q", got)
+	}
+}
+
+func TestCourseMarkdownLeavesAbsoluteImagesAlone(t *testing.T) {
+	html := string(renderCourseMarkdownToHTML([]byte("![Remote](https://example.com/fruit.png)\n\n![Static](/static/img/courses/intro-proto/fruit.png)"), "intro-proto", "/static/img/courses"))
+
+	if !strings.Contains(html, `src="https://example.com/fruit.png"`) {
+		t.Fatalf("expected remote image to stay unchanged, got %s", html)
+	}
+	if !strings.Contains(html, `src="/static/img/courses/intro-proto/fruit.png"`) {
+		t.Fatalf("expected absolute local image to stay unchanged, got %s", html)
 	}
 }
 

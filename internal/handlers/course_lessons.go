@@ -56,6 +56,11 @@ type CourseLessonData struct {
 	VersionNumber       int
 	LatestVersionNumber int
 	HasNewVersion       bool
+	CanPreviewDraft     bool
+	IsDraftPreview      bool
+	DraftVersionNumber  int
+	DraftPreviewOnURL   string
+	DraftPreviewOffURL  string
 }
 
 type localCourseOutline struct {
@@ -83,20 +88,35 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		return
 	}
 
-	if access := checkCourseContentAccess(r, ctx, courseSlug); !access.Allowed {
-		redirectCourseAccessDenied(w, r, courseSlug, access.Reason)
+	personID := currentProgressPersonID(r, ctx)
+	canPreviewDraft := canPreviewCourseDraft(r, ctx, personID, courseSlug)
+	if handled := handleCourseDraftPreviewToggle(w, r, ctx, courseSlug, canPreviewDraft); handled {
 		return
+	}
+	isDraftPreview := courseDraftPreviewEnabled(r, ctx, courseSlug) && canPreviewDraft
+
+	if access := checkCourseContentAccess(r, ctx, courseSlug); !access.Allowed {
+		if !canPreviewDraft {
+			redirectCourseAccessDenied(w, r, courseSlug, access.Reason)
+			return
+		}
 	}
 
 	var attempt CourseAttempt
-	personID := currentProgressPersonID(r, ctx)
-	if ctx != nil && ctx.DB != nil && personID > 0 && hasActiveCourseEntitlement(ctx, personID, courseSlug) {
+	if !isDraftPreview && ctx != nil && ctx.DB != nil && personID > 0 && hasActiveCourseEntitlement(ctx, personID, courseSlug) {
 		attempt, _ = ensureActiveCourseAttempt(ctx, personID, courseSlug, "student")
 	}
 
 	var outline *localCourseOutline
 	var err error
-	if attempt.CourseVersionID > 0 {
+	var draftVersion CourseVersion
+	if isDraftPreview {
+		draftVersion, err = latestDraftCourseVersion(ctx, courseSlug)
+		if err == nil && draftVersion.ID > 0 {
+			outline, err = loadCourseVersion(ctx, draftVersion.ID, courseSlug, pagePath)
+		}
+	}
+	if outline == nil && attempt.CourseVersionID > 0 {
 		outline, err = loadCourseVersion(ctx, attempt.CourseVersionID, courseSlug, pagePath)
 	}
 	if outline == nil || err != nil {
@@ -122,7 +142,9 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 
 	furlCard := defaultCard(ctx, r, title)
 	heroURL, heroAlt := localCourseHero(ctx, outline.CourseSlug, outline.CourseTitle)
-	recordCoursePageView(r, ctx, outline.CourseSlug, outline.Current.Path)
+	if !isDraftPreview {
+		recordCoursePageView(r, ctx, outline.CourseSlug, outline.Current.Path)
+	}
 	versionNumber, latestVersionNumber := courseAttemptVersionNumbers(ctx, attempt)
 	err = ctx.TemplateCache.ExecuteTemplate(w, "courses/lesson.tmpl", CourseLessonData{
 		Page:                getPage(ctx, title, furlCard),
@@ -132,7 +154,7 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		Previous:            outline.Previous,
 		Next:                outline.Next,
 		Sidebar:             outline.Items,
-		ContentHTML:         template.HTML(courseMarkdownToHTML(outline.Markdown)),
+		ContentHTML:         template.HTML(courseMarkdownToHTMLForCourse(ctx, outline.CourseSlug, outline.Markdown)),
 		HasCode:             markdownHasCourseCode(outline.Markdown),
 		HeroURL:             heroURL,
 		HeroAlt:             heroAlt,
@@ -140,6 +162,11 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		VersionNumber:       versionNumber,
 		LatestVersionNumber: latestVersionNumber,
 		HasNewVersion:       latestVersionNumber > versionNumber && versionNumber > 0,
+		CanPreviewDraft:     canPreviewDraft,
+		IsDraftPreview:      isDraftPreview,
+		DraftVersionNumber:  draftVersion.VersionNumber,
+		DraftPreviewOnURL:   coursePreviewURL(r, "draft"),
+		DraftPreviewOffURL:  coursePreviewURL(r, "off"),
 	})
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
@@ -173,6 +200,78 @@ ON CONFLICT (attempt_id, lesson_path) DO UPDATE SET
 	if err != nil {
 		ctx.Err.Printf("course page view save failed: %s", err.Error())
 	}
+}
+
+func canPreviewCourseDraft(r *http.Request, ctx *config.AppContext, personID int64, courseSlug string) bool {
+	if ctx == nil || ctx.DB == nil || !isSafeCourseSlug(courseSlug) {
+		return false
+	}
+	if admin := currentAdminFromSession(r, ctx); admin.ID > 0 {
+		return true
+	}
+	if personID <= 0 {
+		return false
+	}
+	var id int64
+	err := ctx.DB.QueryRow(`SELECT id
+FROM course_editors
+WHERE person_id=`+ph(ctx, 1)+`
+  AND course_slug=`+ph(ctx, 2)+`
+  AND status='active'
+  AND role IN ('owner', 'editor')
+LIMIT 1`, personID, courseSlug).Scan(&id)
+	return err == nil && id > 0
+}
+
+func handleCourseDraftPreviewToggle(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, courseSlug string, allowed bool) bool {
+	mode := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("preview")))
+	if mode == "" {
+		return false
+	}
+	switch mode {
+	case "draft", "latest":
+		if !allowed {
+			http.Error(w, "Course editor access required", http.StatusForbidden)
+			return true
+		}
+		if ctx != nil && ctx.Session != nil {
+			ctx.Session.Put(r.Context(), courseDraftPreviewSessionKey(courseSlug), true)
+		}
+		http.Redirect(w, r, coursePreviewURL(r, ""), http.StatusSeeOther)
+		return true
+	case "off", "published":
+		if ctx != nil && ctx.Session != nil {
+			ctx.Session.Remove(r.Context(), courseDraftPreviewSessionKey(courseSlug))
+		}
+		http.Redirect(w, r, coursePreviewURL(r, ""), http.StatusSeeOther)
+		return true
+	default:
+		return false
+	}
+}
+
+func courseDraftPreviewEnabled(r *http.Request, ctx *config.AppContext, courseSlug string) bool {
+	if ctx == nil || ctx.Session == nil {
+		return false
+	}
+	value, _ := ctx.Session.Get(r.Context(), courseDraftPreviewSessionKey(courseSlug)).(bool)
+	return value
+}
+
+func courseDraftPreviewSessionKey(courseSlug string) string {
+	return "course_draft_preview_" + courseSlug
+}
+
+func coursePreviewURL(r *http.Request, mode string) string {
+	values := r.URL.Query()
+	values.Del("preview")
+	if mode != "" {
+		values.Set("preview", mode)
+	}
+	if encoded := values.Encode(); encoded != "" {
+		return r.URL.Path + "?" + encoded
+	}
+	return r.URL.Path
 }
 
 func localCourseHero(ctx *config.AppContext, courseSlug, fallbackTitle string) (string, string) {

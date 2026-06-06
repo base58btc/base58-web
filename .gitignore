@@ -7,6 +7,7 @@ base58-dev.db
 .nix-postgres/
 scratch
 tmp/
+.course-sync-assets.json
 
 target
 

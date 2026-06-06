@@ -161,6 +161,12 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/api/courses/{course}/progress", func(w http.ResponseWriter, r *http.Request) {
 		CourseProgress(w, r, ctx)
 	}).Methods("GET", "POST")
+	r.HandleFunc("/api/editor/courses/{course}/sync", func(w http.ResponseWriter, r *http.Request) {
+		CourseEditorSync(w, r, ctx)
+	}).Methods("POST")
+	r.HandleFunc("/api/editor/courses/{course}/publish", func(w http.ResponseWriter, r *http.Request) {
+		CourseEditorPublish(w, r, ctx)
+	}).Methods("POST")
 	r.HandleFunc("/courses/{course}/signup", func(w http.ResponseWriter, r *http.Request) {
 		LocalCourseSignup(w, r, ctx)
 	}).Methods("POST")
@@ -584,7 +590,8 @@ func Register(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	case types.Fiat:
 		item := ConvertToItem(session, ctx, uint(form.Count))
 		cart := &checkout.Cart{
-			Token: idem,
+			LookupID: cc.RegisterID,
+			Token:    idem,
 			Infos: &checkout.CheckoutData{
 				Email: form.Email,
 			},

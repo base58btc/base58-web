@@ -13,19 +13,23 @@ type (
 
 	/* Configs for the app! */
 	EnvConfig struct {
-		Port         string
-		Domain       string
-		External     string
-		Secret       string
-		MailerSecret string
-		MailDomain   string
-		MailEndpoint string
-		DBDriver     string
-		DatabaseURL  string
-		AdminEmails  string
-		Notion       NotionConfig
-		Stripe       StripeConfig
-		OpenNode     OpenNodeConfig
+		Port              string
+		Domain            string
+		External          string
+		Secret            string
+		MailerSecret      string
+		MailDomain        string
+		MailEndpoint      string
+		DBDriver          string
+		DatabaseURL       string
+		AdminEmails       string
+		EditorSyncToken   string
+		CourseAssetBucket string
+		CourseAssetRegion string
+		CourseAssetPrefix string
+		Notion            NotionConfig
+		Stripe            StripeConfig
+		OpenNode          OpenNodeConfig
 	}
 
 	CourseAvail  string

@@ -192,6 +192,22 @@
       font-weight: 800;
     }
 
+    .course-version-banner.is-draft-preview {
+      border-color: rgba(47, 111, 78, 0.45);
+      background: #eef8f2;
+    }
+
+    .course-version-banner a {
+      width: fit-content;
+      border: 1.5px solid #191919;
+      border-radius: 0.375rem;
+      background: #ffffff;
+      color: #191919;
+      padding: 0.65rem 0.9rem;
+      text-decoration: none;
+      font-weight: 800;
+    }
+
     .course-hero {
       margin: 0 0 1.5rem;
       overflow: hidden;
@@ -788,7 +804,8 @@
     const codeIndent = "    ";
 
     document.addEventListener("DOMContentLoaded", function() {
-      hydrateCourseProgressFromServer().finally(function() {
+      const hydration = isCourseDraftPreview() ? Promise.resolve() : hydrateCourseProgressFromServer();
+      hydration.finally(function() {
         setupAutoResizeCodeAreas();
         setupCourseChallengeMarkers();
         updateCourseSidebarProgress();
@@ -932,6 +949,9 @@
     }
 
     function saveCourseBlockProgress(detail) {
+      if (isCourseDraftPreview()) {
+        return;
+      }
       const courseSlug = detail.courseSlug || "";
       const lessonPath = detail.lessonPath || "";
       const blockId = detail.blockId || "";
@@ -962,6 +982,9 @@
     }
 
     async function hydrateCourseProgressFromServer() {
+      if (isCourseDraftPreview()) {
+        return;
+      }
       const shell = document.querySelector(".course-platform_shell");
       if (!shell || !shell.dataset.courseSlug) {
         return;
@@ -1121,6 +1144,9 @@
     }
 
     async function saveCourseBlockProgressToServer(detail) {
+      if (isCourseDraftPreview()) {
+        return;
+      }
       if (!detail.courseSlug || !detail.lessonPath || !detail.blockId) {
         return;
       }
@@ -1193,6 +1219,11 @@
 
     function writeCourseProgress(progress) {
       courseProgressState = progress && progress.version === 1 ? progress : { version: 1, courses: {} };
+    }
+
+    function isCourseDraftPreview() {
+      const shell = document.querySelector(".course-platform_shell");
+      return Boolean(shell && shell.dataset.draftPreview === "true");
     }
 
     document.addEventListener("keydown", function(event) {
@@ -1799,7 +1830,7 @@ def __course_check_cell(student_code, check_code):
       </div>
       <div class="course-challenge-markers" hidden></div>
     </div>
-    <main class="course-platform_shell" data-course-slug="{{ .CourseSlug }}" data-lesson-path="{{ .Current.Path }}" data-csrf-token="{{ .CSRFToken }}"{{ if .Previous }} data-prev-url="{{ .Previous.URL }}"{{ end }}{{ if .Next }} data-next-url="{{ .Next.URL }}"{{ end }}>
+    <main class="course-platform_shell" data-course-slug="{{ .CourseSlug }}" data-lesson-path="{{ .Current.Path }}" data-csrf-token="{{ .CSRFToken }}" data-draft-preview="{{ if .IsDraftPreview }}true{{ else }}false{{ end }}"{{ if .Previous }} data-prev-url="{{ .Previous.URL }}"{{ end }}{{ if .Next }} data-next-url="{{ .Next.URL }}"{{ end }}>
       <aside class="course-platform_sidebar" aria-label="Course pages">
         <h2 class="course-platform_course-title">{{ .CourseTitle }}</h2>
         <nav class="course-platform_nav">
@@ -1827,6 +1858,19 @@ def __course_check_cell(student_code, check_code):
       </aside>
       <section class="course-platform_content">
         <div class="course-platform_current">{{ .Current.DisplayNumber }} / {{ .Current.Title }}</div>
+        {{ if .CanPreviewDraft }}
+          {{ if .IsDraftPreview }}
+            <div class="course-version-banner is-draft-preview" role="status">
+              <p>You are previewing the synced draft{{ if .DraftVersionNumber }} version {{ .DraftVersionNumber }}{{ end }}. Progress is not saved in draft preview.</p>
+              <a href="{{ .DraftPreviewOffURL }}">Return to Published Version</a>
+            </div>
+          {{ else }}
+            <div class="course-version-banner is-draft-preview" role="status">
+              <p>Editor preview is available for this course.</p>
+              <a href="{{ .DraftPreviewOnURL }}">Preview Synced Draft</a>
+            </div>
+          {{ end }}
+        {{ end }}
         {{ if .HasNewVersion }}
           <div class="course-version-banner" role="status">
             <p>You are working on version {{ .VersionNumber }}. Version {{ .LatestVersionNumber }} is available.</p>

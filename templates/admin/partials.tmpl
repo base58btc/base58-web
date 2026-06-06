@@ -28,6 +28,7 @@
 .admin-form input, .admin-form select, .admin-form textarea, .admin-search input, .admin-inline-form input, .admin-inline-form select { border: 1px solid #c9c9c2; font: inherit; padding: 10px 12px; }
 .admin-form textarea { min-height: 96px; resize: vertical; }
 .admin-search, .admin-inline-form { align-items: center; display: flex; gap: 10px; margin: 16px 0; }
+.admin-inline-form.compact { margin: 0; }
 .admin-search input { min-width: 320px; }
 .admin-checkbox { align-items: center; display: flex; gap: 6px; }
 table { background: #fff; border-collapse: collapse; margin: 16px 0 28px; width: 100%; }
@@ -59,6 +60,11 @@ th { background: #ecece6; font-size: 13px; text-transform: uppercase; }
 .admin-course-sidebar h2 { color: #fff; font-size: 16px; margin: 0 0 16px; }
 .admin-course-sidebar a { color: #f7f7f4; display: block; font-weight: 800; padding: 10px 0; text-decoration: none; }
 .admin-course-sidebar a.is-active { color: #f7931a; }
+.admin-course-preview-card { border-top: 1px solid #444; margin-top: 16px; padding-top: 16px; }
+.admin-course-preview-card p { color: #d6d6cf; font-size: 13px; line-height: 1.4; margin: 0 0 12px; }
+.admin-course-preview-card form { margin: 0; }
+.admin-course-preview-card button { background: #f7931a; color: #111; width: 100%; }
+.admin-course-preview-card .secondary { background: #f7f7f4; }
 .admin-stat-grid { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 16px 0 22px; }
 .admin-stat-card { background: #fff; border: 1px solid #e1e1dc; padding: 16px; }
 .admin-stat-card strong { display: block; font-size: 30px; line-height: 1; }
@@ -132,6 +138,25 @@ th { background: #ecece6; font-size: 13px; text-transform: uppercase; }
   <a href="/admin/courses/{{ .Course.Slug }}" class="{{ if eq .ActiveTab "stats" }}is-active{{ end }}">Stats</a>
   <a href="/admin/courses/{{ .Course.Slug }}/students" class="{{ if eq .ActiveTab "students" }}is-active{{ end }}">Students</a>
   <a href="/admin/courses/{{ .Course.Slug }}/content" class="{{ if eq .ActiveTab "content" }}is-active{{ end }}">Course Content</a>
+  <div class="admin-course-preview-card">
+    {{ if .Course.DraftPreviewEnabled }}
+      <p>Draft preview is on{{ if .Course.DraftVersionNumber }} for v{{ .Course.DraftVersionNumber }}{{ end }}.</p>
+      <form method="post" action="/admin/courses/{{ .Course.Slug }}/preview">
+        {{ .CSRFField }}
+        <input type="hidden" name="mode" value="off">
+        <button class="secondary" type="submit">Return to Published</button>
+      </form>
+    {{ else if .Course.HasDraft }}
+      <p>Synced draft v{{ .Course.DraftVersionNumber }} is available.</p>
+      <form method="post" action="/admin/courses/{{ .Course.Slug }}/preview">
+        {{ .CSRFField }}
+        <input type="hidden" name="mode" value="draft">
+        <button type="submit">Preview Draft</button>
+      </form>
+    {{ else }}
+      <p>No synced draft is available.</p>
+    {{ end }}
+  </div>
 </aside>
 {{ end }}
 
