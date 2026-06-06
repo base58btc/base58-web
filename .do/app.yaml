@@ -5,20 +5,122 @@ domains:
 - domain: base58.school
   type: PRIMARY
   zone: base58.school
-ingress: {}
-name: base58
+- domain: base58.info
+  type: ALIAS
+  zone: base58.info
+- domain: www.base58.info
+  type: ALIAS
+ingress:
+  rules:
+  - component:
+      name: web
+    match:
+      path:
+        prefix: /
+name: base58-web
 region: nyc
 services:
-- environment_slug: go
+- dockerfile_path: Dockerfile
   envs:
-  dockerfile_path: Dockerfile
+  - key: TOKEN_SEC
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: REPLACE_WITH_DIGITALOCEAN_SECRET_VALUE
+  - key: EXTERN_DOMAIN
+    scope: RUN_AND_BUILD_TIME
+    value: https://base58.school
+  - key: LOCAL_DOMAIN
+    scope: RUN_AND_BUILD_TIME
+    value: base58.school
+  - key: MAIL_SEC
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: REPLACE_WITH_DIGITALOCEAN_SECRET_VALUE
+  - key: MAIL_DOMAIN
+    scope: RUN_AND_BUILD_TIME
+    value: mg.base58.school
+  - key: MAIL_API
+    scope: RUN_AND_BUILD_TIME
+    value: http://45.55.129.100:9998
+  - key: IS_PROD
+    scope: RUN_AND_BUILD_TIME
+    value: "1"
+  - key: NOTION_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: REPLACE_WITH_DIGITALOCEAN_SECRET_VALUE
+  - key: NOTION_COURSES
+    scope: RUN_AND_BUILD_TIME
+    value: 21c399ca12f080f38fcad18109bb20c9
+  - key: NOTION_SESSIONS
+    scope: RUN_AND_BUILD_TIME
+    value: b7679d5e66ac48f19f519c75bafa2090
+  - key: NOTION_SIGNUPS
+    scope: RUN_AND_BUILD_TIME
+    value: ee0f3e4b574d4589824d35ba37582fa9
+  - key: NOTION_CARTS
+    scope: RUN_AND_BUILD_TIME
+    value: e69cea547af048b48e2a95af6ce10093
+  - key: NOTION_WAITLIST
+    scope: RUN_AND_BUILD_TIME
+    value: d340cf722e23417fa16d2084a5d73adc
+  - key: OPENNODE_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: REPLACE_WITH_DIGITALOCEAN_SECRET_VALUE
+  - key: OPENNODE_API
+    scope: RUN_AND_BUILD_TIME
+    value: https://api.opennode.com/v1
+  - key: STRIPE_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: REPLACE_WITH_DIGITALOCEAN_SECRET_VALUE
+  - key: STRIPE_PUBKEY
+    scope: RUN_AND_BUILD_TIME
+    value: pk_live_51RgYGaC4an1As7oXM2J03yO93OPKvvX8TykyusAz9aGMPXovBelrNDIAltLFbTTfVeYTdlOvaHR3FwG0Ll5JVYM000TcPjiPZc
+  - key: STRIPE_ENDSEC
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: REPLACE_WITH_DIGITALOCEAN_SECRET_VALUE
+  - key: NOTION_NEWSLETTER
+    scope: RUN_AND_BUILD_TIME
+    value: 21f399ca12f080418378d571a8859c32
+  - key: NOTION_ITEM_CARTS
+    scope: RUN_AND_BUILD_TIME
+    value: b132015f7f6f4facb6b51eb98ebe9e23
+  - key: NOTION_MISSIVES
+    scope: RUN_AND_BUILD_TIME
+    value: 21f399ca12f08027a563eeb2177d2f58
+  - key: PINCODE
+    scope: RUN_AND_BUILD_TIME
+    value: "very merry xmas to you"
+  - key: COURSE_ASSET_BUCKET
+    scope: RUN_AND_BUILD_TIME
+    value: "base58"
+  - key: COURSE_ASSET_REGION
+    scope: RUN_AND_BUILD_TIME
+    value: "nyc3"
+  - key: COURSE_ASSET_PREFIX
+    scope: RUN_AND_BUILD_TIME
+    value: "courses"
+  - key: SPACES_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: REPLACE_WITH_DIGITALOCEAN_SECRET_VALUE
+  - key: SPACES_SECRET
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: REPLACE_WITH_DIGITALOCEAN_SECRET_VALUE
+  - key: EDITOR_SYNC_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: REPLACE_WITH_DIGITALOCEAN_SECRET_VALUE
   github:
-    branch: master
+    branch: main
     deploy_on_push: true
     repo: base58btc/base58-web
   http_port: 8080
   instance_count: 1
-  instance_size_slug: professional-xs
-  name: base58-web
-  run_command: bin/web
+  instance_size_slug: basic-xxs
+  name: web
   source_dir: /
