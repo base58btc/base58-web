@@ -27,8 +27,12 @@ dev-run: build-all
 build:
 	go build -v -o target/$(APP_NAME) ./cmd/web/main.go
 
+.PHONY: build-migrate
+build-migrate:
+	go build -v -o target/migrate ./cmd/migrate
+
 .PHONY: build-all
-build-all: build
+build-all: build build-migrate
 
 .PHONY: db-status
 db-status:
