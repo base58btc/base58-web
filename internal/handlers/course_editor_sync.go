@@ -125,30 +125,30 @@ func CourseEditorPublish(w http.ResponseWriter, r *http.Request, ctx *config.App
 }
 
 func authorizeCourseEditorSync(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) bool {
-	if admin := currentAdminFromSession(r, ctx); admin.ID > 0 {
-		return true
-	}
-
 	token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-	if token == "" {
-		writeCourseEditorJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing editor token"})
-		return false
-	}
-	if ctx.Env != nil && ctx.Env.EditorSyncToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(ctx.Env.EditorSyncToken)) == 1 {
-		return true
-	}
+	if token != "" {
+		if ctx.Env != nil && ctx.Env.EditorSyncToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(ctx.Env.EditorSyncToken)) == 1 {
+			return true
+		}
 
-	var id int64
-	err := ctx.DB.QueryRow(`SELECT id FROM editor_api_tokens
+		var id int64
+		err := ctx.DB.QueryRow(`SELECT id FROM editor_api_tokens
 WHERE token_hash=`+ph(ctx, 1)+`
   AND status='active'
   AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`, hashString(token)).Scan(&id)
-	if err != nil {
-		writeCourseEditorJSON(w, http.StatusForbidden, map[string]string{"error": "invalid editor token"})
-		return false
+		if err != nil {
+			writeCourseEditorJSON(w, http.StatusForbidden, map[string]string{"error": "invalid editor token"})
+			return false
+		}
+		_, _ = ctx.DB.Exec(`UPDATE editor_api_tokens SET last_used_at=CURRENT_TIMESTAMP WHERE id=`+ph(ctx, 1), id)
+		return true
 	}
-	_, _ = ctx.DB.Exec(`UPDATE editor_api_tokens SET last_used_at=CURRENT_TIMESTAMP WHERE id=`+ph(ctx, 1), id)
-	return true
+
+	if admin := currentAdminFromSession(r, ctx); admin.ID > 0 {
+		return true
+	}
+	writeCourseEditorJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing editor token"})
+	return false
 }
 
 func buildUploadedCourseSnapshot(courseSlug string, files []CourseEditorSyncFile) (courseSnapshot, error) {
