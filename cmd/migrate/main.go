@@ -33,7 +33,8 @@ func main() {
 		*dir = migrationDir(*driver)
 	}
 
-	db, err := database.Open(&types.EnvConfig{DBDriver: *driver, DatabaseURL: *databaseURL}, false)
+	isProd := os.Getenv("IS_PROD") == "1"
+	db, err := database.Open(&types.EnvConfig{DBDriver: *driver, DatabaseURL: *databaseURL}, isProd)
 	if err != nil {
 		log.Fatal(err)
 	}
