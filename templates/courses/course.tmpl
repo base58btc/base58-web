@@ -324,7 +324,7 @@ margin: 0rem !important;
               <div class="individualcourse_content-left">
                 <div class="margin-bottom margin-xsmall">
                   <h1 class="course-title lower-line">{{ .Course.Title }}</h1>
-		  {{ if and (not .LocalCourse) (ne .Course.Availability "Coming Soon") }}
+		  {{ if ne .Course.Availability "Coming Soon" }}
                   <div class="product-header9_price-wrapper">
                     <div class="heading-style-h4">
 		      {{ if eq .Course.PriceUSD 0 }}
@@ -373,7 +373,7 @@ margin: 0rem !important;
                     {{ if .Enrolled }}
                     <a href="{{ .ResumeURL }}" class="secondary-button course-page w-button">Resume Course</a>
                     {{ else }}
-                    <button class="secondary-button course-page w-button" type="button" data-open-course-signup>Register</button>
+                    <button class="secondary-button course-page w-button" type="button" data-open-course-signup>Start Course</button>
                     {{ end }}
 		    {{ else if eq .Course.Availability "Coming Soon" }}
                     <div class="footer2_form-block">
@@ -401,31 +401,6 @@ margin: 0rem !important;
 		    {{ end }}
                   </div>
                 </div>
-                {{ if .LocalCourse }}
-                <div class="margin-bottom margin-xsmall">
-                  <h2 class="course-details-title">Lessons:</h2>
-                </div>
-                <div class="course-local-outline">
-                  {{ range .LocalOutline }}
-                  <a class="course-local-lesson" href="{{ .URL }}">
-                    <span class="course-local-lesson-number">{{ .DisplayNumber }}</span>
-                    <span class="course-local-lesson-title">{{ .Title }}</span>
-                    {{ if gt .ChallengeCount 0 }}
-                    <span class="course-local-lesson-meta">{{ .ChallengeCount }} challenges</span>
-                    {{ else }}
-                    <span class="course-local-lesson-meta"></span>
-                    {{ end }}
-                    {{ if .Children }}
-                    <span class="course-local-sublessons">
-                      {{ range .Children }}
-                      <span class="course-local-sublesson">{{ .DisplayNumber }} {{ .Title }}</span>
-                      {{ end }}
-                    </span>
-                    {{ end }}
-                  </a>
-                  {{ end }}
-                </div>
-                {{ else }}
                 <div class="course_list-wrapper">
                   <div class="margin-bottom margin-xsmall">
                     <div class="course-details-body semi-bold">This course includes:</div>
@@ -478,7 +453,6 @@ margin: 0rem !important;
                   </div>
 		  {{ end }}
                 </div>
-                {{ end }}
               </div>
               <div class="individualcourse_content-right">
                 {{ if .Course.HeaderImg }}
@@ -518,7 +492,7 @@ margin: 0rem !important;
   {{ if .LocalCourse }}
   <dialog class="course-signup-dialog" id="course-signup-dialog">
     <div class="course-signup-dialog-inner">
-      <h2>Register for {{ .Course.Title }}</h2>
+      <h2>Start {{ .Course.Title }}</h2>
       <p>Create your course account and get access to the lessons.</p>
       <form class="course-signup-form" method="post" action="/courses/{{ .Course.Tag }}/signup">
         {{ .CSRFField }}

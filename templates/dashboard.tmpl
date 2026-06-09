@@ -234,11 +234,83 @@
       padding: 0;
     }
     .dashboard-empty {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(18rem, 1.05fr);
+      gap: 1.5rem;
+      align-items: stretch;
       margin-top: 2rem;
       border: 1px solid rgba(25, 25, 25, 0.14);
       border-radius: 0.5rem;
+      background: #ffffff;
+      overflow: hidden;
+    }
+    .dashboard-empty-image {
+      width: 100%;
+      height: 100%;
+      min-height: 18rem;
+      object-fit: cover;
+      background: #ece6d8;
+    }
+    .dashboard-empty-content {
+      display: grid;
+      align-content: center;
+      gap: 1rem;
+      padding: 1.5rem 1.5rem 1.5rem 0;
+    }
+    .dashboard-empty-eyebrow {
+      width: fit-content;
+      border: 1px solid rgba(247, 147, 26, 0.42);
+      border-radius: 999px;
+      background: #fff6e6;
+      color: #8f5b14;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+    .dashboard-empty h2 {
+      margin: 0;
+      font-size: clamp(1.75rem, 4vw, 3rem);
+      line-height: 1;
+    }
+    .dashboard-empty p {
+      max-width: 36rem;
+      margin: 0;
+      color: #4b4032;
+      line-height: 1.55;
+    }
+    .dashboard-empty-points {
+      display: grid;
+      gap: 0.55rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .dashboard-empty-points li {
+      display: flex;
+      gap: 0.55rem;
+      align-items: flex-start;
+      color: #30281f;
+      font-weight: 700;
+    }
+    .dashboard-empty-points li::before {
+      content: "";
+      flex: 0 0 auto;
+      width: 0.45rem;
+      height: 0.45rem;
+      margin-top: 0.55rem;
+      border-radius: 50%;
+      background: #f7931a;
+    }
+    .dashboard-empty-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin-top: 0.25rem;
+    }
+    .dashboard-link.secondary {
       background: #fff;
-      padding: 1.25rem;
     }
     @media (max-width: 700px) {
       .dashboard-main {
@@ -250,6 +322,16 @@
       }
       .dashboard-stats {
         grid-template-columns: 1fr;
+      }
+      .dashboard-empty {
+        grid-template-columns: 1fr;
+      }
+      .dashboard-empty-image {
+        min-height: 12rem;
+        aspect-ratio: 16 / 7;
+      }
+      .dashboard-empty-content {
+        padding: 1.25rem;
       }
     }
   </style>
@@ -343,9 +425,21 @@
           </section>
         {{ else }}
           <section class="dashboard-empty">
-            <h2>No courses yet</h2>
-            <p>Your enrolled courses will appear here.</p>
-            <a class="dashboard-link primary" href="/courses">Browse courses</a>
+            <img class="dashboard-empty-image" src="/static/img/courses/intro-proto.png" alt="Introduction to Protocols course artwork" loading="lazy">
+            <div class="dashboard-empty-content">
+              <div class="dashboard-empty-eyebrow">Recommended first course</div>
+              <h2>Start with Intro to Protocols</h2>
+              <p>Build the foundation for reading and writing protocol messages with hands-on exercises, byte parsing, and practical checks.</p>
+              <ul class="dashboard-empty-points">
+                <li>Beginner-friendly path into protocol thinking</li>
+                <li>Interactive code exercises and checks</li>
+                <li>Self-paced lessons you can resume from your dashboard</li>
+              </ul>
+              <div class="dashboard-empty-actions">
+                <a class="dashboard-link primary" href="/courses/intro-proto">View Intro to Protocols</a>
+                <a class="dashboard-link secondary" href="/courses">Browse all courses</a>
+              </div>
+            </div>
           </section>
         {{ end }}
       </div>

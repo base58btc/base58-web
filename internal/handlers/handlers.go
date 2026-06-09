@@ -150,7 +150,7 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 		http.Redirect(w, r, "https://workshop.base58.school", http.StatusMovedPermanently)
 	}).Methods("GET")
 	r.HandleFunc("/workshop/become", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "https://workshop.base58.school", http.StatusMovedPermanently)
+		http.Redirect(w, r, "https://workshop.base58.school/training", http.StatusFound)
 	}).Methods("GET")
 	r.HandleFunc("/courses/{course}/{page:.*}", func(w http.ResponseWriter, r *http.Request) {
 		CourseLesson(w, r, ctx)

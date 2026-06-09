@@ -17,7 +17,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/config"
-	"github.com/kodylow/base58-website/internal/types"
 )
 
 const localCoursesRoot = "courses"
@@ -26,15 +25,17 @@ var numberedNamePattern = regexp.MustCompile(`^([0-9]+)[_-](.+)$`)
 var safeCourseSlugPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 type CourseNavItem struct {
-	Number         string
-	DisplayNumber  string
-	Title          string
-	Path           string
-	URL            string
-	Current        bool
-	Active         bool
-	ChallengeCount int
-	Children       []*CourseNavItem
+	Number              string
+	DisplayNumber       string
+	Title               string
+	Path                string
+	URL                 string
+	Current             bool
+	Active              bool
+	ChallengeCount      int
+	CodeCheckCount      int
+	MultipleChoiceCount int
+	Children            []*CourseNavItem
 
 	order    int
 	filePath string
@@ -297,9 +298,24 @@ func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 		return
 	}
 
-	title, description, heroURL := localCourseLandingMetadata(ctx, courseSlug, outline.CourseTitle)
-	if title == "" {
-		title = outline.CourseTitle
+	course, err := getters.GetCourse(ctx.Notion, courseSlug)
+	if err != nil {
+		http.Error(w, "Unable to load page, course not found", http.StatusInternalServerError)
+		ctx.Err.Printf("/courses local course unable to find notion course %s\n", err.Error())
+		return
+	}
+	title, description, heroURL := localCourseLandingMetadata(ctx, courseSlug, course.Title)
+	if title != "" {
+		course.Title = title
+	}
+	if description != "" {
+		course.ShortDesc = description
+		if course.LongDesc == "" {
+			course.LongDesc = description
+		}
+	}
+	if heroURL != "" {
+		course.HeaderImg = heroURL
 	}
 	accessError := localCourseAccessError(r.URL.Query().Get("access"))
 	notice := localCourseNotice(r.URL.Query().Get("registered"))
@@ -319,18 +335,9 @@ func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 		}
 	}
 
-	course := &types.Course{
-		Tag:          courseSlug,
-		Title:        title,
-		Availability: "Open",
-		PriceUSD:     0,
-		ShortDesc:    description,
-		LongDesc:     description,
-		CourseURL:    startURL,
-		CourseHost:   "Base58",
-		HeaderImg:    heroURL,
-		Visible:      true,
-	}
+	course.CourseURL = startURL
+	course.CourseHost = "Base58"
+	course.Includes = localCourseIncludes(outline, course.Includes)
 	if course.ShortDesc == "" {
 		course.ShortDesc = "Work through the course lessons and exercises at your own pace."
 	}
@@ -809,14 +816,16 @@ func navItemFromFile(courseDir, courseSlug, sectionDir, filename string) (*Cours
 	}
 
 	return &CourseNavItem{
-		Number:         number,
-		DisplayNumber:  number,
-		Title:          titleFromMarkdown(markdown, titleFromSlug(label)),
-		Path:           lessonPath,
-		URL:            courseLessonURL(courseSlug, lessonPath),
-		ChallengeCount: countCourseChallengeBlocks(markdown),
-		order:          orderFromNumber(number),
-		filePath:       filePath,
+		Number:              number,
+		DisplayNumber:       number,
+		Title:               titleFromMarkdown(markdown, titleFromSlug(label)),
+		Path:                lessonPath,
+		URL:                 courseLessonURL(courseSlug, lessonPath),
+		ChallengeCount:      countCourseChallengeBlocks(markdown),
+		CodeCheckCount:      countCourseFenceBlocks(markdown, courseCodeChallengeFence),
+		MultipleChoiceCount: countCourseFenceBlocks(markdown, courseMultipleChoiceFence),
+		order:               orderFromNumber(number),
+		filePath:            filePath,
 	}, true, nil
 }
 
@@ -938,6 +947,45 @@ func titleFromSlug(slug string) string {
 
 func courseLessonURL(courseSlug, lessonPath string) string {
 	return fmt.Sprintf("/courses/%s/%s", courseSlug, lessonPath)
+}
+
+func localCourseIncludes(outline *localCourseOutline, notionIncludes []string) []string {
+	codeChecks, multipleChoice := totalLocalCourseExerciseCounts(outline)
+	includes := make([]string, 0, len(notionIncludes)+2)
+	if codeChecks > 0 {
+		includes = append(includes, pluralizeCount(codeChecks, "code exercise", "code exercises"))
+	}
+	if multipleChoice > 0 {
+		includes = append(includes, pluralizeCount(multipleChoice, "multiple choice question", "multiple choice questions"))
+	}
+	for _, include := range notionIncludes {
+		include = strings.TrimSpace(include)
+		if include != "" {
+			includes = append(includes, include)
+		}
+	}
+	return includes
+}
+
+func totalLocalCourseExerciseCounts(outline *localCourseOutline) (int, int) {
+	if outline == nil {
+		return 0, 0
+	}
+	codeChecks := 0
+	multipleChoice := 0
+	for _, page := range outline.Pages {
+		codeChecks += page.CodeCheckCount
+		multipleChoice += page.MultipleChoiceCount
+	}
+	return codeChecks, multipleChoice
+}
+
+func pluralizeCount(count int, singular, plural string) string {
+	label := plural
+	if count == 1 {
+		label = singular
+	}
+	return fmt.Sprintf("%d %s", count, label)
 }
 
 func countCourseChallengeBlocks(markdown []byte) int {

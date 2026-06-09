@@ -466,7 +466,7 @@ a,
                         id="w-node-_407a40df-a809-97c6-e402-8f5ecf39cb32-c60f7abd"
                         data-w-id="407a40df-a809-97c6-e402-8f5ecf39cb32" class="dropdown1_component w-dropdown">
                         <div class="dropdown1_toggle w-dropdown-toggle">
-                          <div fs-cmssort-element="dropdown-label" class="filter-text">Sort by</div>
+                          <div fs-cmssort-element="dropdown-label" class="filter-text">Experience: Beginner to Advanced</div>
                           <div class="dropdown-chevron w-embed"><svg width=" 100%" height=" 100%" viewbox="0 0 16 16"
                               fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path fill-rule="evenodd" clip-rule="evenodd"
@@ -475,6 +475,8 @@ a,
                             </svg></div>
                         </div>
                         <nav class="dropdown1_dropdown-list is-right w-dropdown-list">
+                          <a href="#" fs-cmssort-field="experience-asc"
+                            class="dropdown1_dropdown-link w-dropdown-link">Experience: Beginner to Advanced</a>
                           <a href="#" fs-cmssort-field="popular-asc"
                             class="dropdown1_dropdown-link w-dropdown-link">Most Popular</a>
                           <a href="#" fs-cmssort-field="name-asc" class="dropdown1_dropdown-link w-dropdown-link">Name:
@@ -864,8 +866,16 @@ a,
         const parsed = Number((value || '').toString().replace(/[^0-9.-]/g, ''));
         return Number.isFinite(parsed) ? parsed : 0;
       };
+      const experienceRank = function (value) {
+        const ranks = {
+          'entry-level': 1,
+          'developers': 2,
+          'experienced': 3,
+        };
+        return ranks[normalizer(value)] || 99;
+      };
 
-      let currentSort = { field: 'popularity', direction: 'asc' };
+      let currentSort = { field: 'experience', direction: 'asc' };
 
       const selectedValues = function (field) {
         return Array.from(document.querySelectorAll('[fs-cmsfilter-field="' + field + '"]'))
@@ -890,6 +900,7 @@ a,
           const name = item.querySelector('[fs-cmssort-field="name"]');
           return normalizer(name && name.textContent);
         }
+        if (field === 'experience') return experienceRank(item.getAttribute('level'));
         if (field === 'price') return numberValue(item.getAttribute('price'));
         return numberValue(item.getAttribute('popularity'));
       };
@@ -982,7 +993,7 @@ a,
         if (!link.classList.contains('dropdown1_dropdown-link')) return;
         link.addEventListener('click', function (event) {
           event.preventDefault();
-          const rawField = link.getAttribute('fs-cmssort-field') || 'popular-asc';
+          const rawField = link.getAttribute('fs-cmssort-field') || 'experience-asc';
           const parts = rawField.split('-');
           currentSort = {
             field: parts[0] === 'popular' ? 'popularity' : parts[0],
