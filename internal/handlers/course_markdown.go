@@ -22,6 +22,7 @@ var (
 	courseMultipleChoiceFence = []byte("~~~")
 	courseCodeChallengeFence  = []byte("???")
 	courseVideoFence          = []byte("!!!")
+	courseAdmonitionFence     = []byte(":::")
 )
 
 var (
@@ -33,7 +34,9 @@ var (
 
 type courseCodeBlock struct {
 	ast.Leaf
+	ID      string
 	Content string
+	Err     string
 }
 
 type courseMultipleChoiceBlock struct {
@@ -69,6 +72,11 @@ type courseVideoBlock struct {
 	Poster   string
 	Servers  []string
 	Err      string
+}
+
+type courseNoteBlock struct {
+	ast.Leaf
+	Content string
 }
 
 type courseMarkdownRenderer struct {
@@ -130,6 +138,9 @@ func courseParserHook(data []byte) (ast.Node, []byte, int) {
 	if node, remaining, consumed := parseCourseVideoBlock(data); node != nil {
 		return node, remaining, consumed
 	}
+	if node, remaining, consumed := parseCourseNoteBlock(data); node != nil {
+		return node, remaining, consumed
+	}
 	if node, remaining, consumed := parseCourseMultipleChoiceBlock(data); node != nil {
 		return node, remaining, consumed
 	}
@@ -141,12 +152,12 @@ func courseParserHook(data []byte) (ast.Node, []byte, int) {
 }
 
 func parseCourseCodeBlock(data []byte) (ast.Node, []byte, int) {
-	content, consumed, ok := parseCourseFencedContent(data, courseCodeFence)
+	content, id, consumed, err, ok := parseCourseCodeFencedContent(data)
 	if !ok {
 		return nil, nil, 0
 	}
 
-	return &courseCodeBlock{Content: content}, nil, consumed
+	return &courseCodeBlock{ID: id, Content: content, Err: err}, nil, consumed
 }
 
 func parseCourseMultipleChoiceBlock(data []byte) (ast.Node, []byte, int) {
@@ -176,6 +187,46 @@ func parseCourseVideoBlock(data []byte) (ast.Node, []byte, int) {
 	return parseCourseVideoContent(content), nil, consumed
 }
 
+func parseCourseNoteBlock(data []byte) (ast.Node, []byte, int) {
+	content, consumed, ok := parseCourseNamedFencedContent(data, courseAdmonitionFence, "note")
+	if !ok {
+		return nil, nil, 0
+	}
+
+	return &courseNoteBlock{Content: content}, nil, consumed
+}
+
+func parseCourseCodeFencedContent(data []byte) (string, string, int, string, bool) {
+	if !bytes.HasPrefix(data, courseCodeFence) {
+		return "", "", 0, "", false
+	}
+
+	openLineEnd := bytes.IndexByte(data, '\n')
+	if openLineEnd < 0 {
+		return "", "", 0, "", false
+	}
+
+	openLine := string(bytes.Trim(data[:openLineEnd], " \t\r"))
+	fields := strings.Fields(openLine)
+	if len(fields) == 1 && fields[0] == string(courseCodeFence) {
+		content, consumed, ok := parseCourseFencedContent(data, courseCodeFence)
+		return content, "", consumed, "", ok
+	}
+	if len(fields) != 2 || fields[0] != string(courseCodeFence) {
+		return "", "", 0, "", false
+	}
+
+	content, consumed, ok := parseCourseFencedContentAfterOpen(data, courseCodeFence, openLineEnd)
+	if !ok {
+		return "", "", 0, "", false
+	}
+	id := fields[1]
+	if !courseBlockIDPattern.MatchString(id) {
+		return content, "", consumed, "Course code block id can only include letters, numbers, underscores, or hyphens, and must start with a letter or number.", true
+	}
+	return content, id, consumed, "", true
+}
+
 func parseCourseFencedContent(data []byte, fence []byte) (string, int, bool) {
 	if !bytes.HasPrefix(data, fence) {
 		return "", 0, false
@@ -186,6 +237,10 @@ func parseCourseFencedContent(data []byte, fence []byte) (string, int, bool) {
 		return "", 0, false
 	}
 
+	return parseCourseFencedContentAfterOpen(data, fence, openLineEnd)
+}
+
+func parseCourseFencedContentAfterOpen(data []byte, fence []byte, openLineEnd int) (string, int, bool) {
 	contentStart := openLineEnd + 1
 	pos := contentStart
 	for pos < len(data) {
@@ -527,13 +582,23 @@ func (r *courseMarkdownRenderer) renderHook(w io.Writer, node ast.Node, entering
 	if cb, ok := node.(*courseCodeBlock); ok {
 		if entering {
 			r.codeBlockCount++
-			renderCourseCodeBlock(w, cb, fmt.Sprintf("code-%d", r.codeBlockCount))
+			blockID := cb.ID
+			if blockID == "" {
+				blockID = fmt.Sprintf("code-%d", r.codeBlockCount)
+			}
+			renderCourseCodeBlock(w, cb, blockID)
 		}
 		return ast.GoToNext, true
 	}
 	if video, ok := node.(*courseVideoBlock); ok {
 		if entering {
 			renderCourseVideoBlock(w, video)
+		}
+		return ast.GoToNext, true
+	}
+	if note, ok := node.(*courseNoteBlock); ok {
+		if entering {
+			r.renderCourseNoteBlock(w, note)
 		}
 		return ast.GoToNext, true
 	}
@@ -592,8 +657,18 @@ func pathEscapeCourseAsset(assetPath string) string {
 }
 
 func renderCourseCodeBlock(w io.Writer, cb *courseCodeBlock, blockID string) {
+	if cb.Err != "" {
+		renderCourseAuthoringError(w, cb.Err)
+		return
+	}
+
+	escapedID := template.HTMLEscapeString(blockID)
+	idAttr := ""
+	if cb.ID != "" {
+		idAttr = fmt.Sprintf(` id="%s"`, escapedID)
+	}
 	escaped := template.HTMLEscapeString(cb.Content)
-	fmt.Fprintf(w, `<div class="cell codeset course-code-cell" data-course-block-id="%s" data-course-block-type="code-cell">
+	fmt.Fprintf(w, `<div%s class="cell codeset course-code-cell" data-course-block-id="%s" data-course-block-type="code-cell">
   <div class="code-runner">
     <button class="run-btn" type="button" onclick="runCellCode(this)" aria-label="Run code">
       <svg fill="currentColor" height="16" width="16" viewBox="0 0 330 330" aria-hidden="true">
@@ -607,7 +682,7 @@ func renderCourseCodeBlock(w io.Writer, cb *courseCodeBlock, blockID string) {
   </div>
   <div class="output-prompt" aria-hidden="true"></div>
   <div class="output" aria-live="polite"></div>
-</div>`, template.HTMLEscapeString(blockID), escaped)
+</div>`, idAttr, escapedID, escaped)
 }
 
 func renderCourseVideoBlock(w io.Writer, block *courseVideoBlock) {
@@ -666,6 +741,20 @@ func renderCourseBlossomVideoBlock(w io.Writer, block *courseVideoBlock) {
     Your browser does not support embedded videos.
   </video>
 </figure>`)
+}
+
+func (r *courseMarkdownRenderer) renderCourseNoteBlock(w io.Writer, block *courseNoteBlock) {
+	body := renderCourseMarkdownToHTML([]byte(block.Content), r.courseSlug, r.assetBaseURL)
+	fmt.Fprintf(w, `<aside class="course-note" role="note">
+  <div class="course-note-icon" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="currentColor" stroke-width="2"></path>
+      <path d="M12 11V16" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+      <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+    </svg>
+  </div>
+  <div class="course-note-body">%s</div>
+</aside>`, body)
 }
 
 func renderCourseMultipleChoiceBlock(w io.Writer, block *courseMultipleChoiceBlock, blockID string) {

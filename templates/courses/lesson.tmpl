@@ -329,6 +329,33 @@
       color: inherit;
     }
 
+    .course-note {
+      display: grid;
+      grid-template-columns: 2rem minmax(0, 1fr);
+      gap: 0.875rem;
+      margin: 1.5rem 0;
+      border: 1px solid rgba(143, 91, 20, 0.28);
+      border-left: 0.35rem solid #f7931a;
+      border-radius: 0.5rem;
+      background: #fff6e6;
+      padding: 1rem 1rem 1rem 0.85rem;
+      color: #2f261a;
+    }
+
+    .course-note-icon {
+      display: grid;
+      place-items: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: #f7931a;
+      color: #191919;
+    }
+
+    .course-note-body > :last-child {
+      margin-bottom: 0;
+    }
+
     .codeset {
       display: grid;
       grid-template-columns: 4.25rem minmax(0, 1fr);

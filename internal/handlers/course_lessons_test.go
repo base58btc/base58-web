@@ -133,6 +133,40 @@ func TestCourseMarkdownRendersCodeBlocks(t *testing.T) {
 	}
 }
 
+func TestCourseMarkdownRendersAnchoredCodeBlocks(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("Before\n\n+++ to-bytes\nprint(\"hello\")\n+++\n\nAfter\n")))
+
+	if !strings.Contains(html, `id="to-bytes"`) {
+		t.Fatalf("expected anchored code cell id, got %s", html)
+	}
+	if !strings.Contains(html, `data-course-block-id="to-bytes"`) {
+		t.Fatalf("expected anchored course block id, got %s", html)
+	}
+	if strings.Contains(html, "+++ to-bytes") {
+		t.Fatalf("expected anchored code fence to be consumed, got %s", html)
+	}
+}
+
+func TestCourseMarkdownRendersNoteBlocksWithNestedBlocks(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("Before\n\n::: note\nRemember this detail.\n\n+++ note-code\nprint(\"inside\")\n+++\n:::\n\nAfter\n")))
+
+	if !strings.Contains(html, `class="course-note"`) {
+		t.Fatalf("expected note callout, got %s", html)
+	}
+	if !strings.Contains(html, `role="note"`) {
+		t.Fatalf("expected semantic note role, got %s", html)
+	}
+	if !strings.Contains(html, `id="note-code"`) {
+		t.Fatalf("expected nested anchored code block, got %s", html)
+	}
+	if !strings.Contains(html, `print(&#34;inside&#34;)`) {
+		t.Fatalf("expected nested code content, got %s", html)
+	}
+	if strings.Contains(html, "::: note") {
+		t.Fatalf("expected note fence to be consumed, got %s", html)
+	}
+}
+
 func TestCourseMarkdownResolvesRelativeCourseImages(t *testing.T) {
 	html := string(renderCourseMarkdownToHTML([]byte("![Fruit market](fruit_market.png)\n\n![Diagram](diagrams/one two.png)"), "intro-proto", "https://base58.nyc3.cdn.digitaloceanspaces.com/courses"))
 
