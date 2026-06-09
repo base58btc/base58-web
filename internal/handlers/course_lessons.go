@@ -275,20 +275,19 @@ func coursePreviewURL(r *http.Request, mode string) string {
 }
 
 func localCourseHero(ctx *config.AppContext, courseSlug, fallbackTitle string) (string, string) {
+	altTitle := fallbackTitle
 	if ctx == nil || ctx.Notion == nil {
-		return "", ""
+		return localCourseStaticHero(courseSlug, altTitle)
 	}
 
 	course, err := getters.GetCourse(ctx.Notion, courseSlug)
-	if err != nil || course == nil || course.HeaderImg == "" {
-		return "", ""
-	}
-
-	altTitle := fallbackTitle
-	if course.Title != "" {
+	if err == nil && course != nil && course.Title != "" {
 		altTitle = course.Title
 	}
-	return course.HeaderImg, fmt.Sprintf("%s course header", altTitle)
+	if err == nil && course != nil && course.HeaderImg != "" {
+		return course.HeaderImg, fmt.Sprintf("%s course header", altTitle)
+	}
+	return localCourseStaticHero(courseSlug, altTitle)
 }
 
 func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, courseSlug string) {
@@ -448,20 +447,76 @@ func StartLatestCourseVersion(w http.ResponseWriter, r *http.Request, ctx *confi
 	http.Redirect(w, r, startURL, http.StatusSeeOther)
 }
 
+func PublishCourseDraft(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	if ctx == nil || ctx.DB == nil {
+		http.Error(w, "Database is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	if !validateStudentCSRF(w, r, ctx) {
+		return
+	}
+
+	courseSlug := mux.Vars(r)["course"]
+	if !isSafeCourseSlug(courseSlug) {
+		http.NotFound(w, r)
+		return
+	}
+
+	personID := currentProgressPersonID(r, ctx)
+	if !canPreviewCourseDraft(r, ctx, personID, courseSlug) {
+		http.Error(w, "Course editor access required", http.StatusForbidden)
+		return
+	}
+
+	version, fileCount, err := publishDraftCourseVersion(ctx, courseSlug, 0)
+	if err != nil {
+		http.Error(w, "Unable to publish draft", http.StatusInternalServerError)
+		ctx.Err.Printf("course draft publish failed for %s: %s", courseSlug, err.Error())
+		return
+	}
+	ctx.Session.Remove(r.Context(), courseDraftPreviewSessionKey(courseSlug))
+	writeAudit(ctx, adminActor(r, ctx), "course.publish_draft", "course", courseSlug, fmt.Sprintf("v%d files=%d", version.VersionNumber, fileCount))
+
+	redirectTo := r.Referer()
+	if redirectTo == "" {
+		redirectTo = "/courses/" + courseSlug
+	}
+	http.Redirect(w, r, redirectTo, http.StatusSeeOther)
+}
+
 func localCourseLandingMetadata(ctx *config.AppContext, courseSlug, fallbackTitle string) (string, string, string) {
 	if ctx != nil && ctx.DB != nil {
 		if course, err := getAdminCourse(ctx, courseSlug); err == nil {
-			return firstNonEmpty(course.Title, fallbackTitle), course.Description, course.HeaderImg
+			return firstNonEmpty(course.Title, fallbackTitle), course.Description, firstNonEmpty(course.HeaderImg, localCourseStaticHeroURL(courseSlug))
 		}
 	}
 
 	if ctx != nil && ctx.Notion != nil {
 		if course, err := getters.GetCourse(ctx.Notion, courseSlug); err == nil && course != nil {
-			return firstNonEmpty(course.Title, fallbackTitle), firstNonEmpty(course.ShortDesc, course.LongDesc), course.HeaderImg
+			return firstNonEmpty(course.Title, fallbackTitle), firstNonEmpty(course.ShortDesc, course.LongDesc), firstNonEmpty(course.HeaderImg, localCourseStaticHeroURL(courseSlug))
 		}
 	}
 
-	return fallbackTitle, "", ""
+	return fallbackTitle, "", localCourseStaticHeroURL(courseSlug)
+}
+
+func localCourseStaticHero(courseSlug, fallbackTitle string) (string, string) {
+	url := localCourseStaticHeroURL(courseSlug)
+	if url == "" {
+		return "", ""
+	}
+	return url, fmt.Sprintf("%s course header", fallbackTitle)
+}
+
+func localCourseStaticHeroURL(courseSlug string) string {
+	if !isSafeCourseSlug(courseSlug) {
+		return ""
+	}
+	path := filepath.Join("static", "img", "courses", courseSlug+".png")
+	if _, err := os.Stat(path); err != nil {
+		return ""
+	}
+	return "/static/img/courses/" + courseSlug + ".png"
 }
 
 func updatePersonDisplayName(ctx *config.AppContext, personID int64, name string) error {

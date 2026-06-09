@@ -158,6 +158,9 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 	r.HandleFunc("/courses/{course}/versions/latest/start", func(w http.ResponseWriter, r *http.Request) {
 		StartLatestCourseVersion(w, r, ctx)
 	}).Methods("POST")
+	r.HandleFunc("/courses/{course}/publish-draft", func(w http.ResponseWriter, r *http.Request) {
+		PublishCourseDraft(w, r, ctx)
+	}).Methods("POST")
 	r.HandleFunc("/api/courses/{course}/progress", func(w http.ResponseWriter, r *http.Request) {
 		CourseProgress(w, r, ctx)
 	}).Methods("GET", "POST")

@@ -14,7 +14,23 @@
       gap: 6rem;
       width: min(100%, 76rem);
       margin: 0 auto;
-      padding: 7rem 2rem 5rem;
+      padding: 2rem 2rem 5rem;
+    }
+
+    .course-platform_header-art {
+      width: 100%;
+      height: clamp(3.125rem, 7vw, 5rem);
+      overflow: hidden;
+      background: #191919;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid rgba(20, 20, 20, 0.18);
+    }
+
+    .course-platform_header-art img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
     }
 
     .course-platform_sidebar {
@@ -33,6 +49,12 @@
       font-weight: 700;
       letter-spacing: 0;
       text-transform: uppercase;
+    }
+
+    .course-platform_mobile-toc,
+    .course-platform_toc-close,
+    .course-platform_toc-overlay {
+      display: none;
     }
 
     .course-platform_top-dashboard-link {
@@ -208,18 +230,17 @@
       font-weight: 800;
     }
 
-    .course-hero {
-      margin: 0 0 1.5rem;
-      overflow: hidden;
-      border-radius: 0.5rem;
-      background: #191919;
-      aspect-ratio: 21 / 9;
+    .course-platform_sidebar .course-version-banner {
+      margin: 1rem 0 0;
+      padding: 0.875rem;
+      font-size: 0.875rem;
+      line-height: 1.45;
     }
 
-    .course-hero img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+    .course-platform_sidebar .course-version-banner a,
+    .course-platform_sidebar .course-version-banner button {
+      padding: 0.55rem 0.7rem;
+      font-size: 0.8125rem;
     }
 
     .course-platform_article {
@@ -288,9 +309,11 @@
     .course-platform_article pre {
       overflow-x: auto;
       border-radius: 0.5rem;
-      background: #191919;
-      color: #fff;
+      border: 1px solid rgba(20, 20, 20, 0.16);
+      background: #fffdf8;
+      color: #25301a;
       padding: 1rem;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
     }
 
     .course-platform_article pre code {
@@ -740,16 +763,113 @@
       .course-platform_shell {
         grid-template-columns: 1fr;
         gap: 2rem;
-        padding: 5rem 1.25rem 3rem;
+        padding: 2rem 2rem 3rem;
+      }
+
+      .course-platform_header-art {
+        height: 3.25rem;
       }
 
       .course-platform_sidebar {
-        position: relative;
+        position: fixed;
+        z-index: 1200;
+        right: 0;
+        bottom: 0;
+        left: 0;
         top: auto;
-        max-height: none;
-        padding: 0 0 1.25rem;
-        border-right: 0;
-        border-bottom: 1px solid rgba(20, 20, 20, 0.12);
+        box-sizing: border-box;
+        max-height: min(78vh, 40rem);
+        overflow: auto;
+        border: 1px solid rgba(20, 20, 20, 0.16);
+        border-bottom: 0;
+        border-radius: 0.875rem 0.875rem 0 0;
+        background: #f8f7f3;
+        padding: 1rem 1rem max(1.25rem, env(safe-area-inset-bottom));
+        box-shadow: 0 -1.25rem 3rem rgba(20, 20, 20, 0.24);
+        transform: translateY(105%);
+        transition: transform 180ms ease;
+      }
+
+      .course-platform_shell.is-toc-open .course-platform_sidebar {
+        transform: translateY(0);
+      }
+
+      .course-platform_mobile-toc {
+        position: sticky;
+        top: 0.5rem;
+        z-index: 15;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        width: 100%;
+        border: 1px solid rgba(20, 20, 20, 0.16);
+        border-radius: 0.5rem;
+        background: rgba(255, 253, 248, 0.96);
+        color: #191919;
+        padding: 0.75rem 0.875rem;
+        font: inherit;
+        text-align: left;
+        box-shadow: 0 0.5rem 1.5rem rgba(20, 20, 20, 0.08);
+      }
+
+      .course-platform_mobile-toc-label {
+        display: grid;
+        gap: 0.125rem;
+        min-width: 0;
+      }
+
+      .course-platform_mobile-toc-kicker {
+        color: #73592f;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .course-platform_mobile-toc-current {
+        overflow: hidden;
+        font-size: 0.9375rem;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .course-platform_mobile-toc-icon {
+        flex: none;
+        color: #8f6b32;
+        font-size: 1.125rem;
+        font-weight: 900;
+      }
+
+      .course-platform_toc-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        float: right;
+        width: 2rem;
+        height: 2rem;
+        margin: -0.25rem 0 0.75rem 0.75rem;
+        border: 1px solid rgba(20, 20, 20, 0.16);
+        border-radius: 999px;
+        background: #fffdf8;
+        color: #191919;
+        font-size: 1.25rem;
+        line-height: 1;
+      }
+
+      .course-platform_toc-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1190;
+        background: rgba(20, 20, 20, 0.34);
+      }
+
+      .course-platform_shell.is-toc-open .course-platform_toc-overlay {
+        display: block;
+      }
+
+      .course-platform_course-title {
+        margin: 0.25rem 2.75rem 1rem 0;
       }
 
       .course-platform_content {
@@ -808,6 +928,7 @@
       hydration.finally(function() {
         setupAutoResizeCodeAreas();
         setupCourseChallengeMarkers();
+        setupMobileCourseToc();
         updateCourseSidebarProgress();
         updateCourseScrollProgress();
       });
@@ -845,6 +966,59 @@
       const maxScroll = Math.max(0, scroller.scrollHeight - window.innerHeight);
       const progress = maxScroll === 0 ? 1 : Math.min(1, Math.max(0, scroller.scrollTop / maxScroll));
       indicator.style.setProperty("--scroll-progress", progress.toFixed(4));
+    }
+
+    function setupMobileCourseToc() {
+      const shell = document.querySelector(".course-platform_shell");
+      const toggle = document.querySelector(".course-platform_mobile-toc");
+      const closeButton = document.querySelector(".course-platform_toc-close");
+      const overlay = document.querySelector(".course-platform_toc-overlay");
+      const sidebar = document.querySelector(".course-platform_sidebar");
+      if (!shell || !toggle || !sidebar) {
+        return;
+      }
+
+      function setOpen(open) {
+        shell.classList.toggle("is-toc-open", open);
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        document.body.classList.toggle("no-scroll", open);
+      }
+
+      toggle.addEventListener("click", function() {
+        setOpen(!shell.classList.contains("is-toc-open"));
+      });
+
+      if (closeButton) {
+        closeButton.addEventListener("click", function() {
+          setOpen(false);
+          toggle.focus();
+        });
+      }
+
+      if (overlay) {
+        overlay.addEventListener("click", function() {
+          setOpen(false);
+        });
+      }
+
+      sidebar.querySelectorAll(".course-platform_nav-link").forEach(function(link) {
+        link.addEventListener("click", function() {
+          setOpen(false);
+        });
+      });
+
+      document.addEventListener("keydown", function(event) {
+        if (event.key === "Escape" && shell.classList.contains("is-toc-open")) {
+          setOpen(false);
+          toggle.focus();
+        }
+      });
+
+      window.addEventListener("resize", function() {
+        if (window.matchMedia("(min-width: 861px)").matches) {
+          setOpen(false);
+        }
+      });
     }
 
     function setupCourseChallengeMarkers() {
@@ -1823,6 +1997,11 @@ def __course_check_cell(student_code, check_code):
 <body>
   <div class="page-wrapper course-platform">
     {{ block "nav" .Page }} {{ end }}
+    {{ if .HeroURL }}
+      <div class="course-platform_header-art" aria-hidden="true">
+        <img src="{{ .HeroURL }}" alt="" loading="eager">
+      </div>
+    {{ end }}
     <a href="/dashboard" class="course-platform_top-dashboard-link">My Dashboard</a>
     <div class="course-scroll-indicator" aria-hidden="true">
       <div class="course-scroll-track">
@@ -1831,7 +2010,16 @@ def __course_check_cell(student_code, check_code):
       <div class="course-challenge-markers" hidden></div>
     </div>
     <main class="course-platform_shell" data-course-slug="{{ .CourseSlug }}" data-lesson-path="{{ .Current.Path }}" data-csrf-token="{{ .CSRFToken }}" data-draft-preview="{{ if .IsDraftPreview }}true{{ else }}false{{ end }}"{{ if .Previous }} data-prev-url="{{ .Previous.URL }}"{{ end }}{{ if .Next }} data-next-url="{{ .Next.URL }}"{{ end }}>
-      <aside class="course-platform_sidebar" aria-label="Course pages">
+      <button class="course-platform_mobile-toc" type="button" aria-expanded="false" aria-controls="course-platform-toc">
+        <span class="course-platform_mobile-toc-label">
+          <span class="course-platform_mobile-toc-kicker">Course contents</span>
+          <span class="course-platform_mobile-toc-current">{{ .Current.DisplayNumber }} / {{ .Current.Title }}</span>
+        </span>
+        <span class="course-platform_mobile-toc-icon" aria-hidden="true">+</span>
+      </button>
+      <div class="course-platform_toc-overlay" aria-hidden="true"></div>
+      <aside class="course-platform_sidebar" id="course-platform-toc" aria-label="Course pages">
+        <button class="course-platform_toc-close" type="button" aria-label="Close course contents">×</button>
         <h2 class="course-platform_course-title">{{ .CourseTitle }}</h2>
         <nav class="course-platform_nav">
           {{ range .Sidebar }}
@@ -1855,19 +2043,24 @@ def __course_check_cell(student_code, check_code):
             </div>
           {{ end }}
         </nav>
-      </aside>
-      <section class="course-platform_content">
-        <div class="course-platform_current">{{ .Current.DisplayNumber }} / {{ .Current.Title }}</div>
         {{ if .CanPreviewDraft }}
           {{ if .IsDraftPreview }}
             <div class="course-version-banner is-draft-preview" role="status">
               <p>You are previewing the synced draft{{ if .DraftVersionNumber }} version {{ .DraftVersionNumber }}{{ end }}. Progress is not saved in draft preview.</p>
               <a href="{{ .DraftPreviewOffURL }}">Return to Published Version</a>
+              <form method="post" action="/courses/{{ .CourseSlug }}/publish-draft" onsubmit="return confirm('Publish the latest synced draft for this course? Students will see the new version.');">
+                <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
+                <button type="submit">Publish Draft</button>
+              </form>
             </div>
           {{ else }}
             <div class="course-version-banner is-draft-preview" role="status">
               <p>Editor preview is available for this course.</p>
               <a href="{{ .DraftPreviewOnURL }}">Preview Synced Draft</a>
+              <form method="post" action="/courses/{{ .CourseSlug }}/publish-draft" onsubmit="return confirm('Publish the latest synced draft for this course? Students will see the new version.');">
+                <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
+                <button type="submit">Publish Draft</button>
+              </form>
             </div>
           {{ end }}
         {{ end }}
@@ -1880,11 +2073,9 @@ def __course_check_cell(student_code, check_code):
             </form>
           </div>
         {{ end }}
-        {{ if .HeroURL }}
-          <figure class="course-hero">
-            <img src="{{ .HeroURL }}" alt="{{ .HeroAlt }}" loading="lazy">
-          </figure>
-        {{ end }}
+      </aside>
+      <section class="course-platform_content">
+        <div class="course-platform_current">{{ .Current.DisplayNumber }} / {{ .Current.Title }}</div>
         <article class="course-platform_article">
           {{ .ContentHTML }}
         </article>
