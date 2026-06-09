@@ -69,6 +69,35 @@
     #filterlist.is-open {
       display: block;
     }
+    .course_filters .tab4_tabs-menu {
+      justify-content: center;
+    }
+    @media screen and (min-width: 992px) {
+      .course_filters .filters5_feed-header-top._2 {
+        grid-template-areas: none !important;
+        grid-template-rows: auto !important;
+        grid-template-columns: minmax(9rem, 1fr) max-content minmax(9rem, 1fr) !important;
+        align-items: start;
+      }
+      #w-node-_407a40df-a809-97c6-e402-8f5ecf39cb1e-c60f7abd,
+      #w-node-_65af496a-32b2-8454-891b-4860bad7b0ee-c60f7abd {
+        grid-row: 1 !important;
+      }
+      #w-node-_407a40df-a809-97c6-e402-8f5ecf39cb1e-c60f7abd {
+        grid-column: 1 !important;
+        justify-self: start;
+      }
+      #w-node-_65af496a-32b2-8454-891b-4860bad7b0ee-c60f7abd {
+        grid-column: 2 !important;
+        justify-self: center;
+        min-width: 0;
+      }
+      #w-node-_407a40df-a809-97c6-e402-8f5ecf39cb32-c60f7abd {
+        grid-area: 1 / 3 / 2 / 4 !important;
+        justify-self: end;
+        white-space: nowrap;
+      }
+    }
   </style>
   <link href="https://fonts.googleapis.com" rel="preconnect">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin="anonymous">

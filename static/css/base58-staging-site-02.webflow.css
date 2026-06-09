@@ -1675,6 +1675,23 @@ figcaption {
   display: flex;
 }
 
+.navbar_dashboard-link {
+  border: 1.5px solid #fff;
+  border-radius: 6px;
+  color: #fff;
+  padding: .55rem .85rem;
+  font-size: .875rem;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.navbar_dashboard-link:hover {
+  background-color: #fff;
+  color: #000;
+}
+
 .navbar_bottom {
   grid-column-gap: 1rem;
   grid-row-gap: 1rem;
@@ -2074,10 +2091,6 @@ figcaption {
   place-items: start stretch;
   margin-bottom: 2rem;
   display: grid;
-}
-
-.filters5_feed-header-top._2 {
-  grid-template-columns: 1fr max-content;
 }
 
 .filters5_keyword-search {
@@ -5248,5 +5261,4 @@ figcaption {
     grid-template-columns: 1fr;
   }
 }
-
 
