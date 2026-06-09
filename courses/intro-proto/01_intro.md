@@ -4,6 +4,8 @@ Hi welcome to Base58's course on "protocol thinking". This is some preview work 
 
 In this module, we're going to start thinking about what a protocol is and the kind of work that it does.
 
+![Fruit market](fruit_market.png)
+
 Protocols are all about *communication*. Designing good protocols is the art of figuring out what needs to be communicated, and the most compact way to send it. A good protocol is both extensible as well as terse -- it says what needs to be said, and no more, but leaves the option to say more later, if the conversation changes.
 
 To do explore this, we'll use the example of communicating to your friend how many and what type of fruit to buy at the market.  

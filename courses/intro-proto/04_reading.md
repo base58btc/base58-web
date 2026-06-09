@@ -77,6 +77,7 @@ Then finish `how_many_fruits()`.
 
 ---
 def parse_bytes(data):
+    # TODO: parse the `data` into each field below
     fruits = {
         'bananas': 0,
         'mangos': 0,

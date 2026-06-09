@@ -62,7 +62,11 @@ You *must* decide on the fixed length for the size of the field that holds the m
 
 Let's set it at 2 bytes. This will let us send up to 2^16 - 1, or 65,535 bytes, in our variable length field.
 
-Note: The Replit on parsing legacy Bitcoin transactions will introduce CompactSize, which is a useful way of getting around this problem.
+::: note
+
+Note: The [Developer Basics 01](/courses/bitdevbasics01) course on parsing legacy Bitcoin transactions will introduce `CompactSize`, which is a useful way of getting around this problem. 
+
+:::
 
 ## Exercise
 

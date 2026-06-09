@@ -26,6 +26,10 @@ def how_many_bytes():
 how_many_bytes()
 +++
 
+*By the end of this chapter*, we'll have implemented a method called `to_bytes` which will turn a request for fruits into a bytestring.
+
+
+### Writing Bytes
 
 We can write each 8-bit byte as two hexadecimal characters. Hex characters are base 16, which means two characters can express up to 255.
 
@@ -94,7 +98,7 @@ out.hex()
 
 Here's an example input and what we'd expect to get out.
 
-+++
++++ tobytes-demo
 input = {
     'bananas': 500,
     'mangos': 249103,
@@ -103,6 +107,7 @@ input = {
     'watermelon': 1
 }
 
+# Note: this block won't work until we complete the challenge below: implementing `to_bytes`
 out = to_bytes(input)
 out.hex()
 +++
@@ -111,7 +116,9 @@ out.hex()
 ???
 id: valid-fruits
 
-Implement `is_valid(fruits)`.
+Before we can implement `to_bytes`, it will be very handy to have a way to check that the input `fruits` request is valid. Valid in this case means that the number of fruits requested are less than our max allowed fruits.
+
+Let's implement `is_valid(fruits)`.
 
 Return `False` if the inputs are invalid (too big). Return `True` otherwise.
 
@@ -166,7 +173,7 @@ Make sure that you're returning True or False
 
 ???
 
-Now that we've got the validator working, let's implement the `to_bytes(fruits)` function.
+Now that we've got a way to validate fruits, let's implement the `to_bytes(fruits)` function.
 
 ???
 id: to-bytes
@@ -293,3 +300,6 @@ For `input_max` you should get `e803701101000401204e0f`
 For `input_invalid` you should get `None`
 
 ???
+
+
+Got it working? Try heading back up to the [prior block](#tobytes-demo) and seeing what it prints out.
