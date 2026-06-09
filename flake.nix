@@ -14,7 +14,7 @@
             bashInteractive
             git
             jq
-            go
+            go_1_25
             air 
             postgresql_16
           ];
