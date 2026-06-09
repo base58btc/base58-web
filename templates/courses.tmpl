@@ -63,6 +63,12 @@
     .filter_height {
         height: 100% !important;
     }
+    #filterlist {
+      display: none;
+    }
+    #filterlist.is-open {
+      display: block;
+    }
   </style>
   <link href="https://fonts.googleapis.com" rel="preconnect">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin="anonymous">
@@ -89,10 +95,6 @@
     }
   </style>
   <link rel="stylesheet" href="https://use.typekit.net/yrr4gue.css">
-  <!--  [Attributes by Finsweet] CMS Filter  -->
-  <script async="" src="https://cdn.jsdelivr.net/npm/@finsweet/attributes-cmsfilter@1/cmsfilter.js"></script>
-  <!--  [Attributes by Finsweet] CMS Sort  -->
-  <script async="" src="https://cdn.jsdelivr.net/npm/@finsweet/attributes-cmssort@1/cmssort.js"></script>
 </head>
 
 <body>
@@ -354,14 +356,12 @@ a,
               <div class="coursefilters_layout">
                 <div fs-cmsfilter-element="filters" class="w-form">
                   <div>
-		    <!-- removing filters til i have more time -->
                     <div class="w-layout-grid filters5_feed-header-top _2">
                       <a id="w-node-_407a40df-a809-97c6-e402-8f5ecf39cb1e-c60f7abd"
-                        data-w-id="407a40df-a809-97c6-e402-8f5ecf39cb1e" href="#"
+                        href="#"
                         class="filters5_filters-button w-inline-block"
-			_="on click toggle .filter_height on #filterlist"
-			style="display:none;"
-			>
+                        aria-controls="filterlist"
+                        aria-expanded="false">
                         <div class="icon-embed-xsmall w-embed"><svg width=" 100%" height=" 100%" viewbox="0 0 24 24"
                             fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M7 11H17V13H7V11ZM4 7H20V9H4V7ZM10 15H14V17H10V15Z" fill="currentColor"></path>
@@ -370,9 +370,7 @@ a,
                       </a>
                       <div id="w-node-_65af496a-32b2-8454-891b-4860bad7b0ee-c60f7abd" class="tab4_component">
                         <div class="tab4_tabs-menu">
-                          <div class="tab4_tab-link active"
-			    _="on click 
-			       show <[role=courseitem]/> in #courselist">
+                          <div class="tab4_tab-link active">
 			     <label class="tab4_radio-group w-radio">
                               <div
                                 class="w-form-formradioinput w-form-formradioinput--inputType-custom tab4_radio-button w-radio-input">
@@ -381,11 +379,7 @@ a,
                                 fs-cmsfilter-element="clear" class="tab4_radio-button-label w-form-label"
                                 for="radio-9">All Courses</span>
                             </label></div>
-                          <div class="tab4_tab-link" level="Entry-level"
-			  _="on click 
-			     show <[role=courseitem]/> in #courselist
-			     when its @level equals my @level
-			     ">
+                          <div class="tab4_tab-link" level="Entry-level">
 			  <label class="tab4_radio-group w-radio">
                               <div
                                 class="w-form-formradioinput w-form-formradioinput--inputType-custom tab4_radio-button w-radio-input">
@@ -394,25 +388,19 @@ a,
                                 fs-cmsfilter-field="level" class="tab4_radio-button-label w-form-label"
                                 for="radio-10">Entry-level</span>
                             </label></div>
-                          <div class="tab4_tab-link" level="Developers"
-			  _="on click 
-			     show <[role=courseitem]/> in #courselist
-			     when its @level equals my @level"><label class="tab4_radio-group w-radio">
+                          <div class="tab4_tab-link" level="Developers"><label class="tab4_radio-group w-radio">
                               <div
                                 class="w-form-formradioinput w-form-formradioinput--inputType-custom tab4_radio-button w-radio-input">
                               </div><input type="radio" name="radio" id="radio-11" data-name="Radio 11"
-                                style="opacity:0;position:absolute;z-index:-1" value="radio"><span
+                                style="opacity:0;position:absolute;z-index:-1" value="Developers"><span
                                 fs-cmsfilter-field="level" class="tab4_radio-button-label w-form-label"
                                 for="radio-11">Developers</span>
                             </label></div>
-                          <div class="tab4_tab-link" level="Experienced"
-			  _="on click 
-			     show <[role=courseitem]/> in #courselist
-			     when its @level equals my @level"><label class="tab4_radio-group w-radio">
+                          <div class="tab4_tab-link" level="Experienced"><label class="tab4_radio-group w-radio">
                               <div
                                 class="w-form-formradioinput w-form-formradioinput--inputType-custom tab4_radio-button w-radio-input">
                               </div><input type="radio" name="radio" id="radio-12" data-name="Radio 12"
-                                style="opacity:0;position:absolute;z-index:-1" value="radio"><span
+                                style="opacity:0;position:absolute;z-index:-1" value="Experienced"><span
                                 fs-cmsfilter-field="level" class="tab4_radio-button-label w-form-label"
                                 for="radio-12">Experienced</span>
                             </label></div>
@@ -445,12 +433,9 @@ a,
                           </div>
                         </div>
                       </div>
-		      <!-- FIXME: add sorting back -->
                       <div data-delay="200" data-hover="false" fs-cmssort-element="trigger"
                         id="w-node-_407a40df-a809-97c6-e402-8f5ecf39cb32-c60f7abd"
-                        data-w-id="407a40df-a809-97c6-e402-8f5ecf39cb32" class="dropdown1_component w-dropdown"
-			style="display:none;"
-			>
+                        data-w-id="407a40df-a809-97c6-e402-8f5ecf39cb32" class="dropdown1_component w-dropdown">
                         <div class="dropdown1_toggle w-dropdown-toggle">
                           <div fs-cmssort-element="dropdown-label" class="filter-text">Sort by</div>
                           <div class="dropdown-chevron w-embed"><svg width=" 100%" height=" 100%" viewbox="0 0 16 16"
@@ -463,8 +448,6 @@ a,
                         <nav class="dropdown1_dropdown-list is-right w-dropdown-list">
                           <a href="#" fs-cmssort-field="popular-asc"
                             class="dropdown1_dropdown-link w-dropdown-link">Most Popular</a>
-                          <a href="#" fs-cmssort-type="date" fs-cmssort-field="date-desc"
-                            class="dropdown1_dropdown-link w-dropdown-link">Most Recent</a>
                           <a href="#" fs-cmssort-field="name-asc" class="dropdown1_dropdown-link w-dropdown-link">Name:
                             A to Z</a>
                           <a href="#" fs-cmssort-field="name-desc" class="dropdown1_dropdown-link w-dropdown-link">Name:
@@ -476,7 +459,7 @@ a,
                         </nav>
                       </div>
                     </div>
-                    <div id="filterlist" style="width:100%;height:0px" class="filters5_filters-wrapper .filter_height">
+                    <div id="filterlist" class="filters5_filters-wrapper">
                       <div class="margin-bottom margin-medium">
                         <div class="filters5_filter-group-list">
                           <div class="filters5_filter-group">
@@ -831,6 +814,159 @@ a,
         tabMenu[index].classList.add('active');
       })
     })
+  </script>
+  <script>
+    (function () {
+      const list = document.querySelector('#courselist');
+      if (!list) return;
+
+      const items = Array.from(list.querySelectorAll('[role="courseitem"]'));
+      const filterButton = document.querySelector('.filters5_filters-button');
+      const filterList = document.querySelector('#filterlist');
+      const searchInput = document.querySelector('#field-4');
+      const emptyState = document.querySelector('[fs-cmsfilter-element="empty"]');
+      const resultsCount = document.querySelector('[fs-cmsfilter-element="results-count"]');
+      const itemsCount = document.querySelector('[fs-cmsfilter-element="items-count"]');
+      const sortLabel = document.querySelector('[fs-cmssort-element="dropdown-label"]');
+      const normalizer = function (value) {
+        return (value || '').toString().trim().toLowerCase();
+      };
+      const numberValue = function (value) {
+        const parsed = Number((value || '').toString().replace(/[^0-9.-]/g, ''));
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+
+      let currentSort = { field: 'popularity', direction: 'asc' };
+
+      const selectedValues = function (field) {
+        return Array.from(document.querySelectorAll('[fs-cmsfilter-field="' + field + '"]'))
+          .filter(function (label) {
+            const input = label.closest('label') && label.closest('label').querySelector('input[type="checkbox"]');
+            return input && input.checked;
+          })
+          .map(function (label) { return normalizer(label.textContent); });
+      };
+
+      const getItemText = function (item) {
+        return normalizer(item.textContent);
+      };
+
+      const matchesSelected = function (item, attr, values) {
+        if (!values.length) return true;
+        return values.includes(normalizer(item.getAttribute(attr)));
+      };
+
+      const itemSortValue = function (item, field) {
+        if (field === 'name') {
+          const name = item.querySelector('[fs-cmssort-field="name"]');
+          return normalizer(name && name.textContent);
+        }
+        if (field === 'price') return numberValue(item.getAttribute('price'));
+        return numberValue(item.getAttribute('popularity'));
+      };
+
+      const applyCoursesFilter = function () {
+        const activeLevel = document.querySelector('.tab4_component input[type="radio"]:checked');
+        const level = activeLevel && activeLevel.value !== 'radio' ? normalizer(activeLevel.value) : '';
+        const query = normalizer(searchInput && searchInput.value);
+        const formats = selectedValues('format');
+        const topics = selectedValues('topic');
+        const availability = selectedValues('availability');
+        let visibleCount = 0;
+
+        items.forEach(function (item) {
+          const isVisible = (!level || normalizer(item.getAttribute('level')) === level)
+            && (!query || getItemText(item).includes(query))
+            && matchesSelected(item, 'format', formats)
+            && matchesSelected(item, 'topic', topics)
+            && matchesSelected(item, 'availability', availability);
+
+          item.style.display = isVisible ? '' : 'none';
+          if (isVisible) visibleCount += 1;
+        });
+
+        if (resultsCount) resultsCount.textContent = visibleCount.toString();
+        if (itemsCount) itemsCount.textContent = items.length.toString();
+        if (emptyState) emptyState.style.display = visibleCount ? 'none' : '';
+      };
+
+      const applyCoursesSort = function () {
+        const sorted = items.slice().sort(function (a, b) {
+          const first = itemSortValue(a, currentSort.field);
+          const second = itemSortValue(b, currentSort.field);
+          if (first < second) return currentSort.direction === 'asc' ? -1 : 1;
+          if (first > second) return currentSort.direction === 'asc' ? 1 : -1;
+          return 0;
+        });
+        sorted.forEach(function (item) { list.appendChild(item); });
+        applyCoursesFilter();
+      };
+
+      if (filterButton && filterList) {
+        filterButton.addEventListener('click', function (event) {
+          event.preventDefault();
+          const isOpen = filterList.classList.toggle('is-open');
+          filterButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+      }
+
+      if (searchInput) {
+        searchInput.addEventListener('input', applyCoursesFilter);
+      }
+
+      document.querySelectorAll('.filters5_form-checkbox input[type="checkbox"]').forEach(function (input) {
+        input.addEventListener('change', function () {
+          const icon = input.closest('label').querySelector('.filters5_form-checkbox1-icon');
+          if (icon) icon.classList.toggle('w--redirected-checked', input.checked);
+          applyCoursesFilter();
+        });
+      });
+
+      document.querySelectorAll('[fs-cmsfilter-element="reset"]').forEach(function (reset) {
+        reset.addEventListener('click', function (event) {
+          event.preventDefault();
+          const group = reset.closest('.filters5_filter-group');
+          if (group) {
+            group.querySelectorAll('input[type="checkbox"]').forEach(function (input) {
+              input.checked = false;
+              const icon = input.closest('label').querySelector('.filters5_form-checkbox1-icon');
+              if (icon) icon.classList.remove('w--redirected-checked');
+            });
+            const input = group.querySelector('input[type="text"]');
+            if (input) input.value = '';
+          } else {
+            const allCourses = document.querySelector('#radio-9');
+            if (allCourses) {
+              allCourses.checked = true;
+              allCourses.dispatchEvent(new Event('click', { bubbles: true }));
+            }
+          }
+          applyCoursesFilter();
+        });
+      });
+
+      document.querySelectorAll('.tab4_component input[type="radio"]').forEach(function (radio) {
+        radio.addEventListener('click', applyCoursesFilter);
+      });
+
+      document.querySelectorAll('[fs-cmssort-field]').forEach(function (link) {
+        if (!link.classList.contains('dropdown1_dropdown-link')) return;
+        link.addEventListener('click', function (event) {
+          event.preventDefault();
+          const rawField = link.getAttribute('fs-cmssort-field') || 'popular-asc';
+          const parts = rawField.split('-');
+          currentSort = {
+            field: parts[0] === 'popular' ? 'popularity' : parts[0],
+            direction: parts[1] || 'asc',
+          };
+          if (sortLabel) sortLabel.textContent = link.textContent.trim();
+          applyCoursesSort();
+        });
+      });
+
+      if (itemsCount) itemsCount.textContent = items.length.toString();
+      applyCoursesSort();
+    })();
   </script>
 </body>
 </html>
