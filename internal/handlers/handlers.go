@@ -1673,6 +1673,7 @@ type CourseData struct {
 	SeatsAvail   uint
 	Page         Page
 	LocalCourse  bool
+	LoggedIn     bool
 	Enrolled     bool
 	AccessError  string
 	Notice       string

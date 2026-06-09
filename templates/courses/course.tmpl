@@ -373,7 +373,14 @@ margin: 0rem !important;
                     {{ if .Enrolled }}
                     <a href="{{ .ResumeURL }}" class="secondary-button course-page w-button">Resume Course</a>
                     {{ else }}
+                    {{ if .LoggedIn }}
+                    <form method="post" action="/courses/{{ .Course.Tag }}/signup">
+                      {{ .CSRFField }}
+                      <button class="secondary-button course-page w-button" type="submit">Start Course</button>
+                    </form>
+                    {{ else }}
                     <button class="secondary-button course-page w-button" type="button" data-open-course-signup>Start Course</button>
+                    {{ end }}
                     {{ end }}
 		    {{ else if eq .Course.Availability "Coming Soon" }}
                     <div class="footer2_form-block">

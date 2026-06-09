@@ -350,6 +350,7 @@ func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 		Course:       course,
 		Page:         getPage(ctx, title, furlCard),
 		LocalCourse:  true,
+		LoggedIn:     personID > 0,
 		Enrolled:     enrolled,
 		AccessError:  accessError,
 		Notice:       notice,
@@ -387,29 +388,33 @@ func LocalCourseSignup(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		return
 	}
 	email := normalizeEmail(r.Form.Get("email"))
-	name := strings.TrimSpace(r.Form.Get("display_name"))
-	if email == "" {
-		http.Redirect(w, r, "/courses/"+courseSlug+"?access=signin", http.StatusSeeOther)
-		return
-	}
+	personID := currentProgressPersonID(r, ctx)
+	if personID == 0 {
+		name := strings.TrimSpace(r.Form.Get("display_name"))
+		if email == "" {
+			http.Redirect(w, r, "/courses/"+courseSlug+"?access=signin", http.StatusSeeOther)
+			return
+		}
 
-	personID, err := ensurePersonForEmail(ctx, email)
-	if err != nil {
-		http.Error(w, "Unable to create account", http.StatusInternalServerError)
-		ctx.Err.Printf("course signup person failed: %s", err.Error())
-		return
-	}
-	if name != "" {
-		_ = updatePersonDisplayName(ctx, personID, name)
+		var err error
+		personID, err = ensurePersonForEmail(ctx, email)
+		if err != nil {
+			http.Error(w, "Unable to create account", http.StatusInternalServerError)
+			ctx.Err.Printf("course signup person failed: %s", err.Error())
+			return
+		}
+		if name != "" {
+			_ = updatePersonDisplayName(ctx, personID, name)
+		}
+
+		ctx.Session.Put(r.Context(), "person_id", personID)
+		ctx.Session.Put(r.Context(), "person_email", email)
 	}
 	if _, err := grantEntitlement(ctx, personID, courseSlug, "self_signup", "Self-registered from course landing page"); err != nil {
 		http.Error(w, "Unable to grant course access", http.StatusInternalServerError)
 		ctx.Err.Printf("course signup entitlement failed: %s", err.Error())
 		return
 	}
-
-	ctx.Session.Put(r.Context(), "person_id", personID)
-	ctx.Session.Put(r.Context(), "person_email", email)
 
 	startURL := "/courses/" + courseSlug
 	if outline, err := loadLocalCourse(localCoursesRoot, courseSlug, ""); err == nil && outline.Current != nil {
