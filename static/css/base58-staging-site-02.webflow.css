@@ -5262,3 +5262,48 @@ figcaption {
   }
 }
 
+/* Course filter bar fixes */
+
+/* below 1440px the single-row filter bar doesn't fit; stack it like the tablet layout */
+@media screen and (min-width: 992px) and (max-width: 1439px) {
+  .filters5_feed-header-top._2 {
+    grid-row-gap: 1rem;
+    grid-template-rows: auto auto;
+    grid-template-columns: 1fr max-content;
+  }
+
+  #w-node-_65af496a-32b2-8454-891b-4860bad7b0ee-c60f7abd {
+    grid-area: 2 / 1 / 3 / 3;
+  }
+
+  #w-node-_407a40df-a809-97c6-e402-8f5ecf39cb32-c60f7abd {
+    grid-area: 1 / 2 / 2 / 3;
+  }
+}
+
+/* on phones stack the filter controls in a single column so nothing overflows the viewport */
+@media screen and (max-width: 767px) {
+  /* minmax(0, 1fr) lets the dropdown shrink on narrow phones; its text truncates with ellipsis */
+  .filters5_feed-header-top._2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #w-node-_407a40df-a809-97c6-e402-8f5ecf39cb32-c60f7abd {
+    grid-area: 2 / 1 / 3 / 2;
+    justify-self: start;
+    max-width: 100%;
+  }
+
+  #w-node-_65af496a-32b2-8454-891b-4860bad7b0ee-c60f7abd {
+    grid-area: 3 / 1 / 4 / 2;
+    max-width: 100%;
+  }
+
+  .dropdown1_toggle,
+  .dropdown1_toggle .filter-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
