@@ -72,7 +72,8 @@
     .course_filters .tab4_tabs-menu {
       justify-content: center;
     }
-    @media screen and (min-width: 992px) {
+    /* single-row filter bar only fits >=1440px; below that the stacked layout applies */
+    @media screen and (min-width: 1440px) {
       .course_filters .filters5_feed-header-top._2 {
         grid-template-areas: none !important;
         grid-template-rows: auto !important;
