@@ -204,4 +204,8 @@ Does the invoice’s payment secret reveal the preimage of its payment hash?
 - Yes. You can hash the payment secret to obtain the payment hash. [A payment secret is a separate value.]
 ~~~
 
-Reference: [BOLT 11: invoice encoding](https://github.com/lightning/bolts/blob/master/11-payment-encoding.md).
+::: references
+1. [BOLT 11 — Invoice encoding](https://github.com/lightning/bolts/blob/master/11-payment-encoding.md)
+
+    Defines the Bech32 invoice format, including amounts, tagged fields, checksums, and signatures.
+:::

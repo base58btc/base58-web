@@ -102,4 +102,8 @@ What does the secret generator return for index zero?
 - An error. [Zero is a valid 48-bit index.]
 ~~~
 
-Reference: [BOLT 3: per-commitment secrets and commitment transactions](https://github.com/lightning/bolts/blob/master/03-transactions.md).
+::: references
+1. [BOLT 3 — Commitment transactions and secrets](https://github.com/lightning/bolts/blob/master/03-transactions.md)
+
+    Specifies per-commitment secret generation and how commitment numbers are encoded in transaction fields.
+:::

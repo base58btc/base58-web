@@ -2,7 +2,7 @@
 
 This workshop ports Base58’s November 2023 Lightning class into browser lessons. You will build timelocked transactions, decode invoices, derive revocation secrets, explore a real gossip graph, and construct a payment onion.
 
-The lessons follow the original [class notebooks](https://github.com/base58btc/lightning_class/tree/62491b76177123c8cebcc0fadccc93ca826d8dc7). Each code cell is editable. Run cells in order within a lesson; later cells use variables created above them.
+Each code cell is editable. Run cells in order within a lesson; later cells use variables created above them.
 
 ## Your workshop
 
@@ -46,3 +46,9 @@ Where do the course’s Bitcoin and Lightning nodes run?
 - On the public Bitcoin network. [This workshop uses an isolated regtest chain.]
 - On a shared server node. [Each course attempt has its own environment.]
 ~~~
+
+::: references
+1. [Base58 Lightning class — Original notebooks](https://github.com/base58btc/lightning_class/tree/62491b76177123c8cebcc0fadccc93ca826d8dc7)
+
+    The original notebooks and exercises adapted into these browser lessons.
+:::

@@ -37,6 +37,8 @@ The runner prints the final expression, captures Python output and exceptions, l
 Use a `::: references` block for a numbered bibliography with linked titles and
 short descriptions. Indent each description by four spaces in a paragraph beneath its
 link. The renderer supplies the References heading and a subdued callout style.
+Use this format for all lesson references, including a single source or the
+original course material, so every page presents its sources consistently.
 
 ```markdown
 ::: references
