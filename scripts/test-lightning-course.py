@@ -5,7 +5,9 @@ Run from the repo root with the course's Nix shell. Uses temporary data and
 separate local ports. It never touches an existing wallet or course checkpoint.
 """
 import argparse
+import hashlib
 import importlib.util
+import json
 import os
 from pathlib import Path
 import re
@@ -16,6 +18,20 @@ import time
 REPO = Path(__file__).resolve().parents[1]
 COURSE = REPO / "courses/lightning"
 CELL = re.compile(r"^\+\+\+ ([\w-]+) python-vm\n(.*?)^\+\+\+\s*$", re.M | re.S)
+
+
+def check_full_gossip(gossmap):
+    # Fingerprint of every node/channel announcement and directional update,
+    # computed with the original unpatched pyln against the pinned LFS object.
+    assert (len(gossmap.nodes), len(gossmap.channels)) == (14137, 62309)
+    digest = hashlib.sha256()
+    for node in sorted(gossmap.nodes.values(), key=str):
+        digest.update(json.dumps([str(node), node.fields], sort_keys=True, default=lambda value: value.hex()).encode())
+    for channel in sorted(gossmap.channels.values(), key=str):
+        fields = [str(channel), channel.fields, channel.satoshis,
+                  [hc.fields if hc else None for hc in channel.half_channels]]
+        digest.update(json.dumps(fields, sort_keys=True, default=lambda value: value.hex()).encode())
+    assert digest.hexdigest() == "336d7c628dd0303860ed267e3aba4506e5348971dc639a2c044411b4244de1e6"
 
 
 def main():
@@ -56,6 +72,7 @@ def main():
                     count += 1
                     print(f"PASS {lesson.name}:{block_id}", flush=True)
             # Edges cases and independent known encodings, beyond the happy-path cells.
+            check_full_gossip(namespace["gossmap"])
             for invalid in ("1p", "0", "-1u", "12z"):
                 try:
                     namespace["parse_amt"](invalid)

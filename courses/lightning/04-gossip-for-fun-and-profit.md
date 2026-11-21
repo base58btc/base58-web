@@ -6,9 +6,9 @@ A Lightning node learns about public channels from gossip. A channel announcemen
 
 +++ load-gossip python-vm
 from pyln.client import Gossmap, GossmapNodeId, GossmapStats
-from lab import GOSSIP_STORE
+from gossip import load_gossip
 
-gossmap = Gossmap(GOSSIP_STORE)
+gossmap = load_gossip()
 print(len(gossmap.nodes), "nodes;", len(gossmap.channels), "channels")
 +++
 
