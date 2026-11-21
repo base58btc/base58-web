@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -71,6 +74,15 @@ func CourseBrowserEnvironment(w http.ResponseWriter, r *http.Request, ctx *confi
 	delete(files, courseenv.ManifestFile)
 	contentHash := courseenv.ContentHash(files)
 	assetBase := courseAssetBaseURL(ctx)
+	assetURL := strings.TrimRight(assetBase, "/") + "/" + url.PathEscape(courseSlug) + "/"
+	if !ctx.IsProd && localRuntimeAvailable(courseSlug, manifest) {
+		scheme := "http"
+		if r.TLS != nil {
+			scheme = "https"
+		}
+		assetBase = scheme + "://" + r.Host + "/_course-runtime"
+		assetURL = assetBase + "/" + url.PathEscape(courseSlug) + "/"
+	}
 	if assetBase == "" {
 		http.Error(w, "Course environment assets are not configured", http.StatusServiceUnavailable)
 		return
@@ -84,6 +96,54 @@ func CourseBrowserEnvironment(w http.ResponseWriter, r *http.Request, ctx *confi
 		"contentHash":  contentHash,
 		"journalURL":   journalURL,
 		"workspace":    workspace + "-" + contentHash,
-		"assetBaseURL": strings.TrimRight(assetBase, "/") + "/" + url.PathEscape(courseSlug) + "/",
+		"assetBaseURL": assetURL,
 	})
+}
+
+var localRuntimePath = regexp.MustCompile(`^runtime/[a-f0-9]{64}/[a-z0-9]{32}-[A-Za-z0-9+._?=-]+\.nar\.gz$`)
+
+func localRuntimeFile(slug, archive string) (string, bool) {
+	if !isSafeCourseSlug(slug) || !localRuntimePath.MatchString(archive) {
+		return "", false
+	}
+	root, err := filepath.Abs(localCoursesRoot)
+	if err != nil {
+		return "", false
+	}
+	path, err := filepath.EvalSymlinks(filepath.Join(root, slug, filepath.FromSlash(archive)))
+	if err != nil || !strings.HasPrefix(path, root+string(filepath.Separator)) {
+		return "", false
+	}
+	info, err := os.Stat(path)
+	return path, err == nil && info.Mode().IsRegular()
+}
+
+func localRuntimeAvailable(slug string, manifest *courseenv.Manifest) bool {
+	for _, archive := range manifest.Archives {
+		path, ok := localRuntimeFile(slug, archive.Path)
+		if !ok {
+			return false
+		}
+		info, err := os.Stat(path)
+		if err != nil || info.Size() != archive.Size {
+			return false
+		}
+	}
+	return len(manifest.Archives) > 0
+}
+
+// Development only: use an already-built bundle without uploading or rebuilding it.
+func LocalCourseRuntimeAsset(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
+	if ctx.IsProd {
+		http.NotFound(w, r)
+		return
+	}
+	vars := mux.Vars(r)
+	path, ok := localRuntimeFile(vars["course"], vars["archive"])
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	http.ServeFile(w, r, path)
 }

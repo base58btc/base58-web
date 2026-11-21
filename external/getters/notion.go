@@ -9,6 +9,9 @@ import (
 )
 
 func fileGetURL(file *notion.File) string {
+	if file == nil {
+		return ""
+	}
 	if file.Internal != nil {
 		return file.Internal.URL
 	}
@@ -34,6 +37,9 @@ func parseFormat(options *[]*notion.SelectOption) []types.CourseFormat {
 	}
 
 	for _, opt := range *options {
+		if opt == nil {
+			continue
+		}
 		formats = append(formats, types.CourseFormat(opt.Name))
 	}
 
@@ -96,6 +102,9 @@ func parseRichText(key string, props map[string]notion.PropertyValue) string {
 	var builder strings.Builder
 	/* We're gonna lose formatting, yolo */
 	for _, text := range contentList {
+		if text == nil || text.Text == nil {
+			continue
+		}
 		builder.WriteString(text.Text.Content)
 		if text.Text.Link != nil {
 			if text.Text.Content != text.Text.Link.URL {
@@ -137,18 +146,18 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Co
 		ID:           pageID,
 		Tag:          parseRichText("Tag", props),
 		Title:        parseRichText("Title", props),
-		Difficulty:   props["Difficulty"].Select.Name,
+		Difficulty:   selectName(props["Difficulty"].Select),
 		Format:       parseFormat(props["Format"].MultiSelect),
-		Topic:        props["Topic"].Select.Name,
-		Availability: props["Availability"].Select.Name,
+		Topic:        selectName(props["Topic"].Select),
+		Availability: selectName(props["Availability"].Select),
 		Popularity:   uint(props["Popularity"].Number),
 		PriceUSD:     uint(props["PriceUSD"].Number),
 		Flavor:       parseRichText("Flavor", props),
 		ShortDesc:    parseRichText("ShortDesc", props),
 		LongDesc:     parseRichText("LongDesc", props),
 		PreReqs:      parseRichText("PreReqs", props),
-		Visible:      *props["Visible"].Checkbox,
-		Feature:      *props["Feature"].Checkbox,
+		Visible:      checked(props["Visible"].Checkbox),
+		Feature:      checked(props["Feature"].Checkbox),
 		Chapters:     parseChapterInfo("Chapters", props),
 		Includes:     parseStrSlice("Includes", props),
 		CourseURL:    props["CourseURL"].URL,
@@ -165,6 +174,15 @@ func parseCourse(pageID string, props map[string]notion.PropertyValue) *types.Co
 	return course
 }
 
+func selectName(option *notion.SelectOption) string {
+	if option == nil {
+		return ""
+	}
+	return option.Name
+}
+
+func checked(value *bool) bool { return value != nil && *value }
+
 func trimstrings(in []string) []string {
 	out := make([]string, len(in))
 	for i, s := range in {
@@ -180,8 +198,8 @@ func parseSession(pageID string, props map[string]notion.PropertyValue) *types.C
 		ClassRef:          parseRichText("ClassRef", props),
 		Cost:              uint64(props["Cost"].Number),
 		Currency:          parseCurrency(props["Currency"].Select),
-		TShirt:            *props["T-Shirt"].Checkbox,
-		Online:            *props["Online"].Checkbox,
+		TShirt:            checked(props["T-Shirt"].Checkbox),
+		Online:            checked(props["Online"].Checkbox),
 		TotalSeats:        uint(props["TotalSeats"].Number),
 		SeatsAvail:        uint(props["SeatsAvail"].Number),
 		TimeDesc:          parseRichText("Time", props),
@@ -216,10 +234,14 @@ func ListCourses(n *types.Notion) ([]*types.Course, error) {
 	for hasMore {
 		var pages []*notion.Page
 
-		pages, nextCursor, hasMore, _ = n.Client.QueryDatabase(context.Background(),
+		var err error
+		pages, nextCursor, hasMore, err = n.Client.QueryDatabase(context.Background(),
 			n.Config.CoursesDb, notion.QueryDatabaseParam{
 				StartCursor: nextCursor,
 			})
+		if err != nil {
+			return nil, err
+		}
 
 		/* Convert each page into a Course struct */
 		for _, page := range pages {

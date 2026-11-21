@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/internal/database"
 	"github.com/kodylow/base58-website/internal/emails"
 	"github.com/kodylow/base58-website/internal/types"
 )
@@ -74,6 +75,11 @@ type AdminEmail struct {
 }
 
 type AdminCourse struct {
+	Catalog                     types.Course
+	FormatText                  string
+	IncludesText                string
+	ChaptersText                string
+	ValidationError             string
 	Slug                        string
 	Title                       string
 	Description                 string
@@ -557,6 +563,7 @@ func AdminCourseContent(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 		course.Slug = slug
 		if err := updateCourse(ctx, course); err != nil {
 			data.Error = err.Error()
+			data.Course = course
 		} else {
 			writeAudit(ctx, adminActor(r, ctx), "course.update", "course", slug, "")
 			http.Redirect(w, r, "/admin/courses/"+slug+"/content?flash=saved", http.StatusSeeOther)
@@ -569,7 +576,9 @@ func AdminCourseContent(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 		return
 	}
 	enrichAdminCourseForPreview(ctx, r, &course)
-	data.Course = course
+	if data.Error == "" {
+		data.Course = course
+	}
 	data.ActiveTab = "content"
 	data.Flash = r.URL.Query().Get("flash")
 	renderAdmin(w, r, ctx, "admin/course_content.tmpl", data)
@@ -819,13 +828,52 @@ func personFromForm(r *http.Request) AdminPerson {
 }
 
 func courseFromForm(r *http.Request) AdminCourse {
-	return AdminCourse{
+	c := AdminCourse{
 		Slug:        strings.TrimSpace(r.Form.Get("slug")),
 		Title:       strings.TrimSpace(r.Form.Get("title")),
 		Description: strings.TrimSpace(r.Form.Get("description")),
 		HeaderImg:   strings.TrimSpace(r.Form.Get("header_img")),
 		Status:      defaultString(strings.TrimSpace(r.Form.Get("status")), "draft"),
+		FormatText:  r.Form.Get("formats"), IncludesText: r.Form.Get("includes"), ChaptersText: r.Form.Get("chapters"),
 	}
+	c.Catalog = types.Course{
+		Difficulty: r.Form.Get("difficulty"), Topic: r.Form.Get("topic"), Availability: r.Form.Get("availability"),
+		Flavor: r.Form.Get("flavor"), LongDesc: r.Form.Get("long_description"), PreReqs: r.Form.Get("prerequisites"),
+		Feature: r.Form.Get("featured") == "on", CourseURL: r.Form.Get("course_url"), CourseHost: r.Form.Get("course_host"),
+	}
+	for _, f := range strings.Split(c.FormatText, ",") {
+		if f = strings.TrimSpace(f); f != "" {
+			c.Catalog.Format = append(c.Catalog.Format, types.CourseFormat(f))
+		}
+	}
+	for _, line := range strings.Split(c.IncludesText, "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			c.Catalog.Includes = append(c.Catalog.Includes, line)
+		}
+	}
+	for _, line := range strings.Split(c.ChaptersText, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		title, desc, _ := strings.Cut(line, "|")
+		c.Catalog.Chapters = append(c.Catalog.Chapters, types.ChapterInfo{Title: strings.TrimSpace(title), Desc: strings.TrimSpace(desc)})
+	}
+	for _, field := range []struct {
+		name   string
+		target *uint
+	}{{"popularity", &c.Catalog.Popularity}, {"price_usd", &c.Catalog.PriceUSD}} {
+		value, err := strconv.ParseUint(defaultString(r.Form.Get(field.name), "0"), 10, 32)
+		if err != nil {
+			c.ValidationError = field.name + " must be a non-negative whole number"
+		}
+		*field.target = uint(value)
+	}
+	rating, err := strconv.ParseFloat(defaultString(r.Form.Get("rating"), "0"), 32)
+	if err != nil || rating < 0 || rating > 5 {
+		c.ValidationError = "Rating must be between 0 and 5"
+	}
+	c.Catalog.Rating = float32(rating)
+	return c
 }
 
 func normalizeEmail(email string) string {
@@ -1091,25 +1139,44 @@ func addPersonEmail(ctx *config.AppContext, personID int64, email string, primar
 	return tx.Commit()
 }
 
-func createCourse(ctx *config.AppContext, c AdminCourse) error {
-	if c.Slug == "" || c.Title == "" {
-		return errors.New("slug and title are required")
+func saveAdminCourse(ctx *config.AppContext, c AdminCourse, create bool) error {
+	if c.ValidationError != "" {
+		return errors.New(c.ValidationError)
 	}
-	_, err := execAdmin(ctx, `INSERT INTO courses (slug, title, description, header_img, status) VALUES (`+ph(ctx, 1)+`,`+ph(ctx, 2)+`,`+ph(ctx, 3)+`,`+ph(ctx, 4)+`,`+ph(ctx, 5)+`)`,
-		c.Slug, c.Title, c.Description, c.HeaderImg, c.Status)
-	return err
+	catalog := c.Catalog
+	catalog.Tag = c.Slug
+	catalog.Title = c.Title
+	catalog.ShortDesc = c.Description
+	catalog.HeaderImg = c.HeaderImg
+	return database.SaveCourse(ctx.DB, &catalog, c.Status, create)
 }
 
-func updateCourse(ctx *config.AppContext, c AdminCourse) error {
-	_, err := execAdmin(ctx, `UPDATE courses SET title=`+ph(ctx, 1)+`, description=`+ph(ctx, 2)+`, header_img=`+ph(ctx, 3)+`, status=`+ph(ctx, 4)+`, updated_at=CURRENT_TIMESTAMP WHERE slug=`+ph(ctx, 5),
-		c.Title, c.Description, c.HeaderImg, c.Status, c.Slug)
-	return err
-}
+func createCourse(ctx *config.AppContext, c AdminCourse) error { return saveAdminCourse(ctx, c, true) }
+func updateCourse(ctx *config.AppContext, c AdminCourse) error { return saveAdminCourse(ctx, c, false) }
 
 func getAdminCourse(ctx *config.AppContext, slug string) (AdminCourse, error) {
 	var c AdminCourse
-	err := ctx.DB.QueryRow(`SELECT slug, title, description, header_img, status FROM courses WHERE slug=`+ph(ctx, 1), slug).
-		Scan(&c.Slug, &c.Title, &c.Description, &c.HeaderImg, &c.Status)
+	catalog, err := database.GetCourse(ctx.DB, slug)
+	if err != nil {
+		return c, err
+	}
+	c.Catalog = *catalog
+	c.Slug = catalog.Tag
+	c.Title = catalog.Title
+	c.Description = catalog.ShortDesc
+	c.HeaderImg = catalog.HeaderImg
+	err = ctx.DB.QueryRow(`SELECT status FROM courses WHERE slug=$1`, slug).Scan(&c.Status)
+	var formats []string
+	for _, f := range catalog.Format {
+		formats = append(formats, string(f))
+	}
+	c.FormatText = strings.Join(formats, ", ")
+	c.IncludesText = strings.Join(catalog.Includes, "\n")
+	var chapters []string
+	for _, chapter := range catalog.Chapters {
+		chapters = append(chapters, chapter.Title+" | "+chapter.Desc)
+	}
+	c.ChaptersText = strings.Join(chapters, "\n")
 	return c, err
 }
 

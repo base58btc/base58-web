@@ -130,6 +130,23 @@ th { background: #ecece6; font-size: 13px; text-transform: uppercase; }
 </label>
 <label>Description<textarea name="description">{{ .Description }}</textarea></label>
 <label>Header image URL<input name="header_img" value="{{ .HeaderImg }}"></label>
+<label>Difficulty<input name="difficulty" value="{{ .Catalog.Difficulty }}" list="course-difficulties"></label>
+<datalist id="course-difficulties"><option>Everyone</option><option>Entry-level</option><option>Experienced</option></datalist>
+<label>Formats (comma-separated)<input name="formats" value="{{ .FormatText }}"></label>
+<label>Topic<input name="topic" value="{{ .Catalog.Topic }}"></label>
+<label>Availability<input name="availability" value="{{ .Catalog.Availability }}" list="course-availability"></label>
+<datalist id="course-availability"><option>Coming Soon</option><option>Open Enrollment</option></datalist>
+<label>Popularity order<input type="number" min="0" name="popularity" value="{{ .Catalog.Popularity }}"></label>
+<label>Price (USD)<input type="number" min="0" name="price_usd" value="{{ .Catalog.PriceUSD }}"></label>
+<label><input type="checkbox" name="featured" {{ if .Catalog.Feature }}checked{{ end }}> Featured</label>
+<label>Flavor text<input name="flavor" value="{{ .Catalog.Flavor }}"></label>
+<label>Long description<textarea name="long_description">{{ .Catalog.LongDesc }}</textarea></label>
+<label>Prerequisites<textarea name="prerequisites">{{ .Catalog.PreReqs }}</textarea></label>
+<label>Course URL<input name="course_url" value="{{ .Catalog.CourseURL }}"></label>
+<label>Course host<input name="course_host" value="{{ .Catalog.CourseHost }}"></label>
+<label>Rating<input type="number" min="0" max="5" step="0.1" name="rating" value="{{ .Catalog.Rating }}"></label>
+<label>Includes (one per line)<textarea name="includes">{{ .IncludesText }}</textarea></label>
+<label>Chapters (one Title | Description per line)<textarea name="chapters">{{ .ChaptersText }}</textarea></label>
 {{ end }}
 
 {{ define "admin/course_sidebar.tmpl" }}

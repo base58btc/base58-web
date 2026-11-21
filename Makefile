@@ -35,12 +35,16 @@ build-migrate:
 build-course-sync:
 	go build -v -o target/course-sync ./cmd/course-sync
 
+.PHONY: build-course-catalog
+build-course-catalog:
+	go build -v -o target/course-catalog ./cmd/course-catalog
+
 .PHONY: course-vm-assets
 course-vm-assets:
 	python3 scripts/fetch-course-vm-assets.py
 
 .PHONY: build-all
-build-all: build build-migrate build-course-sync course-vm-assets
+build-all: build build-migrate build-course-sync build-course-catalog course-vm-assets
 
 .PHONY: test
 test:

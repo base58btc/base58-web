@@ -208,6 +208,68 @@ This runtime currently runs on the page thread. Large environments, replay costs
 CPU-heavy work should be measured on students' target devices. No runner service
 or runner secret is needed; the command-history migration is required.
 
+## Postgres course catalog
+
+The homepage, course listing, landing pages, schedules, enrollment, dashboard,
+and course metadata editor use Postgres. The web process does not load Notion
+credentials or refresh catalog records at startup. Lesson publishing and the
+browser runtime are separate from catalog metadata.
+
+Before deploying this cutover, back up Postgres and perform this explicit import
+against the intended database. Run from the repository root with the appropriate
+`DB_DRIVER` and `DATABASE_URL` set. Only the export needs `NOTION_TOKEN`,
+`NOTION_COURSES`, and `NOTION_SESSIONS` (loaded from `.env` or `SECRETS_FILE`).
+
+```sh
+nix develop
+go run ./cmd/migrate up
+go run ./cmd/course-catalog -file target/course-catalog.json export
+go run ./cmd/course-catalog -file target/course-catalog.json import
+go run ./cmd/course-catalog activate-lightning
+```
+
+The export reads Notion without modifying it, includes hidden courses and linked
+schedules, and fails on fetch errors. It refuses to overwrite a backup. Keep the
+JSON private: historical schedule records can contain signup codes. Uploaded
+course/schedule images are copied to `static/img/catalog/`; include any generated
+images with the deployment so signed Notion image URLs can expire safely. The
+existing artwork in `static/img/courses/` remains available as a fallback.
+
+Import is transactional and fills the old partial course rows in place, preserving
+course slugs, source IDs, student accounts, entitlements, and progress. Rerunning it
+does not replace already imported metadata or schedules. The separate, one-time
+Lightning activation reuses `lightning` ("Lightning: BOLTs in a flash"), copies
+Taproot's difficulty, formats, availability, price, visibility, and featured flag,
+and connects the landing page to the local lessons. Its topic, order, prerequisites,
+and identity remain Lightning-specific. The activation also replaces the old
+placeholder includes/chapters with the actual course contents. Later catalog edits
+belong in `/admin/courses/<slug>/content`; rerunning activation preserves them.
+
+Taproot's `Coming Soon` availability is retained to match its catalog attributes;
+the local Lightning landing page offers **Start Course**, or **Resume Course** for
+enrolled students. No checkout is involved. Migration `000015` retains catalog and
+schedule data on rollback; it never deletes historical Notion databases.
+
+For a full local app, start Postgres, apply/import as above, and run:
+
+```sh
+PORT=8080 LOCAL_DOMAIN=127.0.0.1 go run ./cmd/web
+```
+
+Open `http://127.0.0.1:8080/courses/lightning`. Enrollment, attempts, command history,
+and dashboard resume use the local database. When an already-built runtime bundle
+exists under `courses/lightning/runtime/`, development mode serves its archives
+directly. Production uses the published asset bucket. Catalog or template edits
+do not require a Linux build or a GitHub Actions run.
+
+Postgres integration tests create and remove their own schema, leaving existing
+application data alone:
+
+```sh
+BASE58_TEST_DATABASE_URL="$DATABASE_URL" go test ./internal/handlers \
+  -run 'TestCourseCatalogPostgres|TestLightningCatalogEnrollmentPostgres' -count=1
+```
+
 ## Retired class checkout and newsletters
 
 Class checkout, newsletter signup, course waitlists, campaign scheduling, and
@@ -229,7 +291,8 @@ the existing databases and their original IDs for the later rebuild:
 These settings are no longer loaded by the web app. Preserve their values in
 private operational records for export/import; do not delete the databases or
 their credentials. Keep the mailer service's historical records too. Catalog
-and scheduled-class metadata still use `NOTION_COURSES` and `NOTION_SESSIONS`.
+and scheduled-class metadata now live in Postgres; the two Notion database
+settings are used only by the explicit catalog export tool described above.
 
 Old unsubscribe links remain functional as a narrow compatibility endpoint.
 Migration `000014` records opt-outs in Postgres `email_opt_outs`, without deleting

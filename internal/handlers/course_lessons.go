@@ -3,6 +3,7 @@ package handlers
 import (
 	"bufio"
 	"bytes"
+	"database/sql"
 	"errors"
 	"fmt"
 	"html/template"
@@ -15,8 +16,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/internal/database"
 )
 
 const localCoursesRoot = "courses"
@@ -280,11 +281,11 @@ func coursePreviewURL(r *http.Request, mode string) string {
 
 func localCourseHero(ctx *config.AppContext, courseSlug, fallbackTitle string) (string, string) {
 	altTitle := fallbackTitle
-	if ctx == nil || ctx.Notion == nil {
+	if ctx == nil || ctx.DB == nil {
 		return localCourseStaticHero(courseSlug, altTitle)
 	}
 
-	course, err := getters.GetCourse(ctx.Notion, courseSlug)
+	course, err := database.GetCourse(ctx.DB, courseSlug)
 	if err == nil && course != nil && course.Title != "" {
 		altTitle = course.Title
 	}
@@ -301,24 +302,18 @@ func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 		return
 	}
 
-	course, err := getters.GetCourse(ctx.Notion, courseSlug)
+	course, err := database.GetCourse(ctx.DB, courseSlug)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.NotFound(w, r)
+			return
+		}
 		http.Error(w, "Unable to load page, course not found", http.StatusInternalServerError)
-		ctx.Err.Printf("/courses local course unable to find notion course %s\n", err.Error())
+		ctx.Err.Printf("/courses local course unable to find course %s\n", err.Error())
 		return
 	}
-	title, description, heroURL := localCourseLandingMetadata(ctx, courseSlug, course.Title)
-	if title != "" {
-		course.Title = title
-	}
-	if description != "" {
-		course.ShortDesc = description
-		if course.LongDesc == "" {
-			course.LongDesc = description
-		}
-	}
-	if heroURL != "" {
-		course.HeaderImg = heroURL
+	if course.HeaderImg == "" {
+		course.HeaderImg = localCourseStaticHeroURL(courseSlug)
 	}
 	accessError := localCourseAccessError(r.URL.Query().Get("access"))
 	notice := localCourseNotice(r.URL.Query().Get("registered"))
@@ -351,7 +346,7 @@ func LocalCourseLanding(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 	furlCard := courseCard(ctx, r, course)
 	err = ctx.TemplateCache.ExecuteTemplate(w, "courses/course.tmpl", CourseData{
 		Course:       course,
-		Page:         getPage(ctx, title, furlCard),
+		Page:         getPage(ctx, course.Title, furlCard),
 		LocalCourse:  true,
 		LoggedIn:     personID > 0,
 		Enrolled:     enrolled,
@@ -497,22 +492,6 @@ func PublishCourseDraft(w http.ResponseWriter, r *http.Request, ctx *config.AppC
 		redirectTo = "/courses/" + courseSlug
 	}
 	http.Redirect(w, r, redirectTo, http.StatusSeeOther)
-}
-
-func localCourseLandingMetadata(ctx *config.AppContext, courseSlug, fallbackTitle string) (string, string, string) {
-	if ctx != nil && ctx.DB != nil {
-		if course, err := getAdminCourse(ctx, courseSlug); err == nil {
-			return firstNonEmpty(course.Title, fallbackTitle), course.Description, firstNonEmpty(course.HeaderImg, localCourseStaticHeroURL(courseSlug))
-		}
-	}
-
-	if ctx != nil && ctx.Notion != nil {
-		if course, err := getters.GetCourse(ctx.Notion, courseSlug); err == nil && course != nil {
-			return firstNonEmpty(course.Title, fallbackTitle), firstNonEmpty(course.ShortDesc, course.LongDesc), firstNonEmpty(course.HeaderImg, localCourseStaticHeroURL(courseSlug))
-		}
-	}
-
-	return fallbackTitle, "", localCourseStaticHeroURL(courseSlug)
 }
 
 func localCourseStaticHero(courseSlug, fallbackTitle string) (string, string) {
@@ -957,16 +936,16 @@ func courseLessonURL(courseSlug, lessonPath string) string {
 	return fmt.Sprintf("/courses/%s/%s", courseSlug, lessonPath)
 }
 
-func localCourseIncludes(outline *localCourseOutline, notionIncludes []string) []string {
+func localCourseIncludes(outline *localCourseOutline, catalogIncludes []string) []string {
 	codeChecks, multipleChoice := totalLocalCourseExerciseCounts(outline)
-	includes := make([]string, 0, len(notionIncludes)+2)
+	includes := make([]string, 0, len(catalogIncludes)+2)
 	if codeChecks > 0 {
 		includes = append(includes, pluralizeCount(codeChecks, "code exercise", "code exercises"))
 	}
 	if multipleChoice > 0 {
 		includes = append(includes, pluralizeCount(multipleChoice, "multiple choice question", "multiple choice questions"))
 	}
-	for _, include := range notionIncludes {
+	for _, include := range catalogIncludes {
 		include = strings.TrimSpace(include)
 		if include != "" {
 			includes = append(includes, include)

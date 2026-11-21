@@ -18,7 +18,6 @@ type AppContext struct {
 	Session       *scs.SessionManager
 	TemplateCache *template.Template
 	DocCache      map[string][]byte
-	Notion        *types.Notion
 	DB            *sql.DB
 
 	Env *types.EnvConfig

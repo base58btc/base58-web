@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -14,8 +16,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
-	"github.com/kodylow/base58-website/external/getters"
 	"github.com/kodylow/base58-website/internal/config"
+	"github.com/kodylow/base58-website/internal/database"
 	"github.com/kodylow/base58-website/internal/emails"
 	"github.com/kodylow/base58-website/internal/helpers"
 	"github.com/kodylow/base58-website/internal/types"
@@ -92,6 +94,11 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 
 	RegisterAdminRoutes(r, ctx)
 	registerRetiredRoutes(r, ctx)
+	if !ctx.IsProd {
+		r.HandleFunc("/_course-runtime/{course}/{archive:.*}", func(w http.ResponseWriter, r *http.Request) {
+			LocalCourseRuntimeAsset(w, r, ctx)
+		}).Methods("GET", "HEAD")
+	}
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		RenderPage(w, r, ctx, "index")
@@ -343,7 +350,7 @@ func Login(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 }
 
 func RenderPage(w http.ResponseWriter, r *http.Request, ctx *config.AppContext, page string) {
-	data, err := getHomeData(ctx, ctx.Notion)
+	data, err := getHomeData(ctx)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/%s data fetch failed %s\n", page, err.Error())
@@ -456,15 +463,19 @@ func Courses(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 		return
 	}
 
-	course, err := getters.GetCourse(ctx.Notion, clss)
+	course, err := database.GetCourse(ctx.DB, clss)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.NotFound(w, r)
+			return
+		}
 		http.Error(w, "Unable to load page, course not found", http.StatusInternalServerError)
 		ctx.Err.Printf("/courses unable to find course %s\n", err.Error())
 		return
 	}
 
 	var sessions sessionList
-	sessions, err = getters.GetCourseSessions(ctx.Notion, course)
+	sessions, err = database.GetCourseSessions(ctx.DB, course.Tag)
 	if err != nil {
 		http.Error(w, "Unable to load page", http.StatusInternalServerError)
 		ctx.Err.Printf("/courses course sessions fetch failed %s\n", err.Error())
@@ -582,14 +593,8 @@ func getPage(ctx *config.AppContext, title string, card types.FurlCard) Page {
 	}
 }
 
-func getHomeData(ctx *config.AppContext, n *types.Notion) (pageData, error) {
-	courses, err := getters.ListCourses(n)
-
-	/* Sort courses by Popularity */
-	sort.Slice(courses, func(i, j int) bool {
-		return courses[i].Popularity < courses[j].Popularity
-	})
-
+func getHomeData(ctx *config.AppContext) (pageData, error) {
+	courses, err := database.ListCourses(ctx.DB)
 	if err != nil {
 		return pageData{}, err
 	}

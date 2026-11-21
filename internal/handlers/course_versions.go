@@ -133,7 +133,7 @@ RETURNING id, course_slug, version_number, status, content_hash`, courseSlug, ne
 
 func ensureCourseRowForVersion(ctx *config.AppContext, courseSlug string) error {
 	_, err := ctx.DB.Exec(`INSERT INTO courses (slug, title, status)
-VALUES (`+ph(ctx, 1)+`, `+ph(ctx, 2)+`, 'published')
+VALUES (`+ph(ctx, 1)+`, `+ph(ctx, 2)+`, 'draft')
 ON CONFLICT (slug) DO NOTHING`, courseSlug, titleFromSlug(courseSlug))
 	return err
 }

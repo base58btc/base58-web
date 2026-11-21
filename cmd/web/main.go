@@ -49,12 +49,6 @@ func loadConfig() (*types.EnvConfig, bool) {
 	config.CourseAssetRegion = os.Getenv("COURSE_ASSET_REGION")
 	config.CourseAssetPrefix = os.Getenv("COURSE_ASSET_PREFIX")
 
-	config.Notion = types.NotionConfig{
-		Token:      os.Getenv("NOTION_TOKEN"),
-		CoursesDb:  os.Getenv("NOTION_COURSES"),
-		SessionsDb: os.Getenv("NOTION_SESSIONS"),
-	}
-
 	isProd := os.Getenv("IS_PROD") == "1"
 
 	return &config, isProd
@@ -117,9 +111,6 @@ func run(env *types.EnvConfig) error {
 	app.Session.Cookie.SameSite = http.SameSiteLaxMode
 	app.Session.Cookie.Secure = app.IsProd
 
-	app.Notion = &types.Notion{Config: env.Notion}
-	app.Notion.Setup()
-
 	db, err := database.Open(env, app.IsProd)
 	if err != nil {
 		return err
@@ -128,17 +119,9 @@ func run(env *types.EnvConfig) error {
 	if db != nil {
 		app.Session.Store = postgresstore.New(db)
 
-		go func() {
-			result, err := database.SyncCoursesFromNotion(db, env.DBDriver, app.Notion)
-			if err != nil {
-				app.Err.Printf("course sync from Notion failed: %s", err.Error())
-			} else {
-				app.Infos.Printf("course sync from Notion complete: seen=%d upserts=%d skipped=%d", result.Seen, result.Upserts, result.Skipped)
-			}
-			if err := handlers.SyncLocalCourseVersions(&app); err != nil {
-				app.Err.Printf("local course version sync failed: %s", err.Error())
-			}
-		}()
+		if err := handlers.SyncLocalCourseVersions(&app); err != nil {
+			return fmt.Errorf("local course version sync: %w", err)
+		}
 	}
 
 	return nil

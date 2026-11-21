@@ -26,7 +26,6 @@ type (
 		CourseAssetBucket string
 		CourseAssetRegion string
 		CourseAssetPrefix string
-		Notion            NotionConfig
 	}
 
 	CourseAvail  string

@@ -17,7 +17,7 @@
         <div fs-cmsfilter-field="level" class="text-size-small">{{ .Difficulty }}</div>
       </div>
       <div class="button-10 is-tertiary is-small is-icon-only">
-        <div fs-cmsfilter-field="format" class="text-size-small">{{ index .Format 0 }}</div>
+        <div fs-cmsfilter-field="format" class="text-size-small">{{ with .Format }}{{ index . 0 }}{{ end }}</div>
       </div>
     </div>
   </div>

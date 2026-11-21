@@ -32,6 +32,7 @@
         packages = {
           web = buildBase58Command "base58-website" "cmd/web";
           course-sync = buildBase58Command "course-sync" "cmd/course-sync";
+          course-catalog = buildBase58Command "course-catalog" "cmd/course-catalog";
           course-vm-assets = courseVMAssets;
           default = self.packages.${system}.web;
         };
