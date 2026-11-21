@@ -69,34 +69,85 @@
     #filterlist.is-open {
       display: block;
     }
-    .course_filters .tab4_tabs-menu {
-      justify-content: center;
+    .coursepage_header .padding-section-medium { padding: 2rem 0 1.5rem; }
+    .coursepage_header .margin-small { margin-bottom: 0.5rem; }
+    .coursepage_header .heading-1 { font-size: clamp(2rem, 3vw, 2.5rem); }
+    .coursepage_header .cta-text { margin: 0; font-size: 1rem; }
+    .course_filters { margin-top: 0; }
+    .course_filters .w-form { margin-bottom: 0; }
+    .course_filters .filters5_feed-header-top._2 {
+      grid-template-areas: "filters levels sort";
+      grid-template-columns: auto minmax(0, 1fr) minmax(0, 20rem);
+      grid-template-rows: auto;
+      gap: 1rem;
+      align-items: start;
+      margin-bottom: 1rem;
     }
-    @media screen and (min-width: 992px) {
+    .course_filters .filters5_filters-button {
+      grid-area: filters !important;
+      padding: 0.625rem 1rem;
+      min-height: 2.75rem;
+    }
+    .course_filters .tab4_component {
+      grid-area: levels !important;
+      width: 100%;
+      min-width: 0;
+    }
+    .course_filters .dropdown1_component {
+      grid-area: sort !important;
+      width: 100%;
+      min-width: 0;
+      padding: 0;
+    }
+    .course_filters .dropdown1_toggle {
+      min-height: 2.75rem;
+      padding: 0.625rem 0.75rem;
+      gap: 0.5rem;
+    }
+    .course_filters .dropdown1_toggle .filter-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .course_filters .dropdown-chevron { flex-shrink: 0; }
+    .course_filters .dropdown1_dropdown-list {
+      width: 100%;
+      min-width: 0;
+    }
+    .course_filters .dropdown1_dropdown-link { white-space: normal; }
+    .course_filters .tab4_tabs-menu {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0;
+      width: 100%;
+      margin: 0 0 0.5rem;
+      padding: 0;
+    }
+    .course_filters .tab4_tab-link { min-width: 0; padding: 0.625rem 0.25rem; }
+    .course_filters .tab4_radio-group { margin: 0; text-align: center; }
+    .course_filters .tab4_radio-button-label { font-size: 0.875rem; }
+    .course_filters .tab4_tabs-content { height: auto; }
+    .course_filters .tab4_tab-pane { display: none; position: static; }
+    .course_filters .tab4_tab-pane.active { display: block; }
+    .course_filters .tab-content { width: 100%; height: auto; padding: 0; }
+    .course_filters .tab-content .text-size-regular { font-size: 0.875rem; }
+    .course_filters .filters_feed-header-bottom {
+      justify-content: flex-end;
+      margin-bottom: 0.75rem;
+    }
+    @media screen and (max-width: 991px) {
+      .coursepage_header .padding-section-medium { padding: 1.5rem 0 1rem; }
       .course_filters .filters5_feed-header-top._2 {
-        grid-template-areas: none !important;
-        grid-template-rows: auto !important;
-        grid-template-columns: minmax(9rem, 1fr) max-content minmax(9rem, 1fr) !important;
-        align-items: start;
+        grid-template-areas: "levels levels" "filters sort";
+        grid-template-columns: auto minmax(0, 1fr);
       }
-      #w-node-_407a40df-a809-97c6-e402-8f5ecf39cb1e-c60f7abd,
-      #w-node-_65af496a-32b2-8454-891b-4860bad7b0ee-c60f7abd {
-        grid-row: 1 !important;
-      }
-      #w-node-_407a40df-a809-97c6-e402-8f5ecf39cb1e-c60f7abd {
-        grid-column: 1 !important;
-        justify-self: start;
-      }
-      #w-node-_65af496a-32b2-8454-891b-4860bad7b0ee-c60f7abd {
-        grid-column: 2 !important;
-        justify-self: center;
-        min-width: 0;
-      }
-      #w-node-_407a40df-a809-97c6-e402-8f5ecf39cb32-c60f7abd {
-        grid-area: 1 / 3 / 2 / 4 !important;
-        justify-self: end;
-        white-space: nowrap;
-      }
+    }
+    @media screen and (max-width: 767px) {
+      .course_filters .tab4_radio-button-label { font-size: 0.8125rem; }
+    }
+    @media screen and (max-width: 374px) {
+      .course_filters .tab4_tabs-menu { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
   </style>
   <link href="https://fonts.googleapis.com" rel="preconnect">
@@ -364,9 +415,7 @@ a,
                   <div class="margin-bottom margin-small">
                     <h2 class="heading-1">Explore our courses</h2>
                   </div>
-                  <p class="cta-text">Explore our Bitcoin courses, available in-person or online. Start by selecting a
-                    difficulty level, then refine your search with filters for topics, enrollment status, and format.
-                  </p>
+                  <p class="cta-text">Explore our Bitcoin courses, available in-person or online.</p>
                 </div>
               </div>
             </div>
@@ -378,9 +427,6 @@ a,
       <div class="padding-global">
         <div class="container-large">
           <div>
-            <div class="margin-bottom margin-xxlarge">
-              <div class="max-width-large align-center"></div>
-            </div>
             <div class="coursefilters_container">
               <div class="coursefilters_layout">
                 <div fs-cmsfilter-element="filters" class="w-form">
@@ -696,17 +742,6 @@ a,
                   </div>
                 </div>
                 <div class="filters_feed-header-bottom">
-                  <div class="filters_tags-wrapper">
-                    <div fs-cmsfilter-element="tag-template" class="filters_tag">
-                      <div fs-cmsfilter-element="tag-text">Tag</div>
-                      <div class="filters5_close-icon w-embed"><svg width="100%" height="100%" viewbox="0 0 24 24"
-                          fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path
-                            d="M17.1266 16.773L16.7729 17.1266C16.5777 17.3218 16.2611 17.3218 16.0658 17.1266L12 13.0607L7.9341 17.1265C7.73888 17.3218 7.42229 17.3218 7.22702 17.1265L6.87347 16.773C6.6782 16.5777 6.6782 16.2612 6.87347 16.0659L10.9394 12L6.87347 7.93413C6.6782 7.73891 6.6782 7.42232 6.87347 7.22705L7.22702 6.8735C7.42228 6.67824 7.73888 6.67824 7.9341 6.8735L12 10.9394L16.0658 6.8735C16.2611 6.67824 16.5777 6.67824 16.7729 6.8735L17.1266 7.22705C17.3218 7.42231 17.3218 7.73891 17.1266 7.93413L13.0607 12L17.1266 16.0659C17.3218 16.2612 17.3218 16.5777 17.1266 16.773Z"
-                            fill="currentColor"></path>
-                        </svg></div>
-                    </div>
-                  </div>
                   <div class="filters_results-wrapper">
                     <div class="filters_results-text">Showing <span fs-cmsfilter-element="results-count">0</span> of
                       <span fs-cmsfilter-element="items-count">100</span></div>
@@ -714,9 +749,6 @@ a,
                 </div>
                 <div id="w-node-_407a40df-a809-97c6-e402-8f5ecf39cbe2-c60f7abd" class="filters_feed">
                   <div class="courses_grid_list">
-                    <div class="section-header1_component">
-                      <div class="padding-bottom padding-small"></div>
-                    </div>
                     <div class="courses_grid_list-wrapper w-dyn-list">
                       <div id="courselist" fs-cmssort-element="list" fs-cmsfilter-element="list" role="list"
                         class="grid-list10_list-2 w-dyn-items">
