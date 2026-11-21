@@ -375,6 +375,79 @@
       margin-bottom: 0;
     }
 
+    .course-references {
+      margin: 2.5rem 0 1.5rem;
+      padding: 1.25rem clamp(1rem, 3vw, 1.5rem);
+      border: 1px solid #d8cebf;
+      border-top: 2px solid #b7a185;
+      border-radius: 0.5rem;
+      background: #f7f4ee;
+      color: #62594e;
+      font-size: 0.9375rem;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+      scroll-margin-top: 1.5rem;
+    }
+
+    .course-platform_article .course-references h2 {
+      margin: 0 0 0.5rem;
+      color: #73592f;
+      font-size: 0.8125rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      line-height: 1.4;
+      text-transform: uppercase;
+    }
+
+    .course-platform_article .course-references ol {
+      margin: 0;
+      padding-left: 1.8rem;
+      list-style: decimal-leading-zero;
+    }
+
+    .course-platform_article .course-references li {
+      margin: 0;
+      padding: 0.8rem 0 0.8rem 0.4rem;
+      border-bottom: 1px solid #ded6c9;
+    }
+
+    .course-references li::marker {
+      color: #73592f;
+      font-family: ui-monospace, monospace;
+      font-size: 0.8125rem;
+    }
+
+    .course-platform_article .course-references li:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .course-platform_article .course-references p {
+      margin: 0.3rem 0 0;
+    }
+
+    .course-platform_article .course-references li > p:first-child {
+      margin-top: 0;
+    }
+
+    .course-references a {
+      color: #4b3a1f;
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.2em;
+    }
+
+    .course-references a:hover {
+      color: #191919;
+    }
+
+    .course-references a:focus-visible {
+      outline: 2px solid #73592f;
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+
     .codeset {
       display: grid;
       grid-template-columns: 4.25rem minmax(0, 1fr);

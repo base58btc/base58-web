@@ -32,6 +32,20 @@ The course flake supplies Python and `coincurve` (native `libsecp256k1` bindings
 
 The runner prints the final expression, captures Python output and exceptions, limits output and cell source size, and applies a 90-second Python alarm inside the outer 120-second CLI timeout. This is ordinary Python, not an IPython kernel: notebook magics are replaced with explicit Python helpers. Interactive input and rich HTML displays are not implemented.
 
+## References in course Markdown
+
+Use a `::: references` block for a numbered bibliography with linked titles and
+short descriptions. Put each description in an indented paragraph beneath its
+link. The renderer supplies the References heading and a subdued callout style.
+
+```markdown
+::: references
+1. [BIP 65 — Absolute locktimes](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)
+
+   The specification for `OP_CHECKLOCKTIMEVERIFY`.
+:::
+```
+
 ## Adaptations and corrections
 
 - Timelocks use freshly funded wallet outputs and dynamic heights. The delay is six blocks rather than 1000. Fixed integer serialization, recorded funding transaction IDs, and checks immediately before/after maturity replace stale outputs from the notebook.

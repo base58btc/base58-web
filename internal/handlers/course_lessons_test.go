@@ -212,7 +212,7 @@ func TestLightningCourseMarkdown(t *testing.T) {
 				t.Fatal("lesson is missing navigation or executable cells")
 			}
 			html := courseMarkdownToHTML(outline.Markdown)
-			if bytes.Contains(html, []byte("course-authoring-error")) || bytes.Contains(html, []byte("+++")) || bytes.Contains(html, []byte("~~~")) || bytes.Contains(html, []byte("::: note")) {
+			if bytes.Contains(html, []byte("course-authoring-error")) || bytes.Contains(html, []byte("+++")) || bytes.Contains(html, []byte("~~~")) || bytes.Contains(html, []byte("::: note")) || bytes.Contains(html, []byte("::: references")) {
 				t.Fatal("unrendered fence or authoring error in lesson")
 			}
 			cells := openCell.FindAllSubmatch(outline.Markdown, -1)
@@ -276,6 +276,19 @@ func TestCourseNoteAfterParagraph(t *testing.T) {
 	html := string(courseMarkdownToHTML([]byte("A paragraph before the note.\n\n::: note\nImportant course instructions.\n:::\n")))
 	if strings.Contains(html, ":::") || strings.Contains(html, "<dl>") || !strings.Contains(html, `role="note"`) {
 		t.Fatalf("note was consumed by definition-list parsing: %s", html)
+	}
+}
+
+func TestCourseReferencesAfterParagraph(t *testing.T) {
+	block := "::: references\n1. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)\n\n   Explains `OP_CHECKLOCKTIMEVERIFY` and **absolute locktimes**.\n\n2. [BIP 68](https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki)\n\n   Explains relative locktimes.\n:::\n"
+	html := string(courseMarkdownToHTML([]byte("Continue reading below.\n\n" + block + "\n" + block)))
+	for _, expected := range []string{`class="course-references"`, `aria-labelledby="references-title"`, `id="references-title"`, `id="references-2"`, `<ol>`, `href="https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki"`, "<code>OP_CHECKLOCKTIMEVERIFY</code>", "<strong>absolute locktimes</strong>", "Explains relative locktimes."} {
+		if !strings.Contains(html, expected) {
+			t.Fatalf("missing %q in references: %s", expected, html)
+		}
+	}
+	if strings.Contains(html, ":::") || strings.Contains(html, "<dl>") || strings.Count(html, `id="references"`) != 1 {
+		t.Fatalf("references were not rendered as distinct named sections: %s", html)
 	}
 }
 

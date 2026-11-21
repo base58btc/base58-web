@@ -133,4 +133,14 @@ Which invoice field must the payment onion’s associated data match?
 - The recovered signing key. [The public key identifies the recipient; it is not the associated data.]
 ~~~
 
-References: Core Lightning’s [createonion](https://docs.corelightning.org/reference/createonion) and [sendonion](https://docs.corelightning.org/reference/sendonion) APIs. This lesson retains `sendonion` to match the original notebook’s exercise.
+This lesson retains `sendonion` to match the original notebook’s exercise.
+
+::: references
+1. [Core Lightning — createonion](https://docs.corelightning.org/reference/createonion)
+
+   Builds a custom onion from each hop's public key and payload, binding it to the payment hash through its associated data.
+
+2. [Core Lightning — sendonion](https://docs.corelightning.org/reference/sendonion)
+
+   Sends a payment using your assembled onion packet and first-hop instructions. Documents the arguments used in the send cell above.
+:::

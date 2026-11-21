@@ -80,10 +80,16 @@ type courseNoteBlock struct {
 	Content string
 }
 
+type courseReferencesBlock struct {
+	ast.Leaf
+	Content string
+}
+
 type courseMarkdownRenderer struct {
 	multipleChoiceCount int
 	codeBlockCount      int
 	codeChallengeCount  int
+	referencesCount     int
 	courseSlug          string
 	assetBaseURL        string
 }
@@ -144,6 +150,9 @@ func courseParserHook(data []byte) (ast.Node, []byte, int) {
 	if node, remaining, consumed := parseCourseNoteBlock(data); node != nil {
 		return node, remaining, consumed
 	}
+	if node, remaining, consumed := parseCourseReferencesBlock(data); node != nil {
+		return node, remaining, consumed
+	}
 	if node, remaining, consumed := parseCourseMultipleChoiceBlock(data); node != nil {
 		return node, remaining, consumed
 	}
@@ -197,6 +206,14 @@ func parseCourseNoteBlock(data []byte) (ast.Node, []byte, int) {
 	}
 
 	return &courseNoteBlock{Content: content}, nil, consumed
+}
+
+func parseCourseReferencesBlock(data []byte) (ast.Node, []byte, int) {
+	content, consumed, ok := parseCourseNamedFencedContent(data, courseAdmonitionFence, "references")
+	if !ok {
+		return nil, nil, 0
+	}
+	return &courseReferencesBlock{Content: content}, nil, consumed
 }
 
 func parseCourseCodeFencedContent(data []byte) (string, string, string, int, string, bool) {
@@ -609,6 +626,20 @@ func (r *courseMarkdownRenderer) renderHook(w io.Writer, node ast.Node, entering
 	if note, ok := node.(*courseNoteBlock); ok {
 		if entering {
 			r.renderCourseNoteBlock(w, note)
+		}
+		return ast.GoToNext, true
+	}
+	if references, ok := node.(*courseReferencesBlock); ok {
+		if entering {
+			r.referencesCount++
+			id := "references"
+			if r.referencesCount > 1 {
+				id = fmt.Sprintf("references-%d", r.referencesCount)
+			}
+			fmt.Fprintf(w, `<section id="%s" class="course-references" aria-labelledby="%s-title">
+  <h2 id="%s-title">References</h2>
+  <div class="course-references-body">%s</div>
+</section>`, id, id, id, renderCourseMarkdownFragment(references.Content))
 		}
 		return ast.GoToNext, true
 	}
