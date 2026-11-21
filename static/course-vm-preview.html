@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Base58 course environment preview</title>
+  <style>
+    body { max-width: 52rem; margin: 4rem auto; padding: 0 1.5rem; background: #f6f4ee; color: #18271d; font: 17px/1.6 system-ui, sans-serif; }
+    h1 { line-height: 1.15; } textarea, pre { box-sizing: border-box; width: 100%; padding: 1rem; background: #fff; border: 1px solid #b5beb5; border-radius: 6px; font: 15px/1.6 monospace; }
+    pre { min-height: 10rem; white-space: pre-wrap; overflow-wrap: anywhere; } button { padding: .65rem 1.2rem; border: 0; border-radius: 5px; background: #194f33; color: white; font: inherit; cursor: pointer; } button:disabled { opacity: .5; cursor: default; } label { display: block; margin-top: 1.5rem; } #status { min-height: 2rem; }
+  </style>
+</head>
+<body>
+  <p>BASE58 · COURSE AUTHOR TOOLS</p>
+  <h1>Try your course environment</h1>
+  <p>Commands run in this browser. This local preview saves VM checkpoints on this device. Published courses also save them to the student's account.</p>
+  <button id="start">Start environment</button>
+  <button id="stop" disabled>Save and stop</button>
+  <button id="undo" disabled>Undo last command</button>
+  <p id="status" role="status">Ready to load the prepared course bundle.</p>
+  <label for="command">Command</label>
+  <textarea id="command" rows="3">bitcoin-cli -regtest -datadir=/data/workspace/node getblockchaininfo</textarea>
+  <button id="run" disabled>Run command</button>
+  <pre id="output" aria-live="polite"></pre>
+  <details><summary>CLI command history</summary><div id="history"></div></details>
+  <script src="/static/js/course-execution.js"></script>
+  <script type="module">
+    import {CourseVM} from "/static/js/course-vm.mjs";
+    import {renderCommandHistory} from "/static/js/course-history-view.mjs";
+    const status = document.querySelector("#status");
+    const output = document.querySelector("#output");
+    const start = document.querySelector("#start");
+    const run = document.querySelector("#run");
+    const stop = document.querySelector("#stop");
+    const undo = document.querySelector("#undo");
+    const runtime = new CourseVM({environmentURL: "/environment.json", onStatus: message => { status.textContent = message; }, onHistory: state => {
+      renderCommandHistory(document.querySelector("#history"),state);
+      undo.disabled = !state.head || Boolean(state.pending);
+    }});
+    undo.addEventListener("click", async () => {
+      undo.disabled = true; run.disabled = true;
+      try { const entry = await runtime.undo(); output.textContent = entry ? "Undone: " + entry.command.program + " " + entry.command.args.join(" ") : "No command to undo."; }
+      catch (error) { output.textContent = error.message; }
+      finally { run.disabled = false; undo.disabled = !runtime.journal?.state.head || Boolean(runtime.journal?.state.pending); }
+    });
+    start.addEventListener("click", async () => {
+      start.disabled = true;
+      try { await runtime.ready(); run.disabled = false; stop.disabled = false; }
+      catch (error) { status.textContent = error.message; start.disabled = false; }
+    });
+    stop.addEventListener("click", async () => {
+      stop.disabled = true; run.disabled = true;
+      try { await runtime.saveAndStop(); start.disabled = false; }
+      catch (error) { output.textContent = error.message; stop.disabled = false; run.disabled = false; }
+    });
+    run.addEventListener("click", async () => {
+      run.disabled = true; output.textContent = "Running…";
+      try {
+        const tokens = CourseExecution.tokenizeCommand(document.querySelector("#command").value);
+        const result = await runtime.execute({program: tokens[0], args: tokens.slice(1)});
+        output.textContent = (result.stdout || "") + (result.stderr || "") + "\nExit status: " + result.exitCode;
+      } catch (error) { output.textContent = error.message; }
+      finally { run.disabled = false; }
+    });
+    window.addEventListener("pagehide", () => { runtime.close().catch(() => {}); });
+  </script>
+</body>
+</html>

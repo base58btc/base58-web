@@ -31,8 +31,21 @@ build:
 build-migrate:
 	go build -v -o target/migrate ./cmd/migrate
 
+.PHONY: build-course-sync
+build-course-sync:
+	go build -v -o target/course-sync ./cmd/course-sync
+
+.PHONY: course-vm-assets
+course-vm-assets:
+	python3 scripts/fetch-course-vm-assets.py
+
 .PHONY: build-all
-build-all: build build-migrate
+build-all: build build-migrate build-course-sync course-vm-assets
+
+.PHONY: test
+test:
+	go test ./...
+	node --test static/js/course-execution.test.js static/js/course-vm.test.mjs
 
 .PHONY: db-status
 db-status:

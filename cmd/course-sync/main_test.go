@@ -3,8 +3,46 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestReadCourseFilesIncludesFlakeFiles(t *testing.T) {
+	dir := t.TempDir()
+	for path, content := range map[string]string{
+		"01_intro.md": "# Intro\n",
+		"flake.nix":   "{ outputs = _: {}; }\n",
+		"flake.lock":  "{}\n",
+		"ignored.dat": "ignored\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, path), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	files, err := readCourseFiles(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 3 {
+		t.Fatalf("expected markdown and two flake files, got %#v", files)
+	}
+}
+
+func TestReadCourseFilesRequiresFlakePair(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "01_intro.md"), []byte("# Intro\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "flake.nix"), []byte("{}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := readCourseFiles(dir)
+	if err == nil || !strings.Contains(err.Error(), "both flake.nix and flake.lock") {
+		t.Fatalf("expected missing lock error, got %v", err)
+	}
+}
 
 func TestDiscoverCourseAssetsFindsRelativeMarkdownImages(t *testing.T) {
 	dir := t.TempDir()

@@ -26,12 +26,14 @@ type CourseEditorSyncFile struct {
 }
 
 type CourseEditorSyncResponse struct {
-	CourseSlug    string `json:"courseSlug"`
-	VersionID     int64  `json:"versionId"`
-	VersionNumber int    `json:"versionNumber"`
-	Status        string `json:"status"`
-	ContentHash   string `json:"contentHash"`
-	FileCount     int    `json:"fileCount"`
+	CourseSlug        string `json:"courseSlug"`
+	VersionID         int64  `json:"versionId"`
+	VersionNumber     int    `json:"versionNumber"`
+	Status            string `json:"status"`
+	ContentHash       string `json:"contentHash"`
+	FileCount         int    `json:"fileCount"`
+	EnvironmentStatus string `json:"environmentStatus,omitempty"`
+	EnvironmentError  string `json:"environmentError,omitempty"`
 }
 
 type CourseEditorPublishRequest struct {
@@ -72,13 +74,16 @@ func CourseEditorSync(w http.ResponseWriter, r *http.Request, ctx *config.AppCon
 		return
 	}
 
+	environmentStatus, environmentError := courseEnvironmentState(ctx, version.ID)
 	writeCourseEditorJSON(w, http.StatusOK, CourseEditorSyncResponse{
-		CourseSlug:    version.CourseSlug,
-		VersionID:     version.ID,
-		VersionNumber: version.VersionNumber,
-		Status:        version.Status,
-		ContentHash:   version.ContentHash,
-		FileCount:     len(snapshot.Files),
+		CourseSlug:        version.CourseSlug,
+		VersionID:         version.ID,
+		VersionNumber:     version.VersionNumber,
+		Status:            version.Status,
+		ContentHash:       version.ContentHash,
+		FileCount:         len(snapshot.Files),
+		EnvironmentStatus: environmentStatus,
+		EnvironmentError:  environmentError,
 	})
 }
 
@@ -109,18 +114,25 @@ func CourseEditorPublish(w http.ResponseWriter, r *http.Request, ctx *config.App
 			writeCourseEditorJSON(w, http.StatusNotFound, map[string]string{"error": "no matching draft version to publish"})
 			return
 		}
+		if errors.Is(err, errCourseEnvironmentNotReady) {
+			writeCourseEditorJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+			return
+		}
 		ctx.Err.Printf("course editor publish failed: %s", err.Error())
 		writeCourseEditorJSON(w, http.StatusInternalServerError, map[string]string{"error": "unable to publish course"})
 		return
 	}
 
+	environmentStatus, environmentError := courseEnvironmentState(ctx, version.ID)
 	writeCourseEditorJSON(w, http.StatusOK, CourseEditorSyncResponse{
-		CourseSlug:    version.CourseSlug,
-		VersionID:     version.ID,
-		VersionNumber: version.VersionNumber,
-		Status:        version.Status,
-		ContentHash:   version.ContentHash,
-		FileCount:     fileCount,
+		CourseSlug:        version.CourseSlug,
+		VersionID:         version.ID,
+		VersionNumber:     version.VersionNumber,
+		Status:            version.Status,
+		ContentHash:       version.ContentHash,
+		FileCount:         fileCount,
+		EnvironmentStatus: environmentStatus,
+		EnvironmentError:  environmentError,
 	})
 }
 
@@ -178,6 +190,9 @@ func buildUploadedCourseSnapshot(courseSlug string, files []CourseEditorSyncFile
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	if err := validateCourseSourceFiles(out); err != nil {
+		return courseSnapshot{}, err
+	}
 
 	manifest := strings.Builder{}
 	for _, file := range out {
@@ -200,7 +215,7 @@ func cleanUploadedCoursePath(path string) (string, bool) {
 		return "", false
 	}
 	clean := filepath.ToSlash(filepath.Clean(path))
-	if clean == "." || strings.HasPrefix(clean, "../") || clean == ".." || !strings.HasSuffix(clean, ".md") {
+	if clean == "." || strings.HasPrefix(clean, "../") || clean == ".." || !isCourseSourcePath(clean) {
 		return "", false
 	}
 	return clean, true
@@ -305,6 +320,9 @@ LIMIT 1`, courseSlug).
 	if err != nil {
 		return CourseVersion{}, 0, err
 	}
+	if status, message := courseEnvironmentState(ctx, draft.ID); status != "" && status != "ready" {
+		return CourseVersion{}, 0, errors.Join(errCourseEnvironmentNotReady, errors.New(message))
+	}
 
 	existing, err := publishedCourseVersionByHash(ctx, courseSlug, draft.ContentHash)
 	if err == nil {
@@ -330,6 +348,8 @@ RETURNING id, course_slug, version_number, status, content_hash`, draft.ID).
 	count, err := countCourseVersionFiles(ctx, draft.ID)
 	return draft, count, err
 }
+
+var errCourseEnvironmentNotReady = errors.New("course environment is not ready")
 
 func countCourseVersionFiles(ctx *config.AppContext, versionID int64) (int, error) {
 	var count int

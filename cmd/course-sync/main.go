@@ -20,6 +20,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/kodylow/base58-website/internal/courseenv"
 )
 
 type syncRequest struct {
@@ -33,12 +35,14 @@ type syncFile struct {
 }
 
 type syncResponse struct {
-	CourseSlug    string `json:"courseSlug"`
-	VersionID     int64  `json:"versionId"`
-	VersionNumber int    `json:"versionNumber"`
-	Status        string `json:"status"`
-	ContentHash   string `json:"contentHash"`
-	FileCount     int    `json:"fileCount"`
+	CourseSlug        string `json:"courseSlug"`
+	VersionID         int64  `json:"versionId"`
+	VersionNumber     int    `json:"versionNumber"`
+	Status            string `json:"status"`
+	ContentHash       string `json:"contentHash"`
+	FileCount         int    `json:"fileCount"`
+	EnvironmentStatus string `json:"environmentStatus"`
+	EnvironmentError  string `json:"environmentError"`
 }
 
 type publishRequest struct {
@@ -76,6 +80,8 @@ func main() {
 
 	var err error
 	switch os.Args[1] {
+	case "bundle":
+		err = runBundle(os.Args[2:])
 	case "sync":
 		err = runSync(os.Args[2:])
 	case "watch":
@@ -94,6 +100,7 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
+  course-sync bundle --dir courses/intro-proto
   course-sync sync  --server http://localhost:8080 --course intro-proto --dir courses/intro-proto
   course-sync watch --server http://localhost:8080 --course intro-proto --dir courses/intro-proto
   course-sync publish --server http://localhost:8080 --course intro-proto
@@ -117,6 +124,12 @@ func runSync(args []string) error {
 	}
 	resp := result.Response
 	fmt.Printf("synced %s: draft version %d (%d files, %s)\n", resp.CourseSlug, resp.VersionNumber, resp.FileCount, resp.ContentHash)
+	if resp.EnvironmentStatus != "" {
+		fmt.Printf("course environment: %s\n", resp.EnvironmentStatus)
+	}
+	if resp.EnvironmentError != "" {
+		fmt.Printf("environment build error: %s\n", resp.EnvironmentError)
+	}
 	if result.AssetCount > 0 {
 		fmt.Printf("uploaded %d course asset(s)\n", result.AssetCount)
 	}
@@ -169,6 +182,9 @@ func runPublish(args []string) error {
 		return err
 	}
 	fmt.Printf("published %s: version %d (%d files, %s)\n", resp.CourseSlug, resp.VersionNumber, resp.FileCount, resp.ContentHash)
+	if resp.EnvironmentStatus != "" {
+		fmt.Printf("course environment: %s\n", resp.EnvironmentStatus)
+	}
 	return nil
 }
 
@@ -231,6 +247,14 @@ func syncCourse(cfg config) (syncResult, error) {
 	assets, err := discoverCourseAssets(cfg.dir, files)
 	if err != nil {
 		return syncResult{}, err
+	}
+	runtimeAssets, err := discoverRuntimeAssets(cfg.dir, files)
+	if err != nil {
+		return syncResult{}, err
+	}
+	assets = append(assets, runtimeAssets...)
+	if len(runtimeAssets) > 0 && !cfg.assetsEnabled() && !cfg.noAssets {
+		return syncResult{}, fmt.Errorf("course runtime archives need asset upload credentials, or --no-assets when hosted separately")
 	}
 	uploadedAssets := 0
 	deletedAssets := 0
@@ -309,18 +333,21 @@ func readCourseFiles(dir string) ([]syncFile, error) {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+		if entry.IsDir() {
 			return nil
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return err
 		}
 		rel, err := filepath.Rel(dir, path)
 		if err != nil {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
+		if !isCourseSourcePath(rel) {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
 		files = append(files, syncFile{
 			Path:        rel,
 			Content:     string(content),
@@ -332,7 +359,52 @@ func readCourseFiles(dir string) ([]syncFile, error) {
 		return nil, err
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
+	if err := validateCourseSourceFiles(files); err != nil {
+		return nil, err
+	}
 	return files, nil
+}
+
+func isCourseSourcePath(path string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
+		if strings.HasPrefix(part, ".") {
+			return false
+		}
+	}
+	if path == "flake.nix" || path == "flake.lock" {
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".md", ".nix", ".py", ".sh", ".json", ".toml", ".yaml", ".yml", ".txt", ".conf":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateCourseSourceFiles(files []syncFile) error {
+	markdownCount := 0
+	hasFlake := false
+	hasLock := false
+	for _, file := range files {
+		switch file.Path {
+		case "flake.nix":
+			hasFlake = true
+		case "flake.lock":
+			hasLock = true
+		default:
+			if strings.HasSuffix(file.Path, ".md") {
+				markdownCount++
+			}
+		}
+	}
+	if markdownCount == 0 {
+		return fmt.Errorf("course needs at least one markdown file")
+	}
+	if hasFlake != hasLock {
+		return fmt.Errorf("course must include both flake.nix and flake.lock")
+	}
+	return nil
 }
 
 func directoryHash(dir string) (string, error) {
@@ -364,6 +436,9 @@ func discoverCourseAssets(dir string, files []syncFile) ([]courseAsset, error) {
 	seen := map[string]bool{}
 	var assets []courseAsset
 	for _, file := range files {
+		if !strings.HasSuffix(file.Path, ".md") {
+			continue
+		}
 		for _, raw := range referencedMarkdownImages(file.Content) {
 			assetPath, ok := cleanRelativeAssetPath(raw)
 			if !ok || seen[assetPath] {
@@ -480,6 +555,11 @@ func reconcileCourseAssetManifest(cfg config, assets []courseAsset) (int, error)
 
 	deleted := 0
 	for assetPath, previous := range manifest.Objects {
+		// Published course versions still reference their immutable runtime archives.
+		if strings.HasPrefix(assetPath, "runtime/") {
+			current[assetPath] = previous
+			continue
+		}
 		if _, ok := current[assetPath]; ok {
 			continue
 		}
@@ -658,4 +738,32 @@ func getenvDefault(key, fallback string) string {
 func hashBytes(value []byte) string {
 	sum := sha256.Sum256(value)
 	return hex.EncodeToString(sum[:])
+}
+
+func discoverRuntimeAssets(dir string, files []syncFile) ([]courseAsset, error) {
+	source := courseSourceMap(files)
+	content, ok := source[courseenv.ManifestFile]
+	if !ok {
+		return nil, nil
+	}
+	manifest, err := courseenv.Parse(content)
+	if err != nil {
+		return nil, err
+	}
+	if manifest.SourceHash != courseenv.SourceHash(source) {
+		return nil, fmt.Errorf("course runtime is stale; run course-sync bundle again")
+	}
+	var assets []courseAsset
+	for _, archive := range manifest.Archives {
+		fullPath := filepath.Join(dir, filepath.FromSlash(archive.Path))
+		data, err := os.ReadFile(fullPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading runtime archive: %w", err)
+		}
+		if int64(len(data)) != archive.Size || courseenv.Hash(data) != archive.SHA256 {
+			return nil, fmt.Errorf("runtime archive changed: %s", archive.Path)
+		}
+		assets = append(assets, courseAsset{Path: archive.Path, FullPath: fullPath, ContentHash: archive.SHA256})
+	}
+	return assets, nil
 }

@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"bytes"
+	"html/template"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +11,28 @@ import (
 	"github.com/kodylow/base58-website/internal/config"
 	"github.com/kodylow/base58-website/internal/types"
 )
+
+func TestCourseLessonTemplateIncludesNotebookExecutionDispatcher(t *testing.T) {
+	tmpl, err := template.ParseFiles(filepath.Join("..", "..", "templates", "courses", "lesson.tmpl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	err = tmpl.ExecuteTemplate(&output, "lesson.tmpl", CourseLessonData{
+		CourseSlug: "taproot",
+		Current:    &CourseNavItem{DisplayNumber: "01", Title: "Intro", Path: "01_intro"},
+		HasCode:    true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := output.String()
+	for _, expected := range []string{"runNotebookCell", "interpolateCourseToken", "/api/courses/", "/environment", "CourseVM", "runBrowserShellCell"} {
+		if !strings.Contains(html, expected) {
+			t.Fatalf("rendered lesson template is missing %q", expected)
+		}
+	}
+}
 
 func TestLoadLocalCourseBuildsNumberedSidebar(t *testing.T) {
 	root := t.TempDir()

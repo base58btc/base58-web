@@ -35,6 +35,11 @@ type courseSnapshotFile struct {
 	ContentHash string
 }
 
+const (
+	courseFlakeFile = "flake.nix"
+	courseLockFile  = "flake.lock"
+)
+
 func SyncLocalCourseVersions(ctx *config.AppContext) error {
 	if ctx == nil || ctx.DB == nil {
 		return nil
@@ -173,18 +178,21 @@ func buildLocalCourseSnapshot(courseSlug string) (courseSnapshot, error) {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+		if entry.IsDir() {
 			return nil
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return err
 		}
 		rel, err := filepath.Rel(courseDir, path)
 		if err != nil {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
+		if !isCourseSourcePath(rel) {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
 		files = append(files, courseSnapshotFile{
 			Path:        rel,
 			Content:     string(content),
@@ -193,6 +201,9 @@ func buildLocalCourseSnapshot(courseSlug string) (courseSnapshot, error) {
 		return nil
 	})
 	if err != nil {
+		return courseSnapshot{}, err
+	}
+	if err := validateCourseSourceFiles(files); err != nil {
 		return courseSnapshot{}, err
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
@@ -209,6 +220,48 @@ func buildLocalCourseSnapshot(courseSlug string) (courseSnapshot, error) {
 		StoragePrefix: "local:" + filepath.ToSlash(courseDir),
 		Files:         files,
 	}, nil
+}
+
+func isCourseSourcePath(path string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
+		if strings.HasPrefix(part, ".") {
+			return false
+		}
+	}
+	if path == courseFlakeFile || path == courseLockFile {
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".md", ".nix", ".py", ".sh", ".json", ".toml", ".yaml", ".yml", ".txt", ".conf":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateCourseSourceFiles(files []courseSnapshotFile) error {
+	markdownCount := 0
+	hasFlake := false
+	hasLock := false
+	for _, file := range files {
+		switch file.Path {
+		case courseFlakeFile:
+			hasFlake = true
+		case courseLockFile:
+			hasLock = true
+		default:
+			if strings.HasSuffix(file.Path, ".md") {
+				markdownCount++
+			}
+		}
+	}
+	if markdownCount == 0 {
+		return errors.New("course sync needs at least one markdown file")
+	}
+	if hasFlake != hasLock {
+		return errors.New("course sync must include both flake.nix and flake.lock")
+	}
+	return nil
 }
 
 func ensureCourseVersionFiles(ctx *config.AppContext, versionID int64, files []courseSnapshotFile) error {

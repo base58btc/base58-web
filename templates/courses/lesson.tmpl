@@ -1812,6 +1812,7 @@
     }
   </script>
   {{ if .HasCode }}
+  <script src="/static/js/course-execution.js"></script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
   <script>
     let pyodideReady;
@@ -1925,6 +1926,133 @@ def __course_check_cell(student_code, check_code):
       return pyodide;
     }
 
+    async function interpolateCourseToken(token) {
+      if (!/\{[A-Za-z_][A-Za-z0-9_]*\}/.test(token)) return token;
+      const pyodide = await getCoursePyodide();
+      return window.CourseExecution.interpolateToken(token, async function(name) {
+        if (!pyodide.globals.has(name)) throw new Error("Python variable '" + name + "' is not defined");
+        const value = pyodide.globals.get(name);
+        try {
+          if (!["string", "number", "boolean", "bigint"].includes(typeof value)) {
+            throw new Error("Python variable '" + name + "' must be a scalar value");
+          }
+          return value;
+        } finally {
+          if (value && typeof value.destroy === "function") value.destroy();
+        }
+      });
+    }
+
+    let courseVM;
+    let courseVMPromise;
+    function getCourseVM() {
+      if (!courseVMPromise) courseVMPromise = (async function() {
+        const shell = document.querySelector(".course-platform_shell");
+        const {CourseVM} = await import("/static/js/course-vm.mjs");
+        const {renderCommandHistory} = await import("/static/js/course-history-view.mjs");
+        const preview = shell.dataset.draftPreview === "true" ? "?preview=draft" : "";
+        courseVM = new CourseVM({
+          environmentURL: "/api/courses/" + encodeURIComponent(shell.dataset.courseSlug) + "/environment" + preview,
+          csrfToken: shell.dataset.csrfToken || "",
+          onHistory: function(state) {
+            document.getElementById("course-runtime-history").hidden = false;
+            renderCommandHistory(document.getElementById("course-runtime-commands"), state);
+            document.getElementById("course-runtime-undo").disabled = !state.head || Boolean(state.pending);
+          },
+          onStatus: function(message) {
+            const status = document.getElementById("course-runtime-status");
+            if (status) { status.hidden = false; status.textContent = message; document.getElementById("course-runtime-stop").hidden = false; }
+          }
+        });
+        return courseVM;
+      })();
+      return courseVMPromise;
+    }
+
+    async function runBrowserShellCell(cell, code) {
+      const runtime = await getCourseVM();
+      const rawTokens = window.CourseExecution.tokenizeCommand(code.slice(1).trim());
+      const tokens = [];
+      for (const token of rawTokens) tokens.push(await interpolateCourseToken(token));
+      const shell = document.querySelector(".course-platform_shell");
+      const result = await runtime.execute({program: tokens[0], args: tokens.slice(1)}, {source: code, lessonPath: shell.dataset.lessonPath || "", blockId: cell.dataset.courseBlockId || ""});
+      return {ok: result.exitCode === 0 && !result.timedOut, output: (result.stdout || "") + (result.stderr || "")};
+    }
+
+    async function saveCourseEnvironment() {
+      if (courseVM) await courseVM.saveAndStop();
+    }
+    async function openCourseEnvironment() {
+      try { await (await getCourseVM()).ready(); }
+      catch (error) {
+        const status = document.getElementById("course-runtime-status");
+        status.hidden = false; status.textContent = error.message;
+      }
+    }
+    window.addEventListener("DOMContentLoaded", function() {
+      if ([...document.querySelectorAll(".code-area")].some(area => window.CourseExecution.hasRemoteShellLine(area.value))) document.getElementById("course-runtime-open").hidden = false;
+    });
+    async function undoCourseCommand() {
+      const button = document.getElementById("course-runtime-undo");
+      button.disabled = true;
+      try {
+        const runtime = await getCourseVM();
+        const entry = await runtime.undo();
+        if (entry && entry.command.lessonPath === document.querySelector(".course-platform_shell").dataset.lessonPath) {
+          const cell = document.querySelector('[data-course-block-id="' + CSS.escape(entry.command.blockId) + '"]');
+          if (cell) {
+            const result = {ok: false, output: "The last CLI command in this cell was undone. See command history."};
+            const output = cell.querySelector(".output");
+            if (output) output.textContent = result.output;
+            saveRunnableCodeBlock(cell, result, courseExecutionCount);
+          }
+        }
+      } catch (error) { document.getElementById("course-runtime-status").textContent = error.message; }
+      finally { button.disabled = !courseVM?.journal?.state.head || Boolean(courseVM?.journal?.state.pending); }
+    }
+    document.addEventListener("click", async function(event) {
+      const link = event.target.closest("a[href]");
+      if (!courseVM || !link || link.target || link.hasAttribute("download") || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const url = new URL(link.href, location.href);
+      if (url.origin !== location.origin || (url.pathname === location.pathname && url.search === location.search)) return;
+      event.preventDefault();
+      try { await saveCourseEnvironment(); location.assign(url.href); }
+      catch (error) { document.getElementById("course-runtime-status").textContent = "Unable to finish saving: " + error.message; }
+    });
+    window.addEventListener("pagehide", function() { if (courseVM) courseVM.close().catch(() => {}); });
+
+    async function runLocalPythonSource(code) {
+      if (!code.trim()) return {ok: true, output: ""};
+      const pyodide = await getCoursePyodide();
+      pyodide.globals.set("__course_cell_code", code);
+      return JSON.parse(pyodide.runPython("__course_run_cell(__course_cell_code)"));
+    }
+
+    async function runNotebookCell(cell, code) {
+      const lines = code.split(/\r?\n/);
+      let pythonLines = [];
+      let combined = "";
+      async function flushPython() {
+        if (!pythonLines.length) return true;
+        const result = await runLocalPythonSource(pythonLines.join("\n"));
+        pythonLines = [];
+        combined += result.output || "";
+        return result.ok;
+      }
+      for (const line of lines) {
+        if (!line.startsWith("!")) {
+          pythonLines.push(line);
+          continue;
+        }
+        if (!await flushPython()) return {ok: false, output: combined};
+        const result = await runBrowserShellCell(cell, line);
+        combined += result.output || "";
+        if (!result.ok) return {ok: false, output: combined};
+      }
+      const ok = await flushPython();
+      return {ok: ok, output: combined};
+    }
+
     async function runCellCode(button) {
       const cell = button.closest(".cell");
       const textarea = cell.querySelector(".code-area");
@@ -1938,9 +2066,12 @@ def __course_check_cell(student_code, check_code):
       button.disabled = true;
 
       try {
-        const pyodide = await getCoursePyodide();
-        pyodide.globals.set("__course_cell_code", textarea.value);
-        const result = JSON.parse(pyodide.runPython("__course_run_cell(__course_cell_code)"));
+        let result;
+        if (window.CourseExecution.hasRemoteShellLine(textarea.value)) {
+          result = await runNotebookCell(cell, textarea.value);
+        } else {
+          result = await runLocalPythonSource(textarea.value);
+        }
         const executionCount = ++courseExecutionCount;
         output.classList.toggle("is-error", !result.ok);
         output.textContent = result.output;
@@ -2105,7 +2236,16 @@ def __course_check_cell(student_code, check_code):
       <section class="course-platform_content">
         <div class="course-platform_current">{{ .Current.DisplayNumber }} / {{ .Current.Title }}</div>
         <article class="course-platform_article">
-          {{ .ContentHTML }}
+          {{ if .HasCode }}
+          <p id="course-runtime-status" role="status" hidden></p>
+          <button id="course-runtime-open" type="button" hidden onclick="openCourseEnvironment()">Resume CLI environment</button>
+          <button id="course-runtime-stop" type="button" hidden onclick="saveCourseEnvironment().catch(function(error) { document.getElementById('course-runtime-status').textContent = error.message; })">Save and stop environment</button>
+          <details id="course-runtime-history" hidden><summary>CLI command history</summary>
+            <button id="course-runtime-undo" type="button" disabled onclick="undoCourseCommand()">Undo last command</button>
+            <div id="course-runtime-commands" style="overflow-wrap:anywhere"></div>
+          </details>
+          {{ end }}
+            {{ .ContentHTML }}
         </article>
         <nav class="course-platform_pager" aria-label="Course page navigation">
           {{ if .Previous }}
