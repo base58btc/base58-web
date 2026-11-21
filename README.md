@@ -7,7 +7,7 @@ Currently a work in progress.
 The architecture is **build at publish time; execute in the browser**. The
 publication workflow prepares the locked course environment on an author/CI
 Linux builder and uploads it before publishing the course version. Students
-download that prepared environment; their command history and VM checkpoints
+download that prepared environment; their command history
 sync to their account for resume and undo.
 
 Course commands run in a Linux guest inside the student's browser, using the
@@ -54,6 +54,11 @@ course-sync sync --server http://localhost:8080 --course taproot --dir ./taproot
 course-sync publish --server http://localhost:8080 --course taproot
 ```
 
+The Lightning workshop port is in `courses/lightning`; see
+[its notebook mapping and validation instructions](docs/lightning-port.md).
+Cells marked `+++ id python-vm` run the flake's Python inside the VM, including
+native libraries and persistent globals. Existing unmarked cells use Pyodide.
+
 `bundle` evaluates the locked flake with `nix print-dev-env`, captures shell
 variables/functions without running the shell hook, and exports the resulting
 Nix store closure as gzip-compressed NAR files. It writes `course-runtime.json`
@@ -86,7 +91,7 @@ height = 0
 !bitcoin-cli -regtest -datadir=/data/workspace/node getblockhash {height}
 ```
 
-Python continues to run through Pyodide. Lines starting with `!` run in the course
+Unmarked Python cells run through Pyodide. Lines starting with `!` run in the course
 VM through unkernel's JavaScript API. Scalar `{identifier}` values are passed as
 individual arguments. Pipes, redirects, and shell expansion are not implicit;
 a lesson can explicitly invoke `bash -c` when it needs a shell script.
@@ -94,58 +99,76 @@ a lesson can explicitly invoke `bash -c` when it needs a shell script.
 The course source files are copied into `/data/workspace` on first boot. That is
 also `HOME` and the command working directory.
 
-Each student attempt has an append-only CLI journal, pinned to its course version
-and environment hash. Before dispatching a command, the browser saves its resolved
-program/arguments, original source, lesson/cell identifiers, and timestamp. It
-then saves stdout, stderr, exit status, and a VM checkpoint. Failed commands are
-included: a command can modify files before returning a nonzero exit status.
+Each student attempt has an append-only command journal, pinned to its course
+version and environment hash. Before dispatching a command, the browser saves its
+resolved program/arguments, original source, lesson/cell identifiers, timeout,
+and timestamp. It then records stdout, stderr, and exit status. Failed commands
+are included because they can change state before returning a nonzero exit code.
 
-The checkpoint captures **guest memory and the matching disk generation**, not
-just files. This preserves running services, generated wallet keys, and other
-state that would change if commands were simply replayed. The VM is suspended
-between commands; it resumes from the last checkpoint for the next command,
-without rerunning `shellHook`. An idempotent hook is still needed for the initial
-boot and existing workspaces created before checkpoint support.
+The VM and Python interpreter stay alive between cells and lesson pages. Course
+links and browser back/forward replace the lesson content without unloading the
+runtime. Navigation waits for in-flight cells and progress writes, and retains
+editor drafts, outputs, and answers. Leaving the course or selecting Save and stop
+closes the environment; reopening or reloading the page replays the command log.
 
-Published courses save the journal and checkpoints to the student's account, so
-**Save and stop environment** followed by signing in on another device resumes
-the same CLI state. Checkpoints are compressed and split into content-addressed
-pieces; unchanged pieces are shared across checkpoints within the attempt. The
-browser also caches them in IndexedDB. A command is shown as saved only after its
-checkpoint upload and journal result both succeed. Network/storage errors block
-further commands until the environment is reopened. An interrupted command with
-no completed checkpoint stays in the log and returns to the previous saved state;
-it is never silently executed twice.
+Python cells travel over
+one open input/output pipe to that interpreter; they do not launch a shell or
+another Python client for each cell. The recorded Python CLI arguments remain
+compatible with older journals and are dispatched over the same pipe on replay.
+Guest files and memory are temporary: **no VM snapshots or disk images are saved**.
+On resume, a fresh
+VM starts from the pinned course bundle, runs its setup hook, and replays the
+completed commands on the active history branch. Replaying does not append new
+executions or overwrite the original results. Commands interrupted before a
+result was recorded remain in the audit log but are excluded from replay.
 
-**Undo last command** restores the previous checkpoint and moves the history
-cursor back. The original command and result remain visible as undone. Running a
-new command after undo creates a new branch in the journal. Checkpoints avoid
-replay changing Bitcoin addresses or transaction IDs. Ordinary replay alone is
-not a guarantee of identical state for arbitrary CLI commands.
+**Undo last command** moves the history cursor to the previous command and
+rebuilds the environment by replaying that prefix. Undone commands and results
+remain in the log. Executing another command after undo creates a new branch.
+If a command's exit status changes during replay, or it times out, replay stops
+and identifies the command. Further undo can move back to a replayable prefix.
+
+**Reset workspace** in the Workspace menu starts a fresh VM with an empty replay
+history. A confirmation explains that variables, created files, and running nodes
+will be cleared; code edits and lesson answers stay. The append-only `reset` event
+archives previous commands and their output, which remain in Command history.
+Undo cannot cross that boundary. Reset can interrupt background replay and recover
+a failed or stopped workspace without executing its old commands. Archived cell
+output is cleared from lessons; prerequisite cells must be run again.
+
+Replay is deliberately less exact: randomness, clocks, wallet keys, addresses,
+transaction IDs, and other generated values can differ. A command containing an
+old generated value may no longer work. Changes outside recorded commands are
+not recoverable. Resume and undo take time proportional to the commands replayed;
+normal cell execution has no snapshot/restore cost. Saved output describes the
+original execution, not necessarily the current replayed values.
+
+Published courses save the journal to the student's account, so **Save and stop**
+followed by signing in elsewhere can replay the same history. A local preview
+keeps its journal in IndexedDB. The existing database name is retained to reuse
+older command logs; old snapshot stores are left untouched and unused.
 
 One browser tab holds the local workspace lock, and a two-minute renewable server
 lease prevents two devices from advancing the same attempt concurrently. Saving
-and stopping releases it immediately; a lost connection or closed tab releases it
-when the lease expires. Clearing browser storage does not delete account-backed
-work. Draft/local previews keep their journals and checkpoints on that device.
-The history panel displays the latest 100 commands; the complete journal is kept.
+and stopping releases it immediately. Network/storage errors stop execution until
+recovery. The history panel displays the latest 100 commands in each of its current
+and archived groups; replay uses the
+complete active branch, including failed commands with recorded results.
 
-Apply migration `000013_create_course_command_events` before using the account
-history API. This implementation keeps private checkpoint chunks in PostgreSQL
-alongside the journal, scoped to the authenticated attempt and protected by CSRF
-for writes. Checkpoint storage grows with the history: size the database and its
-backups accordingly; moving the chunk transport to private object storage is a
-future optimization. Undo retains old branches and their checkpoints.
+Apply migration `000013_create_course_command_events` before using account history.
+The journal is stored in PostgreSQL, scoped to the authenticated attempt, with CSRF
+protection for writes. Legacy checkpoint/chunk endpoints return HTTP 410 and no
+longer read or write VM state; their historical database rows are retained.
 
-The checkpoint covers the Linux CLI guest. Pyodide's Python interpreter is a
-separate runtime; this does not snapshot its in-memory globals. Existing lesson
-progress, cell text, and displayed output still use the normal progress API.
-The guest's host connections are reset on restore by unkernel; there are no
-external network connections in this course integration.
+`python-vm` cells reconstruct their shared Python namespace through replay.
+Unmarked Pyodide cells still use a separate interpreter and are not part of the
+VM journal. Lesson progress, cell text, and displayed output use the normal
+progress API.
 
 No external network device is attached to the guest. Its loopback interface lets
 `bitcoind`, `bitcoin-cli`, and other services in that course communicate locally.
-Commands have a 30-second timeout and a 1 MiB output limit per stream. Shell
+CLI commands default to a 30-second timeout, Python cells to 120 seconds, with a
+1 MiB output limit per stream. Shell
 initialization has a 60-second timeout.
 
 ### Website build
@@ -168,26 +191,56 @@ from Try Nix, with attribution in `static/licenses/trynix.txt`.
 
 This integration currently supports unkernel's **aarch64 Linux** guest and needs
 a browser with WebAssembly JSPI. It does not include Try Nix's x86-64 QEMU fallback.
-The pinned SDK restores host filesystem mounts in inline mode, so this runtime
-currently runs on the page thread. Large environments, checkpoint costs, and
+This runtime currently runs on the page thread. Large environments, replay costs, and
 CPU-heavy work should be measured on students' target devices. No runner service
 or runner secret is needed; the command-history migration is required.
 
-## Testing Stripe Hooks
+## Retired class checkout and newsletters
 
-Stripe has [great instructions](https://stripe.com/docs/payments/handling-payment-events) for how to test their hook callbacks. Here's a quick how-to though.
+Class checkout, newsletter signup, course waitlists, campaign scheduling, and
+the email-test endpoint have been removed. Old URLs return HTTP 410. The footer
+and course pages no longer collect mailing-list addresses. Student/admin login,
+course enrollment, course progress, and contact emails continue to work.
 
-1. Install the `stripe` utility
-2. Register with `./stripe login`. You can use your existing API key with `./stripe login --api-key <KEY>`
-3. You'll need two terminal windows. In one, startup the console: 
+This change does **not** delete, export, or migrate historical Notion data. Keep
+the existing databases and their original IDs for the later rebuild:
 
-	./stripe listen --forward-to http://localhost:8080/stripe-hook
+| Former setting | Historical records to retain |
+| --- | --- |
+| `NOTION_NEWSLETTER` | Subscriber addresses and list memberships |
+| `NOTION_WAITLIST` | Legacy waitlist addresses and class references |
+| `NOTION_MISSIVES` | Newsletter Markdown, scheduling rules, and sent status |
+| `NOTION_SIGNUPS` | Registration addresses and payment references |
+| `NOTION_CARTS`, `NOTION_ITEM_CARTS` | Both cart formats, contact details, and payment references |
 
-4. In a 2nd window, send an event. You'll need to include some metadata to get things to work.
+These settings are no longer loaded by the web app. Preserve their values in
+private operational records for export/import; do not delete the databases or
+their credentials. Keep the mailer service's historical records too. Catalog
+and scheduled-class metadata still use `NOTION_COURSES` and `NOTION_SESSIONS`.
 
-	./stripe trigger payment_intent.succeeded --add payment_intent:metadata['registration_id']=<reg_id>
+Old unsubscribe links remain functional as a narrow compatibility endpoint.
+Migration `000014` records opt-outs in Postgres `email_opt_outs`, without deleting
+the original subscriber data in Notion. The endpoint cancels pending messages
+using the original mailer subscription key; cancellation failures return 503
+and can be retried using the same link. Rows with `mailer_cancelled_at IS NULL`
+need reconciliation. Preserve `TOKEN_SEC`, `MAIL_API`, and `MAIL_SEC`; the mailer
+also remains necessary for account and contact emails. Any future mailing-list
+import must honor `email_opt_outs`, as well as existing unsubscribe/suppression
+records, before sending anything. The down migration retains opt-outs.
+Do not resume sending directly from the old Notion lists: new unsubscribe
+requests are recorded in Postgres, and no longer update those lists.
 
-You can get a registration ID from Notion by going to the class signups and opening one of them as a Page. The Page ID (listed in the URL) is the `reg_id`.
+Before deploying this removal, reconcile outstanding Stripe/OpenNode purchases
+and disable the legacy payment integrations at the providers. The old webhook
+URLs return 503 rather than acknowledge unprocessed payments; retries alone
+are not a reconciliation strategy. Export and reconcile queued newsletter jobs
+in the separate mailer, then cancel those campaigns there. Removing the website
+scheduler does not cancel jobs already queued in another service. These external
+changes are not performed by updating this repository.
+
+The remaining `checkout` package and `CourseItem` type only decode old carts in
+existing browser sessions, preserving sign-in data. They cannot create orders,
+calculate prices, initiate payments, or run registration callbacks.
 
 
 ## How to format a golang project

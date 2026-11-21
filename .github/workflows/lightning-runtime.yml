@@ -1,0 +1,76 @@
+name: Build Lightning browser runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/lightning-runtime-build]
+    paths:
+      - .github/workflows/lightning-runtime.yml
+      - cmd/course-sync/**
+      - internal/courseenv/**
+      - courses/lightning/**
+      - scripts/test-course-python.py
+      - scripts/test-lightning-course.py
+      - scripts/testdata/lightning-challenge-solutions.json
+      - static/guest/course-python.py
+      - flake.lock
+      - go.mod
+      - go.sum
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lightning-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@d698718aa798980d17dd749f03beae0b51183399 # v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - name: Build and test the bundle tool
+        run: |
+          test "$(uname -m)" = aarch64
+          mkdir -p target
+          nix shell --inputs-from . nixpkgs#go_1_25 --command sh -eu -c '
+            go test ./cmd/course-sync ./internal/courseenv
+            go build -o target/course-sync ./cmd/course-sync
+          '
+      - name: Build and verify the locked Linux environment
+        run: |
+          target/course-sync bundle --dir courses/lightning
+          target/course-sync verify-bundle --dir courses/lightning
+      - name: Exercise Python and every Lightning lesson cell
+        run: |
+          nix develop path:./courses/lightning --no-update-lock-file --no-write-lock-file --command sh -eu -c '
+            python3 scripts/test-course-python.py
+            python3 scripts/test-lightning-course.py --regtest
+          '
+          # Tests must leave the bundled course sources unchanged.
+          target/course-sync verify-bundle --dir courses/lightning
+      - name: Package the course sources and runtime together
+        run: |
+          mkdir -p target/lightning-artifact
+          # Archive only tracked course sources plus the generated bundle.
+          # Keep local lab data and Python caches out of the artifact.
+          git ls-files -z courses/lightning > target/lightning-files
+          printf '%s\0' courses/lightning/course-runtime.json courses/lightning/runtime >> target/lightning-files
+          tar --null -T target/lightning-files -cf target/lightning-artifact/lightning-course.tar
+          git rev-parse HEAD > target/lightning-artifact/BUILD_COMMIT
+          cd target/lightning-artifact
+          sha256sum lightning-course.tar > SHA256SUMS
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: lightning-runtime-${{ github.sha }}
+          path: target/lightning-artifact/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
