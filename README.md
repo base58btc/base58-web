@@ -251,6 +251,14 @@ the local Lightning landing page offers **Start Course**, or **Resume Course** f
 enrolled students. No checkout is involved. Migration `000015` retains catalog and
 schedule data on rollback; it never deletes historical Notion databases.
 
+Signed-out course enrollment requires an emailed verification link. Migration
+`000016` stores the pending course and name with the 30-minute, single-use login
+token. Only following that link creates or signs into the account, verifies the
+email, grants course access, and opens the first lesson. Existing account names
+are preserved. Signed-in enrollment remains immediate, and existing sessions
+remain valid until their normal expiry. Development exposes a local login link;
+production requires a configured mailer and never returns the token in the page.
+
 For a full local app, start Postgres, apply/import as above, and run:
 
 ```sh

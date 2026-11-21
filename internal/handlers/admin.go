@@ -1002,6 +1002,10 @@ ON CONFLICT(person_id) DO UPDATE SET role='owner', status='active', updated_at=C
 }
 
 func ensurePersonForEmail(ctx *config.AppContext, email string) (int64, error) {
+	return ensurePersonForEmailWithName(ctx, email, "")
+}
+
+func ensurePersonForEmailWithName(ctx *config.AppContext, email, name string) (int64, error) {
 	var id int64
 	err := ctx.DB.QueryRow(`SELECT person_id FROM person_emails WHERE email=`+ph(ctx, 1), email).Scan(&id)
 	if err == nil {
@@ -1010,7 +1014,9 @@ func ensurePersonForEmail(ctx *config.AppContext, email string) (int64, error) {
 	if !errors.Is(err, sql.ErrNoRows) {
 		return 0, err
 	}
-	name := strings.Split(email, "@")[0]
+	if name == "" {
+		name = strings.Split(email, "@")[0]
+	}
 	return createPerson(ctx, AdminPerson{DisplayName: name, Status: "active"}, email)
 }
 

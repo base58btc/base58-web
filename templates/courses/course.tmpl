@@ -495,7 +495,7 @@ margin: 0rem !important;
   <dialog class="course-signup-dialog" id="course-signup-dialog">
     <div class="course-signup-dialog-inner">
       <h2>Start {{ .Course.Title }}</h2>
-      <p>Create your course account and get access to the lessons.</p>
+      <p>We’ll email you a link to verify your address and start the course.</p>
       <form class="course-signup-form" method="post" action="/courses/{{ .Course.Tag }}/signup">
         {{ .CSRFField }}
         <label>Name
@@ -505,7 +505,7 @@ margin: 0rem !important;
           <input name="email" type="email" autocomplete="email" required>
         </label>
         <div class="course-signup-dialog-actions">
-          <button class="secondary-button course-page w-button" type="submit">Create account</button>
+          <button class="secondary-button course-page w-button" type="submit">Send verification link</button>
           <button class="course-signup-cancel" type="button" data-close-course-signup>Cancel</button>
         </div>
       </form>

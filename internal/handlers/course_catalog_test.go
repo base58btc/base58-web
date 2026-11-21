@@ -209,10 +209,17 @@ func TestLightningCatalogEnrollmentPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	confirmation, _ := io.ReadAll(response.Body)
 	response.Body.Close()
-	if response.StatusCode != 200 || response.Request.URL.Path != "/courses/lightning/00-welcome" {
-		t.Fatalf("signup did not open course: %s %d", response.Request.URL, response.StatusCode)
+	if response.StatusCode != 200 || !strings.Contains(string(confirmation), "Check your email") {
+		t.Fatalf("signup did not request verification: %s %d", response.Request.URL, response.StatusCode)
 	}
+	// Development exposes the link for local testing; production only emails it.
+	link := regexp.MustCompile(`href="[^"]*(/login/[a-f0-9]+)"`).FindStringSubmatch(string(confirmation))
+	if len(link) != 2 {
+		t.Fatal("missing development verification link")
+	}
+	get(link[1])
 	get("/courses/lightning/02-invoices?section=decode-the-notebook-s-examples")
 	for _, path := range []string{"/courses/lightning", "/dashboard"} {
 		body := get(path)

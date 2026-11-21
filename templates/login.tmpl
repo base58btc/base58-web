@@ -87,14 +87,15 @@
         {{ if .Error }}
           <div class="login-message error">{{ .Error }}</div>
         {{ end }}
-        <form class="login-form" method="post" action="/login">
+        <form class="login-form" method="post" action="{{ if .SignupCourse }}/courses/{{ .SignupCourse }}/signup{{ else }}/login{{ end }}">
           {{ .CSRFField }}
           <input type="hidden" name="next" value="{{ .Next }}">
+          {{ if .SignupCourse }}<input type="hidden" name="display_name" value="{{ .DisplayName }}">{{ end }}
           <label>
             Email
             <input type="email" name="email" value="{{ .Email }}" autocomplete="email" required>
           </label>
-          <button class="login-button" type="submit">Send login link</button>
+          <button class="login-button" type="submit">{{ if .SignupCourse }}Send verification link{{ else }}Send login link{{ end }}</button>
         </form>
         {{ if .LoginLink }}
           <div class="login-dev-link">

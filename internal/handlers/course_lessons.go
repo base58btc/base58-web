@@ -385,28 +385,15 @@ func LocalCourseSignup(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 	if !validateStudentCSRF(w, r, ctx) {
 		return
 	}
-	email := normalizeEmail(r.Form.Get("email"))
 	personID := currentProgressPersonID(r, ctx)
 	if personID == 0 {
-		name := strings.TrimSpace(r.Form.Get("display_name"))
-		if email == "" {
-			http.Redirect(w, r, "/courses/"+courseSlug+"?access=signin", http.StatusSeeOther)
-			return
-		}
-
-		var err error
-		personID, err = ensurePersonForEmail(ctx, email)
-		if err != nil {
-			http.Error(w, "Unable to create account", http.StatusInternalServerError)
-			ctx.Err.Printf("course signup person failed: %s", err.Error())
-			return
-		}
-		if name != "" {
-			_ = updatePersonDisplayName(ctx, personID, name)
-		}
-
-		ctx.Session.Put(r.Context(), "person_id", personID)
-		ctx.Session.Put(r.Context(), "person_email", email)
+		requestStudentLogin(w, r, ctx, studentLoginRequest{
+			Email:       normalizeEmail(r.Form.Get("email")),
+			CourseSlug:  courseSlug,
+			DisplayName: strings.TrimSpace(r.Form.Get("display_name")),
+			NextPath:    localCourseStartURL(courseSlug),
+		})
+		return
 	}
 	if _, err := grantEntitlement(ctx, personID, courseSlug, "self_signup", "Self-registered from course landing page"); err != nil {
 		http.Error(w, "Unable to grant course access", http.StatusInternalServerError)
@@ -414,11 +401,14 @@ func LocalCourseSignup(w http.ResponseWriter, r *http.Request, ctx *config.AppCo
 		return
 	}
 
-	startURL := "/courses/" + courseSlug
+	http.Redirect(w, r, localCourseStartURL(courseSlug), http.StatusSeeOther)
+}
+
+func localCourseStartURL(courseSlug string) string {
 	if outline, err := loadLocalCourse(localCoursesRoot, courseSlug, ""); err == nil && outline.Current != nil {
-		startURL = outline.Current.URL + "?registered=1"
+		return outline.Current.URL + "?registered=1"
 	}
-	http.Redirect(w, r, startURL, http.StatusSeeOther)
+	return "/courses/" + courseSlug
 }
 
 func StartLatestCourseVersion(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
@@ -511,14 +501,6 @@ func localCourseStaticHeroURL(courseSlug string) string {
 		return ""
 	}
 	return "/static/img/courses/" + courseSlug + ".png"
-}
-
-func updatePersonDisplayName(ctx *config.AppContext, personID int64, name string) error {
-	if ctx == nil || ctx.DB == nil || personID == 0 || strings.TrimSpace(name) == "" {
-		return nil
-	}
-	_, err := ctx.DB.Exec(`UPDATE people SET display_name=`+ph(ctx, 1)+`, updated_at=CURRENT_TIMESTAMP WHERE id=`+ph(ctx, 2), strings.TrimSpace(name), personID)
-	return err
 }
 
 func firstNonEmpty(values ...string) string {
