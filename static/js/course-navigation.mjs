@@ -60,7 +60,7 @@ export function installCourseNavigation({beforeNavigate, beforeSwap, afterSwap, 
     const url = new URL(href, displayedURL);
     if (!pop) saveScroll();
     const request = requests.begin();
-    markBusy(true); showNotice("Loading lesson…");
+    markBusy(true); showNotice("");
     try {
       if (!isLessonURL(url, displayedURL, shell().dataset.courseSlug)) {
         await fullNavigation(url, pop, request); return;
@@ -76,7 +76,6 @@ export function installCourseNavigation({beforeNavigate, beforeSwap, afterSwap, 
       if (!sameCourseSession(shell().dataset, next?.dataset)) {
         await fullNavigation(new URL(response.url || url.href), pop, request); return;
       }
-      showNotice("Finishing current work…");
       await beforeNavigate();
       if (!request.active()) return;
       beforeSwap();
