@@ -17,7 +17,6 @@ type AppContext struct {
 	Err           *log.Logger
 	Session       *scs.SessionManager
 	TemplateCache *template.Template
-	EmailCache    map[string]*template.Template
 	DocCache      map[string][]byte
 	Notion        *types.Notion
 	DB            *sql.DB

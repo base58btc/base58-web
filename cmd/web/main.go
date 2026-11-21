@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -51,26 +50,9 @@ func loadConfig() (*types.EnvConfig, bool) {
 	config.CourseAssetPrefix = os.Getenv("COURSE_ASSET_PREFIX")
 
 	config.Notion = types.NotionConfig{
-		Token:          os.Getenv("NOTION_TOKEN"),
-		CoursesDb:      os.Getenv("NOTION_COURSES"),
-		SessionsDb:     os.Getenv("NOTION_SESSIONS"),
-		SessionCartsDb: os.Getenv("NOTION_CARTS"),
-		ItemCartsDb:    os.Getenv("NOTION_ITEM_CARTS"),
-		SignupsDb:      os.Getenv("NOTION_SIGNUPS"),
-		WaitlistDb:     os.Getenv("NOTION_WAITLIST"),
-		NewsletterDb:   os.Getenv("NOTION_NEWSLETTER"),
-		MissivesDb:     os.Getenv("NOTION_MISSIVES"),
-	}
-
-	config.OpenNode = types.OpenNodeConfig{
-		Key:      os.Getenv("OPENNODE_KEY"),
-		Endpoint: os.Getenv("OPENNODE_API"),
-	}
-
-	config.Stripe = types.StripeConfig{
-		Key:         os.Getenv("STRIPE_KEY"),
-		Pubkey:      os.Getenv("STRIPE_PUBKEY"),
-		EndpointSec: os.Getenv("STRIPE_ENDSEC"),
+		Token:      os.Getenv("NOTION_TOKEN"),
+		CoursesDb:  os.Getenv("NOTION_COURSES"),
+		SessionsDb: os.Getenv("NOTION_SESSIONS"),
 	}
 
 	isProd := os.Getenv("IS_PROD") == "1"
@@ -87,11 +69,10 @@ func main() {
 	env, isProd := loadConfig()
 	app.IsProd = isProd
 
-	/* Register cart types */
-	handlers.RegisterCheckoutTypes()
+	// Decode carts in pre-retirement sessions without restoring checkout behavior.
+	handlers.RegisterLegacyCartTypes()
 
 	// Start the server
-	app.EmailCache = make(map[string]*template.Template)
 	routes, err := handlers.Routes(&app)
 	if err != nil {
 		log.Fatal(err)

@@ -9,18 +9,17 @@ require (
 	github.com/base58btc/mailer v0.0.0-20250703225241-27f47714b725
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/gomarkdown/markdown v0.0.0-20260417124207-7d523f7318df
-	github.com/google/go-cmp v0.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/schema v1.4.1
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/joho/godotenv v1.5.1
 	github.com/rs/cors v1.11.1
 	github.com/sorcererxw/go-notion v0.2.4
-	github.com/stripe/stripe-go/v74 v74.12.0
 )
 
 require (
 	github.com/go-chi/chi/v5 v5.2.4 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect

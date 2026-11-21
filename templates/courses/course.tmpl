@@ -383,26 +383,7 @@ margin: 0rem !important;
                     {{ end }}
                     {{ end }}
 		    {{ else if eq .Course.Availability "Coming Soon" }}
-                    <div class="footer2_form-block">
-                      <div id="email-form" name="email-signup" class="footer9_form"> 
-                      <input class="form_input w-input" maxlength="256" 
-		        name="newsletter-email"
-		        id="newsletter-email" type="email" 
-			required
-                        autoComplete="on" autoCorrect="off" 
-			autoCapitalize="off" spellCheck="false"
-                        placeholder="you@base58.school"
-                        />
-		      <button id="subscribe-btn" 
-		        class="secondary-button course-page w-button"
-		        hx-post="/{{ .Course.Tag }}/subscribe"
-		        hx-include="#newsletter-email"
-		        hx-trigger="click"
-                        hx-target="#subscribe_result">Join the Waitlist</button>
-		      </div>
-		      <div id="subscribe_result">
-		      </div>
-		    </div>
+                    <p class="text-size-medium">Coming soon.</p>
 		    {{ else }}
                     <a href="{{ .Course.CourseURL }}" target="_blank" class="secondary-button course-page w-button">Join Course on {{ .Course.CourseHost }}</a>
 		    {{ end }}

@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -28,15 +27,11 @@ type (
 		CourseAssetRegion string
 		CourseAssetPrefix string
 		Notion            NotionConfig
-		Stripe            StripeConfig
-		OpenNode          OpenNodeConfig
 	}
 
 	CourseAvail  string
 	CourseFormat string
 	CourseLevel  string
-	ShirtSize    string
-	CheckoutOpt  string
 	Currency     string
 
 	ChapterInfo struct {
@@ -45,29 +40,27 @@ type (
 	}
 
 	Course struct {
-		ID            string
-		Tag           string
-		Title         string
-		Difficulty    string
-		Format        []CourseFormat
-		Topic         string
-		Availability  string
-		Popularity    uint
-		PriceUSD      uint
-		Flavor        string
-		ShortDesc     string
-		LongDesc      string
-		PreReqs       string
-		Visible       bool
-		Feature       bool
-		CourseURL     string
-		CourseHost    string
-		HeaderImg     string
-		Rating        float32
-		WelcomeEmail  string
-		WaitlistEmail string
-		Includes      []string
-		Chapters      []ChapterInfo
+		ID           string
+		Tag          string
+		Title        string
+		Difficulty   string
+		Format       []CourseFormat
+		Topic        string
+		Availability string
+		Popularity   uint
+		PriceUSD     uint
+		Flavor       string
+		ShortDesc    string
+		LongDesc     string
+		PreReqs      string
+		Visible      bool
+		Feature      bool
+		CourseURL    string
+		CourseHost   string
+		HeaderImg    string
+		Rating       float32
+		Includes     []string
+		Chapters     []ChapterInfo
 	}
 
 	CourseSession struct {
@@ -91,63 +84,6 @@ type (
 		ScheduleSpecifics string
 	}
 
-	ClassRegistration struct {
-		Email       string
-		MailingAddr *string
-		Shirt       *ShirtSize
-		ReplitUser  string
-		CheckoutVia CheckoutOpt
-		Session     string
-		Count       uint
-		SignupCode  string
-	}
-
-	WaitList struct {
-		Email       string
-		Idempotency string
-		Timestamp   string
-		SessionUUID string
-		PromoURL    string
-		CourseName  string
-	}
-
-	OptionItem struct {
-		Key   string
-		Value string
-	}
-
-	Checkout struct {
-		RegisterID   string
-		Email        string
-		SessionID    string
-		Price        uint64
-		Type         CheckoutOpt
-		Idempotency  string
-		PromoURL     string
-		CourseName   string
-		Count        uint64
-		Session      *CourseSession
-		DiscountCode string
-	}
-
-	Confirmed struct {
-		Idempotency string
-		Email       string
-		ClassRef    string
-		Count       uint
-	}
-
-	Subscriber struct {
-		Email string
-		Subs  []*Subscription
-		Pages []string
-	}
-
-	Subscription struct {
-		Name string
-		ID   string
-	}
-
 	FurlCard struct {
 		URL           string
 		Domain        string
@@ -159,16 +95,6 @@ type (
 		ExtraOneData  string
 		ExtraTwoLabel string
 		ExtraTwoData  string
-	}
-
-	Letter struct {
-		ID         string
-		Title      string
-		Newsletter string
-		Markdown   string
-		SendAt     string
-		SentAt     *time.Time
-		Expiry     *time.Time
 	}
 )
 
@@ -193,19 +119,6 @@ const (
 	Everyone CourseLevel = "everyone"
 	Entry    CourseLevel = "entry-dev"
 	Expert   CourseLevel = "exp-devs"
-)
-
-const (
-	Small ShirtSize = "small"
-	Med   ShirtSize = "med"
-	Large ShirtSize = "large"
-	XL    ShirtSize = "xl"
-	XXL   ShirtSize = "xxl"
-)
-
-const (
-	Bitcoin CheckoutOpt = "btc"
-	Fiat    CheckoutOpt = "fiat"
 )
 
 func (c CourseSession) IsUnscheduled() bool {
@@ -290,43 +203,6 @@ func (c CourseSession) FmtDates() []string {
 	return out
 }
 
-func (s CheckoutOpt) String() string {
-	return string(s)
-}
-
-var mapEnumCheckoutOpt = func() map[string]CheckoutOpt {
-	m := make(map[string]CheckoutOpt)
-	m[string(Bitcoin)] = Bitcoin
-	m[string(Fiat)] = Fiat
-
-	return m
-}()
-
-func ParseCheckoutOpt(str string) (CheckoutOpt, bool) {
-	ss, ok := mapEnumCheckoutOpt[strings.ToLower(str)]
-	return ss, ok
-}
-
-func (s ShirtSize) String() string {
-	return string(s)
-}
-
-var mapEnumShirtSize = func() map[string]ShirtSize {
-	m := make(map[string]ShirtSize)
-	m[string(Small)] = Small
-	m[string(Med)] = Med
-	m[string(Large)] = Large
-	m[string(XL)] = XL
-	m[string(XXL)] = XXL
-
-	return m
-}()
-
-func ParseShirtSize(str string) (ShirtSize, bool) {
-	ss, ok := mapEnumShirtSize[strings.ToLower(str)]
-	return ss, ok
-}
-
 func (s CourseAvail) String() string {
 	return string(s)
 }
@@ -381,195 +257,4 @@ func ParseCourseLevel(str string) (CourseLevel, bool) {
 func (e *EnvConfig) SecretBytes() []byte {
 	data, _ := hex.DecodeString(e.Secret)
 	return data
-}
-
-func FiatPrice(val uint64) uint64 {
-	return val
-}
-
-func BtcPrice(val uint64) uint64 {
-	return uint64(float64(val) * .85)
-}
-
-func (c *Checkout) ComputePrice(opt CheckoutOpt) uint64 {
-	switch opt {
-	case Bitcoin:
-		return BtcPrice(c.Price)
-	case Fiat:
-		return FiatPrice(c.Price)
-	}
-
-	panic(fmt.Sprintf("checkout option \"%s\" does not compute", opt))
-}
-
-func (c *Checkout) ComputeCount() uint64 {
-	/* FIXME: more intelligent parsing lang for count discounts */
-	if c.DiscountCode == "6s-1" && c.Count == 6 {
-		return c.Count - 1
-	}
-
-	return c.Count
-}
-
-/* Returns the dollar value (USD) of a checkout */
-func (c *Checkout) ComputeTotal(opt CheckoutOpt) uint64 {
-	price := c.ComputePrice(opt)
-	count := c.ComputeCount()
-
-	return price * count
-}
-
-/* Produces a human readable description */
-func (c *Checkout) MakeDesc() string {
-	var seatStr string
-	if c.Count == 1 {
-		seatStr = "seat"
-	} else {
-		seatStr = "seats"
-	}
-
-	return fmt.Sprintf("%d %s in Base58's %s class. %s", c.Count, seatStr, c.CourseName, c.Session.GetOptionDesc())
-}
-
-/* Returns true if subscribed is new state */
-func (s *Subscriber) AddSubscription(name string) bool {
-	if s.Subs == nil {
-		s.Subs = make([]*Subscription, 0)
-	}
-
-	for _, sub := range s.Subs {
-		if sub.Name == name {
-			return false
-		}
-	}
-
-	s.Subs = append(s.Subs, &Subscription{
-		Name: name,
-	})
-	return true
-}
-
-/* Returns true if unsubscribed is new state */
-func (s *Subscriber) RmSubscription(name string) bool {
-	if s.Subs == nil {
-		return false
-	}
-
-	newSubs := make([]*Subscription, 0)
-	unsubscribed := false
-
-	for _, sub := range s.Subs {
-		if sub.Name == name {
-			unsubscribed = true
-			continue
-		}
-		newSubs = append(newSubs, sub)
-	}
-
-	s.Subs = newSubs
-	return unsubscribed
-}
-
-func (s *Subscriber) IsSubscribed(newsletter string) bool {
-	for _, sub := range s.Subs {
-		if sub.Name == newsletter {
-			return true
-		}
-	}
-	return false
-}
-
-/*
-The syntax for calc send is:
-
-  - Blank means do not send
-  - 'now' means send now
-  - 'onsub' means send now, and keep sending when new subs are added
-  - A date means send on date at 9am.
-    3/4/2025 -> March, 4th 2025 @ 9am
-  - +9 -> scheduled for 9-days from now.
-    note: '+' days are never sent on weekends!
-  - anything else: returns an error
-*/
-func (l *Letter) CalcSendAt() (time.Time, error) {
-	if l.SendAt == "" {
-		return time.Now(), fmt.Errorf("Missive %s (%s) is not scheduled", l.Title, l.Newsletter)
-	}
-
-	if l.SendAt == "now" {
-		return time.Now(), nil
-	}
-
-	if l.SendAt == "onsub" {
-		return time.Now(), nil
-	}
-
-	if l.SendAt[0:1] == "+" {
-		days, err := strconv.Atoi(l.SendAt[1:])
-		if err != nil {
-			return time.Now(), err
-		}
-
-		sendAt := time.Now().AddDate(0, 0, days)
-		switch sendAt.Weekday() {
-		case time.Sunday:
-			days += 1
-		case time.Saturday:
-			days += 2
-		}
-		/* Update to new date (we don't send on weekends) */
-		sendAt = time.Now().AddDate(0, 0, days)
-
-		/* Set to 8.01a on that day */
-		setDate := time.Date(sendAt.Year(), sendAt.Month(), sendAt.Day(), 8, 1, 0, 0, sendAt.Location())
-		return setDate, nil
-	}
-
-	layout := "1/2/2006"
-	pT, err := time.Parse(layout, l.SendAt)
-	if err != nil {
-		return time.Now(), err
-	}
-	/* Set time to 8am */
-	setDate := time.Date(pT.Year(), pT.Month(), pT.Day(), 8, 1, 0, 0, pT.Location())
-	return setDate, nil
-}
-
-func (l *Letter) SetSentAt() bool {
-	return l.SentAt == nil && l.SendAt == "now" || l.SendAt == "onsub"
-}
-
-/* Either it's 'onsub' and already has a 'sent-at' or
- * it's scheduled for a '+X' date */
-func (l *Letter) AtSubOnly() bool {
-	return (l.SentAt != nil && l.SendAt == "onsub") || (len(l.SendAt) > 0 && l.SendAt[0:1] == "+")
-}
-
-func (l *Letter) Scheduled() bool {
-	if l.SendAt == "" {
-		return false
-	}
-	if l.SendAt == "now" && l.SentAt != nil {
-		return false
-	}
-	return true
-}
-
-func (l *Letter) Sendable() bool {
-	return l.Scheduled() && !l.IsExpired()
-}
-
-func (l *Letter) IsExpired() bool {
-	return l.Expiry != nil && l.Expiry.Before(time.Now())
-}
-
-/*
-Job identifier for this letter.
-
-	We use the pageID from Notion.
-	If you delete the missive from Notion, you won't
-	be able to unschedule it.
-*/
-func (l *Letter) Missive() string {
-	return l.ID
 }

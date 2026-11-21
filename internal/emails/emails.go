@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -16,8 +15,6 @@ import (
 	"time"
 
 	"github.com/kodylow/base58-website/internal/config"
-	"github.com/kodylow/base58-website/internal/types"
-	"github.com/kodylow/base58-website/internal/helpers"
 
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/ast"
@@ -26,11 +23,6 @@ import (
 
 	mailer "github.com/base58btc/mailer/mail"
 )
-
-type EmailInfos struct {
-	Course  *types.Course
-	Session *types.CourseSession
-}
 
 type EmailContent struct {
 	Content     string
@@ -166,46 +158,6 @@ func mdToHTML(md []byte) []byte {
 	return markdown.Render(doc, renderer)
 }
 
-func missiveTemplate(ctx *config.AppContext, letter *types.Letter) (*template.Template) {
-
-	/* Hash the data for a key. We use the ID + body
-	 * so if they change, a new template will get generated */
-	keyhash := makeJobHash("", letter.ID, letter.Markdown)
-	t, ok := ctx.EmailCache[keyhash]
-	if !ok {
-		t = template.Must(template.New("").Parse(string(letter.Markdown)))
-		ctx.EmailCache[keyhash] = t
-	}
-
-	return t
-}
-
-func findEmailMarkdown(ctx *config.AppContext, tmplURL string) (*template.Template, error) {
-	t, ok := ctx.EmailCache[tmplURL]
-	if !ok {
-		ctx.Infos.Printf("cache miss for %s", tmplURL)
-		req, _ := http.NewRequest("GET", tmplURL, nil)
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		tmpl, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-
-		if resp.StatusCode != 200 {
-			return nil, fmt.Errorf("error returned from %s: %s", tmplURL, err.Error())
-		}
-
-		t = template.Must(template.New("").Parse(string(tmpl)))
-		ctx.EmailCache[tmplURL] = t
-	}
-
-	return t, nil
-}
 func BuildHTMLEmail(ctx *config.AppContext, markdown []byte) ([]byte, error) {
 	return BuildHTMLEmailUnsub(ctx, markdown, "")
 }
@@ -266,105 +218,6 @@ type EmailFile struct {
 	Name string
 }
 
-func buildConfirmURL(ctx *config.AppContext, token string) string {
-	return fmt.Sprintf("%s/confirm/%s", ctx.SitePath(), token)
-}
-
-type SubConfirmEmail struct {
-	Email      string
-	ConfirmURL string
-	Newsletter string
-}
-
-func makeJobHash(email, newsletter, title string) string {
-	h := sha256.New()
-	h.Write([]byte(email))
-	h.Write([]byte(newsletter))
-	h.Write([]byte(title))
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-func SendNewsletterMissive(ctx *config.AppContext, email string, letter *types.Letter, sendAt time.Time) ([]byte, error) {
-
-	jobhash := makeJobHash(email, letter.Newsletter, letter.Title)
-	jobkey := fmt.Sprintf("%s-%s", letter.Newsletter, jobhash)
-
-	var buf bytes.Buffer
-	err := missiveTemplate(ctx, letter).Execute(&buf, &EmailContent{
-		URI: ctx.CallbackPath(),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	timestamp := uint64(time.Now().UTC().UnixNano())
-	_, subToken := helpers.GetSubscribeToken(ctx.Env.SecretBytes(), email, letter.Newsletter, timestamp)
-	htmlBody, err := BuildHTMLEmailUnsub(ctx, buf.Bytes(), subToken)
-	if err != nil {
-		return nil, err
-	}
-	/* Subscription key; ties this missive to all notes meant
-	 * for this email/user on this Newsletter */
-	subkey := makeSubKey(email, letter.Newsletter)
-	mail := &Mail{
-		JobKey:   jobkey,
-		Sub:      subkey,
-		Missive:  letter.Missive(),
-		Email:    email,
-		Title:    letter.Title,
-		SendAt:   sendAt,
-		TextBody: buf.Bytes(),
-		HTMLBody: htmlBody,
-	}
-
-	ctx.Infos.Printf("Sending (%s)%s to %s at %s", subkey, letter.Title, email, sendAt)
-
-	return htmlBody, ComposeAndSendMail(ctx, mail)
-}
-
-func SendNewsletterSubEmail(ctx *config.AppContext, email, token, newsletter string) ([]byte, error) {
-
-	var title, template string
-	if newsletter == "newsletter" {
-		title = "Newsletter Subscription"
-		template = "emails/confirm-sub.tmpl"
-	} else {
-		title = fmt.Sprintf("%s Course Waitlist", newsletter)
-		template = "emails/confirm-waitlist.tmpl"
-	}
-	jobkey := "subscribe-" + token
-	mail := &Mail{
-		JobKey: jobkey,
-		Sub:    makeSubKey(email, newsletter),
-		Email:  email,
-		Title:  fmt.Sprintf("[Action Required] Confirm Base58 %s", title),
-		SendAt: time.Now(),
-	}
-
-	ctx.Infos.Printf("mail subkey is %s", mail.Sub)
-
-	/* Swap in the tokens */
-	var buf bytes.Buffer
-	err := ctx.TemplateCache.ExecuteTemplate(&buf, template, &SubConfirmEmail{
-		Email:      email,
-		ConfirmURL: buildConfirmURL(ctx, token),
-		Newsletter: newsletter,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	mail.TextBody = buf.Bytes()
-
-	mail.HTMLBody, err = BuildHTMLEmail(ctx, buf.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	return mail.HTMLBody, ComposeAndSendMail(ctx, mail)
-}
-
 func SendContactEmail(ctx *config.AppContext, email, message, from, formtype string) ([]byte, error) {
 	var err error
 
@@ -404,42 +257,6 @@ func SendContactEmail(ctx *config.AppContext, email, message, from, formtype str
 	if err != nil {
 		return nil, err
 	}
-
-	return mail.HTMLBody, ComposeAndSendMail(ctx, mail)
-}
-
-func SendRegistrationEmail(ctx *config.AppContext, course *types.Course, session *types.CourseSession, confirm *types.Confirmed) ([]byte, error) {
-	var err error
-	mail := &Mail{
-		JobKey: confirm.Idempotency,
-		Email:  confirm.Email,
-		Title:  fmt.Sprintf("Your Registration for Base58's %s", course.Title),
-		SendAt: time.Now(),
-	}
-
-	emailTmpl, err := findEmailMarkdown(ctx, course.WelcomeEmail)
-
-	/* Swap in the tokens */
-	var buf bytes.Buffer
-	err = emailTmpl.Execute(&buf, &EmailInfos{
-		Course:  course,
-		Session: session,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	mail.TextBody = buf.Bytes()
-
-	mail.HTMLBody, err = BuildHTMLEmail(ctx, buf.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	/* FIXME: if ticketed event, send a ticket PDF too! x confirm.Count */
-	//refID := UniqueID(email, idem, int32(i))
-
-	/* FIXME: add a receipt PDF */
 
 	return mail.HTMLBody, ComposeAndSendMail(ctx, mail)
 }
@@ -485,7 +302,7 @@ func makeSubKey(email, newsletter string) string {
 }
 
 func sendMailerReq(ctx *config.AppContext, endpoint string, method string, payload []byte) error {
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 
 	url := ctx.Env.MailEndpoint + endpoint
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
@@ -502,6 +319,9 @@ func sendMailerReq(ctx *config.AppContext, endpoint string, method string, paylo
 	}
 
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("mailer request %s failed with HTTP %d", endpoint, resp.StatusCode)
+	}
 
 	var ret mailer.ReturnVal
 	data, err := ioutil.ReadAll(resp.Body)
@@ -532,28 +352,9 @@ func SendSubDeleteRequest(ctx *config.AppContext, email, sub string) error {
 
 	err = sendMailerReq(ctx, "/sub", http.MethodDelete, payload)
 	if err != nil {
-		return fmt.Errorf("Sub delete request failed. %s, %s : %s", sub,  email, err)
+		return fmt.Errorf("Sub delete request failed. %s, %s : %s", sub, email, err)
 	}
 	ctx.Infos.Printf("Rm'd subscription %s", subkey)
-	return nil
-}
-
-func SendCancelMissiveRequest(ctx *config.AppContext, missive string) error {
-	/* Send as a DELETE request w/ JSON body */
-	del := &mailer.MissiveDelete{
-		Missive: missive,
-	}
-	payload, err := json.Marshal(del)
-	if err != nil {
-		return err
-	}
-
-	err = sendMailerReq(ctx, "/missive", http.MethodDelete, payload)
-	if err != nil {
-		return fmt.Errorf("Unable to delete missive %s: %s", del.Missive, err)
-	}
-
-	ctx.Infos.Printf("Rm'd missive %s", missive)
 	return nil
 }
 

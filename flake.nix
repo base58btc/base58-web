@@ -14,7 +14,7 @@
           pname = name;
           version = "0.1.0";
           src = ./.;
-          vendorHash = "sha256-sXeQm6N4W5+xdtAzX3NqO/7fx/W6inVOVwPAnrryS2I=";
+          vendorHash = "sha256-1fDkDWGW0IZlkZ031niQ+3u1KXnrHOZXvlqvnFQwW8U=";
           subPackages = [ subPackage ];
           nativeBuildInputs = pkgs.lib.optionals (name == "base58-website") [ pkgs.makeWrapper ];
           postInstall = pkgs.lib.optionalString (binaryName != name) ''

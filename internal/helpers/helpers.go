@@ -180,21 +180,6 @@ func ConvertMdToHTML(ctx *config.AppContext, format, mdContent string) []byte {
 	return htmlOut
 }
 
-func FilterWaitlistSessions(sessions []*types.CourseSession) []*types.CourseSession {
-	return FilterSessionsByAvail(sessions, 0)
-}
-
-func FilterSessionsByAvail(sessions []*types.CourseSession, minAvail uint) []*types.CourseSession {
-	filtered := make([]*types.CourseSession, 0)
-
-	for _, sesh := range sessions {
-		if sesh.SeatsAvail > minAvail {
-			filtered = append(filtered, sesh)
-		}
-	}
-	return filtered
-}
-
 func FilterSessions(sessions []*types.CourseSession, from time.Time) []*types.CourseSession {
 	filtered := make([]*types.CourseSession, 0)
 
@@ -233,4 +218,3 @@ func GetSubscribeToken(sec []byte, email, newsletter string, timestamp uint64) (
 	timeHex := hex.EncodeToString(b)
 	return hash, fmt.Sprintf("%s-%s-%s-%s", hash, emailHex, subHex, timeHex)
 }
-
