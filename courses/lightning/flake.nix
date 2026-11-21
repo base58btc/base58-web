@@ -83,6 +83,7 @@
               pkgs.gawk
               pkgs.gnugrep
               pkgs.gnused
+              pkgs.less
               pkgs.bitcoind
               pkgs.clightning
               (pkgs.python3.withPackages (ps: [

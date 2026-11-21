@@ -116,7 +116,6 @@ developer
 dev-fast-gossip
 dev-bitcoind-poll=5
 experimental-dual-fund
-experimental-splicing
 funder-policy=match
 funder-policy-mod=100
 funder-min-their-funding=10000sats
@@ -254,8 +253,8 @@ fund_nodes() {
 		$LCLI -H --lightning-dir=$PATH_TO_LIGHTNING/l"$node1" connect "$L2_NODE_ID"@localhost:"$L2_NODE_PORT" > /dev/null
 
         # Fund both nodes, let's do a dual funded channel :)
-		L1_WALLET_ADDR=$($LCLI -F --lightning-dir=$PATH_TO_LIGHTNING/l"$node1" newaddr | sed -n 's/^bech32=\(.*\)/\1/p')
-		L2_WALLET_ADDR=$($LCLI -F --lightning-dir=$PATH_TO_LIGHTNING/l"$node2" newaddr | sed -n 's/^bech32=\(.*\)/\1/p')
+		L1_WALLET_ADDR=$($LCLI -F --lightning-dir=$PATH_TO_LIGHTNING/l"$node1" newaddr bech32 | sed -n 's/^bech32=\(.*\)/\1/p')
+		L2_WALLET_ADDR=$($LCLI -F --lightning-dir=$PATH_TO_LIGHTNING/l"$node2" newaddr bech32 | sed -n 's/^bech32=\(.*\)/\1/p')
 
 		ensure_bitcoind_funds
 
