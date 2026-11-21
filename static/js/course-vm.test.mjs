@@ -4,7 +4,7 @@ import {gzipSync} from "node:zlib";
 import {createHash} from "node:crypto";
 import {parseNar, mountArchive} from "./course-nar.mjs";
 import {CourseVM, boundedOutput, commandQueue, verifiedArchive, loadArchives} from "./course-vm.mjs";
-import {CommandJournal, journalState} from "./course-history.mjs";
+import {CommandJournal, journalState, replayCommands} from "./course-history.mjs";
 
 function nar(...tokens) {
   return Buffer.concat(tokens.map(token => {
@@ -46,7 +46,7 @@ test("commands stay ordered and a failed cell does not block the next", async ()
   assert.deepEqual(events, ["first", "second"]);
 });
 
-test("archive download order cannot change filesystem inode allocation on restore", async () => {
+test("archive mounting stays reproducible despite download order", async () => {
   const archives = ["a", "b"].map(name => ({storePath: "/nix/store/" + name.repeat(32) + "-example"}));
   const load = async reverse => {
     const inodes = new Map(), pending = new Map();
@@ -59,14 +59,6 @@ test("archive download order cannot change filesystem inode allocation on restor
     return inodes;
   };
   assert.deepEqual(await load(false), await load(true));
-});
-
-test("legacy checkpoints are refused before replacing disk state", async () => {
-  const runtime = new CourseVM({});
-  let restored = false;
-  runtime.storage = {restore: async () => { restored = true; }};
-  await assert.rejects(runtime.startKernel({state: {metadata: {}}}), /history and checkpoints have been preserved/);
-  assert.equal(restored, false);
 });
 
 function memoryJournal(trace, refuse = false) {
@@ -103,16 +95,15 @@ test("native Python keeps original Unicode source and encodes argv without shell
   assert.throws(() => runtime.executePython("⚡".repeat(6000)), /16 KiB/);
 });
 
-test("records resolved argv before dispatch and commits failed commands only after their checkpoint", async () => {
+test("records resolved argv before dispatch and keeps failed commands in the log without stopping the VM", async () => {
   const trace=[], storage=memoryJournal(trace);
   const runtime=new CourseVM({});
   runtime.storage=storage; runtime.config={}; runtime.journal=new CommandJournal(storage);
   await runtime.journal.load();
   runtime.ready=async () => {};
-  runtime.startKernel=async () => {runtime.vm={exec:async () => {trace.push("execute");return {exitCode:1,stdout:"partial write",stderr:"error"};}};};
-  runtime.capture=async () => {trace.push("checkpoint");return {};};
+  runtime.vm={exec:async () => {trace.push("execute");return {exitCode:1,stdout:"partial write",stderr:"error"};}};
   const result=await runtime.execute({program:"bash",args:["-c","touch partial; exit 1"]},{source:"!bash ...",lessonPath:"01_intro",blockId:"cell-1"});
-  assert.deepEqual(trace,["command","execute","checkpoint","result"]);
+  assert.deepEqual(trace,["command","execute","result"]);
   assert.equal(result.exitCode,1);
   assert.equal(runtime.journal.state.commands.get(runtime.journal.state.head).command.args[1],"touch partial; exit 1");
 });
@@ -121,7 +112,7 @@ test("a journal write failure prevents command dispatch", async () => {
   const trace=[],storage=memoryJournal(trace,true),runtime=new CourseVM({});
   runtime.storage=storage;runtime.config={};runtime.journal=new CommandJournal(storage);await runtime.journal.load();
   runtime.ready=async () => {};
-  runtime.startKernel=async () => {runtime.vm={exec:async () => {trace.push("execute");}};};
+  runtime.vm={exec:async () => {trace.push("execute");},stop:async () => {}};
   await assert.rejects(runtime.execute({program:"touch",args:["file"]}),/offline/);
   assert.deepEqual(trace,["command"]);
 });
@@ -140,4 +131,105 @@ test("undo preserves original results, branches, and interrupted commands", () =
   assert.equal(state.head,"a");assert.equal(state.pending,"");assert.equal(state.commands.size,3);
   assert.equal(state.commands.get("b").result.exitCode,0);assert.equal(state.commands.get("c").interrupted,true);
   assert.throws(()=>journalState([...events,{id:"bad",type:"checkout",head:"b"}]),/checkout/);
+});
+
+function replayFixture() {
+  const trace=[], storage=memoryJournal(trace), runtime=new CourseVM({});
+  runtime.storage=storage; runtime.config={}; runtime.journal=new CommandJournal(storage);
+  let counter=0, boots=0;
+  runtime.startKernel=async () => {
+    boots++; counter=0;
+    runtime.vm={
+      stop:async () => {},
+      exec:async (_shell,args) => {
+        const program=args[args.indexOf("course-command")+1];
+        if(program==="increment") counter++;
+        return {exitCode:0,stdout:String(counter),stderr:""};
+      }
+    };
+  };
+  runtime.ready=async () => {};
+  return {runtime, storage, boots:()=>boots};
+}
+
+test("ordinary cells reuse one VM; resume replays without adding journal events", async () => {
+  const {runtime,storage,boots}=replayFixture();
+  await runtime.journal.load(); await runtime.rebuild("");
+  assert.equal((await runtime.execute({program:"increment",args:[]})).stdout,"1");
+  assert.equal((await runtime.execute({program:"increment",args:[]})).stdout,"2");
+  assert.equal(boots(),1);
+  const before=JSON.stringify(storage.events);
+  await runtime.rebuild(runtime.journal.state.head);
+  assert.equal(boots(),2); assert.equal(JSON.stringify(storage.events),before);
+  assert.equal((await runtime.execute({program:"increment",args:[]})).stdout,"3");
+});
+
+test("undo rebuilds a fresh VM and new commands exclude the undone branch", async () => {
+  const {runtime,storage}=replayFixture();
+  await runtime.journal.load(); await runtime.rebuild("");
+  await runtime.execute({program:"increment",args:[]});
+  await runtime.execute({program:"increment",args:[]});
+  const undone=await runtime.undo();
+  assert.equal((await runtime.execute({program:"increment",args:[]})).stdout,"2");
+  assert.equal(runtime.journal.state.commands.get(undone.id).result.stdout,"2");
+  assert.deepEqual(replayCommands(runtime.journal.state).map(e=>e.result.stdout),["1","2"]);
+  const before=storage.events.length;
+  await runtime.rebuild(runtime.journal.state.head);
+  assert.equal(storage.events.length,before);
+});
+
+test("replay accepts changed output and recorded nonzero exits but stops on a changed outcome", async () => {
+  const {runtime,storage}=replayFixture();
+  await runtime.journal.load(); await runtime.rebuild("");
+  await runtime.execute({program:"increment",args:[]});
+  await runtime.execute({program:"increment",args:[]});
+  const before=JSON.stringify(storage.events);
+  runtime.runCommand=async () => ({exitCode:1,stdout:"different",stderr:"missing input",timedOut:false});
+  await assert.rejects(runtime.rebuild(runtime.journal.state.head),/Replay stopped at command 1/);
+  assert.equal(runtime.vm,null); assert.equal(runtime.failed,true);
+  assert.equal(JSON.stringify(storage.events),before);
+  // Even when an earlier command fails, repeated Undo must be able to reach an
+  // empty history. Failed rebuilds must not trap the student behind the last cell.
+  await assert.rejects(runtime.undo(),/Replay stopped/);
+  await runtime.undo();
+  assert.equal(runtime.journal.state.head,""); assert.equal(runtime.failed,false);
+  await runtime.execute({program:"expected-failure",args:[]});
+  runtime.runCommand=async () => ({exitCode:1,stdout:"new output",stderr:"",timedOut:false});
+  await runtime.rebuild(runtime.journal.state.head);
+  assert.equal(runtime.failed,false);
+});
+
+test("an interrupted command is retained in history but never replayed", () => {
+  const state=journalState([
+    {id:"a",type:"command",command:{program:"increment",args:[]}},
+    {id:"ar",type:"result",commandId:"a",result:{exitCode:0}},
+    {id:"b",type:"command",parent:"a",command:{program:"increment",args:[]}},
+    {id:"bi",type:"interrupted",commandId:"b"}
+  ]);
+  assert.deepEqual(replayCommands(state).map(entry=>entry.id),["a"]);
+});
+
+test("a failed result write stops the VM and never reexecutes the command", async () => {
+  const {runtime,storage}=replayFixture();
+  await runtime.journal.load(); await runtime.rebuild("");
+  const append=storage.appendEvent;
+  storage.appendEvent=async event => { if(event.type==="result")throw new Error("offline"); return append(event); };
+  await assert.rejects(runtime.execute({program:"increment",args:[]}),/offline/);
+  assert.equal(runtime.vm,null); assert.equal(runtime.failed,true);
+  assert.equal(storage.events.length,1);
+  await assert.rejects(runtime.execute({program:"increment",args:[]}),/could not finish saving/);
+  assert.equal(storage.events.length,1);
+});
+
+
+test("a timed-out execution is logged, stops the VM, and can be undone", async () => {
+  const {runtime}=replayFixture();
+  await runtime.journal.load(); await runtime.rebuild("");
+  runtime.runCommand=async () => ({stdout:"",stderr:"timeout",exitCode:-1,timedOut:true});
+  const result=await runtime.execute({program:"sleep",args:["100"]});
+  assert.equal(result.timedOut,true); assert.equal(runtime.vm,null);
+  assert.ok(runtime.replayFailure);
+  assert.equal(runtime.journal.state.commands.get(runtime.journal.state.head).result.timedOut,true);
+  await runtime.undo();
+  assert.equal(runtime.failed,false); assert.equal(runtime.journal.state.head,"");
 });

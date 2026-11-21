@@ -31,7 +31,9 @@ for program in ("bitcoind", "lightningd"):
 print("Workspace:", Path.cwd())
 +++
 
-Each completed cell saves a checkpoint of the VM, including Python variables, files, wallets, and running services. **Save and stop** releases the environment so you can resume on another device when signed in. **Undo** returns to the checkpoint before the most recent execution. A local draft preview saves in that browser only.
+Each execution records the cell’s code and result. **Save and stop** saves the command history, which you can resume on another device when signed in. Resume starts a fresh VM and replays the completed commands in order. **Undo** rebuilds the environment by replaying all but the last command. A local draft preview saves the history in that browser only.
+
+Replay repeats the work, but generated keys, addresses, transaction IDs, timestamps, and other values may change. Saved output records the original execution; rerun a cell to inspect current values. Files or changes created outside recorded commands are not saved. VM memory and disk snapshots are not saved.
 
 Re-running a cell executes it again. That matters for cells that mine blocks, send coins, or generate random values. The command history records each execution; use Undo when you mean to reverse one.
 
@@ -42,7 +44,7 @@ These cells use ordinary Python. The original notebooks’ `!command`, `$variabl
 ~~~
 id: execution-location
 Where do the course’s Bitcoin and Lightning nodes run?
-= Inside the browser VM. [Their state is included in the course checkpoint.]
+= Inside the browser VM. [The command history rebuilds them when you resume.]
 - On the public Bitcoin network. [This workshop uses an isolated regtest chain.]
 - On a shared server node. [Each course attempt has its own environment.]
 ~~~

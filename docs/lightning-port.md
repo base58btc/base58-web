@@ -11,7 +11,7 @@ The port lives in `courses/lightning`. These are native course Markdown pages, n
 | `Revocation Generation.ipynb` | `03-revocation-generation.md` |
 | `Lightning Gossip for Fun + Profit.ipynb` | `04-gossip-for-fun-and-profit.md` and `05-build-and-send-an-onion.md` |
 
-`00-welcome.md` introduces the environment and checkpoint behavior. The original explanations, invoice examples, five revocation vectors, example channel, and routing endpoints are retained. Historical execution outputs and empty notebook cells are omitted. The notebooks’ algorithms are visible in editable cells; `lab.py` only handles local CLI calls and regtest setup.
+`00-welcome.md` introduces the environment and command-replay behavior. The original explanations, invoice examples, five revocation vectors, example channel, and routing endpoints are retained. Historical execution outputs and empty notebook cells are omitted. The notebooks’ algorithms are visible in editable cells; `lab.py` only handles local CLI calls and regtest setup.
 
 ## Python execution
 
@@ -28,7 +28,9 @@ Existing `+++` and `+++ id` cells still use Pyodide. All Lightning cells use `py
 
 The course flake supplies Python and `coincurve` (native `libsecp256k1` bindings), Bitcoin Core, Core Lightning, Bash, and small CLI utilities. Dependencies are built into the publish bundle. There is no student-side `pip`, Nix build, or external node connection.
 
-`CourseVM.executePython` submits a CLI invocation through the existing command journal and checkpoint path, preserving the original source and cell ID. `static/guest/course-python.py` maintains one Python namespace inside the VM. A new Unix-socket client connects for each cell, avoiding reliance on a live client connection across restores. Python globals are therefore part of VM memory, alongside the daemon state and disk. Each cell is one journal command; individual RPCs/subprocesses called inside a cell are not separate journal entries.
+`CourseVM.executePython` records each cell's CLI invocation, original source, and cell ID in the command journal. `static/guest/course-python.py` maintains one Python namespace in the live VM. Both remain running between cells. On resume or undo, a fresh VM replays the completed cells on the active history branch; it does not restore memory or disk snapshots. Each cell is one journal command; individual RPCs/subprocesses called inside it are not separate entries.
+
+Replay can generate different wallet keys, addresses, invoices, timestamps, and transaction IDs. Original output remains in the journal. Changes outside recorded cells are not saved. Replay stops on a changed exit status or timeout, and Undo can move the history back to an earlier prefix.
 
 The runner prints the final expression, captures Python output and exceptions, limits output and cell source size, and applies a 90-second Python alarm inside the outer 120-second CLI timeout. This is ordinary Python, not an IPython kernel: notebook magics are replaced with explicit Python helpers. Interactive input and rich HTML displays are not implemented.
 
@@ -102,8 +104,8 @@ Open `http://127.0.0.1:8099/courses/lightning/00-welcome`. The preview serves al
 six actual lesson pages, the prepared environment endpoint, and the NAR archives.
 Run the welcome cell, then use the sidebar to work through the lessons. Python,
 Bitcoin, and Lightning execute in the browser VM. Executed cell text/output and
-quiz answers persist in local browser storage; the VM journal and checkpoints
-persist in IndexedDB. This local mode needs no database, login, or publishing
+quiz answers persist in local browser storage; the command journal
+persists in IndexedDB. This local mode needs no database, login, or publishing
 credentials and does not sync to a course account.
 
 The server requires a matching `courses/lightning/course-runtime.json` and
@@ -133,7 +135,7 @@ ARM64 Linux. Its 92 runtime archives total 188.5 MiB compressed. The downloaded
 bundle passed source and archive verification locally, and the browser VM ran
 Python, coincurve's native secp256k1 public-key derivation, `bitcoind --version`,
 and `lightningd --version` successfully. This smoke test does not cover the full
-three-node lesson sequence or cross-device checkpoint restoration in the browser.
+three-node lesson sequence or cross-device command replay in the browser.
 
 To inspect a downloaded artifact without overwriting local edits:
 
@@ -171,19 +173,16 @@ The generic preview's `pwd` command works before this initialization. The
 `/data/workspace/node` directory from the README's separate example flake is not
 used by the Lightning course.
 
-The browser now mounts archives in manifest order so filesystem inode numbers
-remain stable across reloads. Initializing Bitcoin, saving, refreshing the page,
-and querying the restored node at height 101 have been checked in the browser.
-Checkpoints from the earlier download-order-dependent implementation are retained
-but require migration before they can resume; they are not silently reset. A
-different preview port provides a fresh browser workspace for testing this fix
-without clearing the old preview's saved work.
+The browser mounts archives in manifest order. Earlier versions stored machine
+checkpoints; that path is retired. Existing command journals can be replayed,
+while old snapshot data is retained without being read or updated. Replayed values
+can differ from the original outputs shown in the course.
 
 ## Browser validation and publishing
 
 The Linux build and native lesson tests do not replace browser acceptance checks.
 Native execution does not validate the browser emulator's memory requirements or
-native Python/three-node checkpoint restoration.
+native Python/three-node command replay.
 
 On an aarch64 Linux Nix builder, with `course-sync` available:
 
@@ -194,4 +193,4 @@ course-sync sync --server https://YOUR-COURSE-SERVER --course lightning --dir ./
 
 Review the draft with the bundled environment, then publish through the normal course workflow. Rebuild after any course source change. No deployment or publication is performed by this port.
 
-Before publishing, run the lessons in a supported browser, confirm the 10,000-satoshi payment settles, stop and resume on another device, verify Python globals and all three nodes restore, and undo the send cell to verify the invoice returns to unpaid. Measure the initial download and checkpoint sizes against the current 512 MiB VM budget.
+Before publishing, run the lessons in a supported browser, confirm the 10,000-satoshi payment settles, stop and resume on another device, verify Python globals and all three nodes are rebuilt by replay, and undo the send cell to verify the replayed invoice is unpaid. Generated identifiers may differ. Measure initial download, replay duration, and memory use against the current 512 MiB VM budget.

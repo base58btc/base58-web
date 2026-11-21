@@ -9,6 +9,7 @@ import (
 )
 
 type Command struct {
+	TimeoutMS  int      `json:"timeoutMs,omitempty"`
 	Program    string   `json:"program"`
 	Args       []string `json:"args"`
 	Source     string   `json:"source,omitempty"`
@@ -59,7 +60,7 @@ func (s *State) Apply(e Event) error {
 		}
 		c := e.Command
 		data, _ := json.Marshal(c)
-		if c.Program == "" || len(data) > 65536 || len(c.Args) > 1024 || strings.ContainsRune(c.Program, 0) {
+		if c.TimeoutMS < 0 || c.TimeoutMS > 120000 || c.Program == "" || len(data) > 65536 || len(c.Args) > 1024 || strings.ContainsRune(c.Program, 0) {
 			return ErrInvalid
 		}
 		for _, arg := range c.Args {

@@ -1,18 +1,10 @@
 import {mountArchive} from "./course-nar.mjs";
-import {CheckpointStorage} from "./course-checkpoints.mjs";
-import {CommandJournal, newEvent} from "./course-history.mjs";
+import {CommandStorage} from "./course-command-storage.mjs";
+import {CommandJournal, newEvent, replayCommands} from "./course-history.mjs";
 
 const SDK = "/static/vendor/unkernel-0.2.0-261119-040e142/web.mjs";
 const CACHE = "base58-course-archives-v1";
 const MAX_OUTPUT = 1 << 20;
-const FILESYSTEM_LAYOUT = 1;
-
-function checkFilesystemLayout(checkpoint) {
-  if (checkpoint && checkpoint.state.metadata.base58FilesystemLayout !== FILESYSTEM_LAYOUT) {
-    throw new Error("This saved environment predates the filesystem restore fix and needs migration before it can resume. Its history and checkpoints have been preserved.");
-  }
-}
-
 export function boundedOutput(value) {
   const text = String(value || ""), bytes = new TextEncoder().encode(text);
   return bytes.length <= MAX_OUTPUT ? text : new TextDecoder().decode(bytes.subarray(0, MAX_OUTPUT - 32)) + "\n[output truncated]\n";
@@ -38,9 +30,7 @@ export async function verifiedArchive(archive, baseURL, fetcher = fetch) {
 }
 
 export async function loadArchives(files, archives, baseURL, onProgress = () => {}, download = verifiedArchive) {
-  // MemoryFs assigns inode numbers in insertion order. Restored kernels retain
-  // those numbers, so a download race must never change archive mounting order.
-  // Keep downloads parallel and bounded, but mount in the manifest's order.
+  // Keep downloads parallel and bounded, and mount in a reproducible order.
   for (let offset = 0; offset < archives.length; offset += 2) {
     const batch = archives.slice(offset, offset + 2);
     const contents = await Promise.all(batch.map(archive => download(archive, baseURL)));
@@ -83,8 +73,11 @@ export class CourseVM {
   }
 
   ready() {
+    if (this.replayFailure) return Promise.reject(this.replayFailure);
     if (!this.booting) this.booting = this.boot().catch(async error => {
-      try { await this.close(); } catch { /* Preserve the initialization error. */ }
+      if (!this.replayFailure) {
+        try { await this.close(); } catch { /* Preserve the initialization error. */ }
+      }
       throw error;
     });
     return this.booting;
@@ -94,7 +87,7 @@ export class CourseVM {
     if (typeof WebAssembly.Suspending !== "function" || typeof WebAssembly.promising !== "function") {
       throw new Error("The course VM needs a browser with WebAssembly JSPI support.");
     }
-    this.onStatus("Loading saved course environment…");
+    this.onStatus("Loading course command history…");
     let config = this.environment;
     if (!config) {
       const response = await fetch(this.environmentURL, {credentials:"same-origin", cache:"no-store"});
@@ -104,9 +97,9 @@ export class CourseVM {
     this.config = config;
     const {manifest, files, assetBaseURL, workspace, journalURL} = config;
     if (manifest.format !== 1 || manifest.system !== "aarch64-linux") throw new Error("Unsupported course environment");
-    this.diskName = "base58-course-" + workspace;
-    this.release = await workspaceLock(this.diskName);
-    this.storage = new CheckpointStorage({workspace, journalURL, csrfToken:this.csrfToken || config.csrfToken || "", onStatus:this.onStatus});
+    this.workspaceName = "base58-course-" + workspace;
+    this.release = await workspaceLock(this.workspaceName);
+    this.storage = new CommandStorage({workspace, journalURL, csrfToken:this.csrfToken || config.csrfToken || "", onStatus:this.onStatus});
     await this.storage.open();
     this.journal = new CommandJournal(this.storage, this.onHistory);
     await this.journal.load();
@@ -126,60 +119,73 @@ export class CourseVM {
     });
     this.mounts = {"/course-store":{fs:store,readOnly:true}, "/course":{fs:sources,readOnly:true}};
     this.shell = manifest.shell;
-    // The device lease has expired or was released before we can reach here.
-    // Never rerun a command whose browser disappeared halfway through execution.
+    // An execution without a durable result is kept in the audit log but is not
+    // replayed. Its partial machine state disappears with the old VM.
     if (this.journal.state.pending) {
-      const id = this.journal.state.pending;
-      let checkpoint = await this.storage.checkpoint(id);
-      if (!checkpoint) {
-        checkpoint = await this.storage.get("checkpoints",this.storage.key(id));
-        if (checkpoint) await this.storage.upload(id,checkpoint);
-      }
-      if (checkpoint?.state.result) await this.journal.append(newEvent("result",{commandId:id,result:checkpoint.state.result}));
-      else await this.journal.append(newEvent("interrupted",{commandId:id}));
+      await this.journal.append(newEvent("interrupted", {commandId:this.journal.state.pending}));
     }
-    this.saved = await this.storage.checkpoint(this.journal.state.head);
-    checkFilesystemLayout(this.saved);
-    if (!this.saved) {
-      if (this.journal.state.head) throw new Error("The saved VM checkpoint is missing. Your command history has been kept.");
-      await this.startKernel();
-      this.saved = await this.capture("");
-    }
-    this.failed = false;
-    this.onStatus(journalURL ? "Course restored · saved to your account" : "Course restored · saved in this browser");
+    await this.rebuild(this.journal.state.head);
+    this.onStatus(journalURL ? "History replayed · commands saved to your account" : "History replayed · commands saved in this browser");
   }
 
-  async startKernel(checkpoint) {
-    checkFilesystemLayout(checkpoint);
-    this.onStatus(checkpoint ? "Resuming course VM…" : "Starting course services…");
-    const restore = checkpoint ? await this.storage.restore(checkpoint,this.diskName,SDK) : undefined;
-    // This pinned SDK restores host filesystem mounts only in inline mode.
-    // No external network device is attached; guest loopback remains available.
+  async startKernel() {
+    this.onStatus("Starting a fresh course environment…");
+    if (!this.kernelModule) {
+      this.kernelModule = await this.sdk.loadKernelModule(new URL("unkernel.wasm", new URL(SDK, location.href)));
+      this.diskTemplate = this.sdk.decodeKwsparse(await this.sdk.gunzipIfNeeded(this.sdk.bundledBoot(this.kernelModule).datadisk));
+    }
+    // All guest writes stay in memory. Each rebuild starts from the bundled
+    // empty data disk, never a previous session's files or saved machine state.
+    const disk = new this.sdk.CowDisk(this.sdk.SparseBase.fromKwsparse(this.diskTemplate));
     this.vm = await this.sdk.createKernel({
-      kernel:new URL("unkernel.wasm",new URL(SDK,location.href)).href,
-      memoryMiB:512, worker:false, restore, mounts:this.mounts,
-      disks:[{kind:"data",template:"bundled",name:this.diskName}],
+      kernel:this.kernelModule, memoryMiB:512, worker:false, mounts:this.mounts,
+      disks:[disk],
     });
-    if (restore) return;
-    let result = await this.vm.exec("/bin/sh",["-c","ln -s /course-store/nix /nix; mkdir -p /data/workspace; if [ ! -e /data/workspace/.base58-initialized ]; then cp -R /course/. /data/workspace/ && touch /data/workspace/.base58-initialized; fi"]);
+    let result = await this.vm.exec("/bin/sh",["-c","ln -s /course-store/nix /nix; mkdir -p /data/workspace; cp -R /course/. /data/workspace/"]);
     if (result.exitCode !== 0) throw new Error(result.stderr || "Unable to initialize course workspace");
     result = await this.vm.exec(this.shell,["--noprofile","--norc","-c",'. /course/.base58-setup.sh; eval "${shellHook:-}" || exit $?; export -p > /tmp/base58-environment.sh; declare -f >> /tmp/base58-environment.sh'],{cwd:"/data/workspace",signal:AbortSignal.timeout(60000),maxBuffer:MAX_OUTPUT});
     if (result.exitCode !== 0) throw new Error(result.stderr || result.stdout || "Course initialization failed");
   }
 
-  async capture(id, result) {
-    this.onStatus("Saving course checkpoint…");
-    let snapshot;
-    for (let attempt=0;attempt<10;attempt++) {
-      try { snapshot = await this.vm.snapshot({stop:true}); break; }
-      catch (error) {
-        if (attempt === 9 || !/in flight|did not park|EBUSY/.test(error.message)) throw error;
-        await new Promise(resolve => setTimeout(resolve,100));
-      }
+  async stopKernel() {
+    try { if (this.vm) await this.vm.stop(); }
+    finally { this.vm = null; }
+  }
+
+  async runCommand(command, timeoutMs) {
+    const signal = AbortSignal.timeout(timeoutMs || command.timeoutMs || (command.program === "python3" ? 120000 : 30000));
+    try {
+      const result = await this.vm.exec(this.shell,["--noprofile","--norc","-c",'. /tmp/base58-environment.sh; exec "$@"',"course-command",command.program,...command.args],{cwd:"/data/workspace",signal,maxBuffer:MAX_OUTPUT});
+      return {stdout:boundedOutput(result.stdout),stderr:boundedOutput(result.stderr),exitCode:result.exitCode ?? -1,timedOut:false};
+    } catch (error) {
+      return {stdout:"",stderr:signal.aborted ? "Command timed out.\n" : boundedOutput(error.message || error),exitCode:-1,timedOut:signal.aborted};
     }
-    await this.vm.stop(); this.vm = null;
-    snapshot.base58FilesystemLayout = FILESYSTEM_LAYOUT;
-    return this.storage.save(id,snapshot,this.diskName,SDK,result);
+  }
+
+  async rebuild(head) {
+    this.replayFailure = null;
+    try {
+      await this.stopKernel();
+      await this.startKernel();
+      const entries = replayCommands(this.journal.state, head);
+      for (const [index, entry] of entries.entries()) {
+        this.onStatus(`Replaying command ${index + 1}/${entries.length}…`);
+        const result = await this.runCommand(entry.command);
+        // Generated output can differ. A changed exit status or timeout means
+        // later commands may depend on work that was not reconstructed.
+        if (result.timedOut || result.exitCode !== entry.result.exitCode || entry.result.timedOut) {
+          throw new Error(`Replay stopped at command ${index + 1} (${entry.command.blockId || entry.command.program}). ` +
+            (result.stderr || "The command's outcome changed.") + " Your history is intact. Undo commands to return to an earlier point.");
+        }
+      }
+      this.failed = false;
+    } catch (error) {
+      this.failed = true;
+      this.replayFailure = error;
+      await this.stopKernel();
+      this.onStatus(error.message);
+      throw error;
+    }
   }
 
   execute(command, {timeoutMs = 30000, source = "", lessonPath = "", blockId = ""} = {}) {
@@ -187,28 +193,28 @@ export class CourseVM {
       await this.ready();
       if (this.failed) throw new Error("The last command could not finish saving. Save and stop, then reopen the environment to recover.");
       if (typeof command.program !== "string" || !command.program || !Array.isArray(command.args) || command.args.some(arg => typeof arg !== "string")) throw new Error("Invalid course command");
+      if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120000) throw new Error("Invalid command timeout");
       await this.storage.claim();
-      await this.startKernel(this.saved);
-      const event = newEvent("command",{parent:this.journal.state.head,command:{...command,source,lessonPath,blockId}});
+      const event = newEvent("command",{parent:this.journal.state.head,command:{...command,source,lessonPath,blockId,timeoutMs}});
       try {
-        // Commit resolved argv BEFORE dispatch, including failed commands.
+        // Commit source and resolved argv BEFORE dispatch, including failures.
         await this.journal.append(event);
-        const signal = AbortSignal.timeout(timeoutMs);
-        let result;
-        try {
-          result = await this.vm.exec(this.shell,["--noprofile","--norc","-c",'. /tmp/base58-environment.sh; exec "$@"',"course-command",command.program,...command.args],{cwd:"/data/workspace",signal,maxBuffer:MAX_OUTPUT});
-          result = {stdout:boundedOutput(result.stdout),stderr:boundedOutput(result.stderr),exitCode:result.exitCode ?? -1,timedOut:false};
-        } catch (error) {
-          // A timeout may have changed files. Save that actual state as well.
-          result = {stdout:"",stderr:signal.aborted ? "Command timed out.\n" : boundedOutput(error.message || error),exitCode:-1,timedOut:signal.aborted};
-        }
-        this.saved = await this.capture(event.id,result);
+        this.onStatus("Running command…");
+        const result = await this.runCommand(event.command);
         await this.journal.append(newEvent("result",{commandId:event.id,result}));
-        this.onStatus(this.config.journalURL ? "Command saved to your account" : "Command saved in this browser");
+        if (result.timedOut) {
+          this.failed = true;
+          await this.stopKernel();
+          this.replayFailure = new Error("The command timed out. Undo it before continuing; its partial state cannot be reliably replayed.");
+          this.onStatus(this.replayFailure.message);
+        } else {
+          this.onStatus(this.config.journalURL ? "Command saved to your account" : "Command saved in this browser");
+        }
         return result;
       } catch (error) {
         this.failed = true;
-        this.onStatus("Saving did not finish · your previous checkpoint is safe");
+        await this.stopKernel();
+        this.onStatus("Saving did not finish · reopen to recover the last recorded command");
         throw error;
       }
     });
@@ -225,19 +231,19 @@ export class CourseVM {
 
   undo() {
     return this.enqueue(async () => {
-      await this.ready();
-      if (this.failed || this.journal.state.pending) throw new Error("Finish saving or reopen the environment before undoing");
+      // A divergent replay must still let the student move back through history.
+      if (!this.replayFailure) await this.ready();
+      if (this.journal.state.pending) throw new Error("Reopen the environment before undoing an unfinished command");
       const entry = this.journal.state.commands.get(this.journal.state.head);
       if (!entry) return;
-      const head = entry.parent || "", checkpoint = await this.storage.checkpoint(head);
-      if (!checkpoint) throw new Error("The previous checkpoint is unavailable; command history was kept");
       await this.storage.claim();
-      // Validate and restore the target before changing the durable cursor.
-      await this.startKernel(checkpoint);
-      await this.vm.stop(); this.vm = null;
+      const head = entry.parent || "";
+      // Persist the requested cursor first. If rebuilding fails, another Undo
+      // can move farther back without losing or duplicating any journal entries.
       await this.journal.append(newEvent("checkout",{head}));
-      this.saved = checkpoint;
-      this.onStatus("Last command undone · earlier commands and wallet state preserved");
+      await this.rebuild(head);
+      this.booting = Promise.resolve();
+      this.onStatus("Last command undone · earlier commands replayed; generated values may differ");
       return entry;
     });
   }
@@ -246,16 +252,18 @@ export class CourseVM {
     return this.enqueue(async () => {
       const incomplete = this.failed;
       await this.close();
-      this.onStatus(incomplete ? "Stopped · reopen to recover the last saved command" : this.config?.journalURL ? "Course work saved · open on any device to continue" : "Course work saved in this browser");
+      this.onStatus(incomplete ? "Stopped · reopen to replay recorded commands" : this.config?.journalURL ? "Command history saved · resume on any device by replaying it" : "Command history saved in this browser · resume replays it");
     });
   }
 
   async close() {
-    try { if (this.vm) await this.vm.stop(); }
+    try { await this.stopKernel(); }
     finally {
-      this.vm = null;
       try { await this.storage?.release(); }
-      finally { this.release?.(); this.release = null; this.booting = null; }
+      finally {
+        this.storage?.db?.close();
+        this.release?.(); this.release = null; this.booting = null; this.replayFailure = null;
+      }
     }
   }
 }

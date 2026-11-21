@@ -7,7 +7,7 @@ Currently a work in progress.
 The architecture is **build at publish time; execute in the browser**. The
 publication workflow prepares the locked course environment on an author/CI
 Linux builder and uploads it before publishing the course version. Students
-download that prepared environment; their command history and VM checkpoints
+download that prepared environment; their command history
 sync to their account for resume and undo.
 
 Course commands run in a Linux guest inside the student's browser, using the
@@ -98,58 +98,57 @@ a lesson can explicitly invoke `bash -c` when it needs a shell script.
 The course source files are copied into `/data/workspace` on first boot. That is
 also `HOME` and the command working directory.
 
-Each student attempt has an append-only CLI journal, pinned to its course version
-and environment hash. Before dispatching a command, the browser saves its resolved
-program/arguments, original source, lesson/cell identifiers, and timestamp. It
-then saves stdout, stderr, exit status, and a VM checkpoint. Failed commands are
-included: a command can modify files before returning a nonzero exit status.
+Each student attempt has an append-only command journal, pinned to its course
+version and environment hash. Before dispatching a command, the browser saves its
+resolved program/arguments, original source, lesson/cell identifiers, timeout,
+and timestamp. It then records stdout, stderr, and exit status. Failed commands
+are included because they can change state before returning a nonzero exit code.
 
-The checkpoint captures **guest memory and the matching disk generation**, not
-just files. This preserves running services, generated wallet keys, and other
-state that would change if commands were simply replayed. The VM is suspended
-between commands; it resumes from the last checkpoint for the next command,
-without rerunning `shellHook`. An idempotent hook is still needed for the initial
-boot and existing workspaces created before checkpoint support.
+The VM and Python interpreter stay alive between cells. Guest files and memory
+are temporary: **no VM snapshots or disk images are saved**. On resume, a fresh
+VM starts from the pinned course bundle, runs its setup hook, and replays the
+completed commands on the active history branch. Replaying does not append new
+executions or overwrite the original results. Commands interrupted before a
+result was recorded remain in the audit log but are excluded from replay.
 
-Published courses save the journal and checkpoints to the student's account, so
-**Save and stop environment** followed by signing in on another device resumes
-the same CLI state. Checkpoints are compressed and split into content-addressed
-pieces; unchanged pieces are shared across checkpoints within the attempt. The
-browser also caches them in IndexedDB. A command is shown as saved only after its
-checkpoint upload and journal result both succeed. Network/storage errors block
-further commands until the environment is reopened. An interrupted command with
-no completed checkpoint stays in the log and returns to the previous saved state;
-it is never silently executed twice.
+**Undo last command** moves the history cursor to the previous command and
+rebuilds the environment by replaying that prefix. Undone commands and results
+remain in the log. Executing another command after undo creates a new branch.
+If a command's exit status changes during replay, or it times out, replay stops
+and identifies the command. Further undo can move back to a replayable prefix.
 
-**Undo last command** restores the previous checkpoint and moves the history
-cursor back. The original command and result remain visible as undone. Running a
-new command after undo creates a new branch in the journal. Checkpoints avoid
-replay changing Bitcoin addresses or transaction IDs. Ordinary replay alone is
-not a guarantee of identical state for arbitrary CLI commands.
+Replay is deliberately less exact: randomness, clocks, wallet keys, addresses,
+transaction IDs, and other generated values can differ. A command containing an
+old generated value may no longer work. Changes outside recorded commands are
+not recoverable. Resume and undo take time proportional to the commands replayed;
+normal cell execution has no snapshot/restore cost. Saved output describes the
+original execution, not necessarily the current replayed values.
+
+Published courses save the journal to the student's account, so **Save and stop**
+followed by signing in elsewhere can replay the same history. A local preview
+keeps its journal in IndexedDB. The existing database name is retained to reuse
+older command logs; old snapshot stores are left untouched and unused.
 
 One browser tab holds the local workspace lock, and a two-minute renewable server
 lease prevents two devices from advancing the same attempt concurrently. Saving
-and stopping releases it immediately; a lost connection or closed tab releases it
-when the lease expires. Clearing browser storage does not delete account-backed
-work. Draft/local previews keep their journals and checkpoints on that device.
-The history panel displays the latest 100 commands; the complete journal is kept.
+and stopping releases it immediately. Network/storage errors stop execution until
+recovery. The history panel displays the latest 100 commands; replay uses the
+complete active branch, including failed commands with recorded results.
 
-Apply migration `000013_create_course_command_events` before using the account
-history API. This implementation keeps private checkpoint chunks in PostgreSQL
-alongside the journal, scoped to the authenticated attempt and protected by CSRF
-for writes. Checkpoint storage grows with the history: size the database and its
-backups accordingly; moving the chunk transport to private object storage is a
-future optimization. Undo retains old branches and their checkpoints.
+Apply migration `000013_create_course_command_events` before using account history.
+The journal is stored in PostgreSQL, scoped to the authenticated attempt, with CSRF
+protection for writes. Legacy checkpoint/chunk endpoints return HTTP 410 and no
+longer read or write VM state; their historical database rows are retained.
 
-The checkpoint covers the Linux CLI guest. Pyodide's Python interpreter is a
-separate runtime; this does not snapshot its in-memory globals. Existing lesson
-progress, cell text, and displayed output still use the normal progress API.
-The guest's host connections are reset on restore by unkernel; there are no
-external network connections in this course integration.
+`python-vm` cells reconstruct their shared Python namespace through replay.
+Unmarked Pyodide cells still use a separate interpreter and are not part of the
+VM journal. Lesson progress, cell text, and displayed output use the normal
+progress API.
 
 No external network device is attached to the guest. Its loopback interface lets
 `bitcoind`, `bitcoin-cli`, and other services in that course communicate locally.
-Commands have a 30-second timeout and a 1 MiB output limit per stream. Shell
+CLI commands default to a 30-second timeout, Python cells to 120 seconds, with a
+1 MiB output limit per stream. Shell
 initialization has a 60-second timeout.
 
 ### Website build
@@ -172,8 +171,7 @@ from Try Nix, with attribution in `static/licenses/trynix.txt`.
 
 This integration currently supports unkernel's **aarch64 Linux** guest and needs
 a browser with WebAssembly JSPI. It does not include Try Nix's x86-64 QEMU fallback.
-The pinned SDK restores host filesystem mounts in inline mode, so this runtime
-currently runs on the page thread. Large environments, checkpoint costs, and
+This runtime currently runs on the page thread. Large environments, replay costs, and
 CPU-heavy work should be measured on students' target devices. No runner service
 or runner secret is needed; the command-history migration is required.
 

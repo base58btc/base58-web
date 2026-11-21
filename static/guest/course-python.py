@@ -1,6 +1,6 @@
-"""Persistent Python cells inside the course VM, included in its memory checkpoint.
+"""Persistent Python cells for a live course session. Resume reconstructs them by replay.
 
-The CLI reconnects for each cell: live sockets must not cross VM restores.
+The CLI connects to the same interpreter for each cell during a session.
 Only the guest can access this Unix socket. This is not a host execution service.
 """
 import ast
@@ -112,7 +112,7 @@ def execute(encoded):
         try:
             client.connect(SOCKET)
         except OSError as error:
-            raise RuntimeError("Python session is unavailable. Undo the last cell or restore an earlier checkpoint; "
+            raise RuntimeError("Python session is unavailable. Undo the last cell or reopen the environment to replay its history; "
                                "the interpreter has not been silently restarted.") from error
         client.sendall(json.dumps({"code": source}).encode() + b"\n")
         with client.makefile("rb") as reader:

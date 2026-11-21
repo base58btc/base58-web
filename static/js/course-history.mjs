@@ -20,6 +20,18 @@ export function journalState(events) {
   return state;
 }
 
+// Follow the active branch, not every historical execution (which includes
+// undone branches and interrupted commands).
+export function replayCommands(state, head = state.head) {
+  const entries = [], seen = new Set();
+  for (let id = head; id; ) {
+    const entry = state.commands.get(id);
+    if (!entry?.result || entry.interrupted || seen.has(id)) throw new Error("Invalid replay history");
+    seen.add(id); entries.push(entry); id = entry.parent || "";
+  }
+  return entries.reverse();
+}
+
 export const newEvent = (type, fields = {}) => ({id: crypto.randomUUID(), type, time: new Date().toISOString(), ...fields});
 
 export class CommandJournal {

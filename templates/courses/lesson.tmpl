@@ -2360,7 +2360,7 @@ def __course_check_cell(student_code, check_code):
       </aside>
       <section class="course-platform_content">
         {{ if .IsLocalPreview }}
-        <p class="course-version-banner">Local preview · Executed cells, answers, and VM work are saved in this browser.</p>
+        <p class="course-version-banner">Local preview · Command history, cell output, and answers are saved in this browser. Resume replays commands; generated values may differ.</p>
         {{ end }}
         <div class="course-platform_current">{{ .Current.DisplayNumber }} / {{ .Current.Title }}</div>
         <article class="course-platform_article">
@@ -2369,6 +2369,7 @@ def __course_check_cell(student_code, check_code):
           <button id="course-runtime-open" type="button" hidden onclick="openCourseEnvironment()">Resume CLI environment</button>
           <button id="course-runtime-stop" type="button" hidden onclick="saveCourseEnvironment().catch(function(error) { document.getElementById('course-runtime-status').textContent = error.message; })">Save and stop environment</button>
           <details id="course-runtime-history" hidden><summary>CLI command history</summary>
+            <p>Resume and undo replay commands in a fresh environment. Generated values may change; saved output records the original execution. Changes made outside recorded commands are not saved.</p>
             <button id="course-runtime-undo" type="button" disabled onclick="undoCourseCommand()">Undo last command</button>
             <div id="course-runtime-commands" style="overflow-wrap:anywhere"></div>
           </details>

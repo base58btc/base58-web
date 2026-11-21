@@ -6,7 +6,7 @@ Run the previous lesson first. This lesson reuses its `make_route`, `payload`, a
 
 ## Start the three nodes
 
-Each node has its own directory and RPC socket. Connections stay on loopback inside the VM. Start each node separately so its startup is saved as its own checkpoint.
+Each node has its own directory and RPC socket. Connections stay on loopback inside the VM. Start each node separately so each startup is recorded as a command that can be replayed.
 
 +++ onion-start-bitcoin python-vm
 from lab import bitcoin, lightning, start_bitcoin, start_node, fund_nodes, open_channel, confirm_channels, sync_nodes

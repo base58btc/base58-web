@@ -144,7 +144,7 @@ When does this CSV output’s six-block clock start?
 - At a fixed block height chosen before funding. [That describes the absolute height used by CLTV.]
 ~~~
 
-Try Undo after the final cell. Inspect the height and mempool before running it again. The wallet and transaction IDs should return with the checkpoint.
+Try Undo after the final cell. Inspect the height and mempool before running it again. Undo rebuilds the wallet and transactions by replaying the earlier cells, so generated addresses and transaction IDs may change.
 
 ::: references
 1. [BIP 65 — Absolute locktimes](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)

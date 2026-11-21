@@ -8,7 +8,7 @@ export function renderCommandHistory(container, state) {
     const details=document.createElement("details"), summary=document.createElement("summary"), output=document.createElement("pre");
     const status=entry.interrupted ? "interrupted" : !entry.result ? "saving" : active.has(entry.id) ? "saved" : "undone";
     summary.textContent=(index+1)+". "+[entry.command.program,...entry.command.args].map(arg=>JSON.stringify(arg)).join(" ")+" · "+status;
-    output.textContent=entry.result ? entry.result.stdout+entry.result.stderr+"\nExit status: "+entry.result.exitCode : entry.interrupted ? "The session ended before a checkpoint was saved. The previous saved state was restored." : "Waiting for the command and its checkpoint.";
+    output.textContent=entry.result ? (entry.result.stdout || "")+(entry.result.stderr || "")+"\nOriginal exit status: "+entry.result.exitCode : entry.interrupted ? "The session ended before its result was recorded. This command is excluded from replay." : "Waiting for the command result to be recorded.";
     details.append(summary,output); container.append(details);
   }
 }

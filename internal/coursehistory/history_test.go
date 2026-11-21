@@ -43,3 +43,13 @@ func TestInterruptedCommandDoesNotAdvanceHead(t *testing.T) {
 		t.Fatal("incorrect recovery")
 	}
 }
+
+func TestCommandTimeoutBounds(t *testing.T) {
+	for _, timeout := range []int{0, 30000, 120000, -1, 120001} {
+		state := New()
+		err := state.Apply(Event{ID: "command", Type: "command", Command: &Command{Program: "python3", TimeoutMS: timeout}})
+		if (err != nil) != (timeout < 0 || timeout > 120000) {
+			t.Fatalf("timeout %d: %v", timeout, err)
+		}
+	}
+}
