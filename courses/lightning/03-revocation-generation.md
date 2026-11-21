@@ -29,9 +29,24 @@ assert flip(bytes(32), 47) == bytes(5) + b"\x80" + bytes(26)
 
 ## Generate a secret
 
-Make the five test vectors below pass. Find and fix the error in this implementation. Index zero is valid: no bits are set, so its secret equals the seed. A channel starts allocating secrets from index `2**48 - 1` and counts down.
+Index zero is valid: no bits are set, so its secret equals the seed. A channel starts allocating secrets from index `2**48 - 1` and counts down.
 
-+++ revocation-generator python-vm
+???
+id: revocation-generator
+runtime: python-vm
+
+Fix `generate_from_seed` so it passes the five test vectors.
+---
+from hashlib import sha256
+
+def flip(secret, bit):
+    changed = bytearray(secret)
+    changed[bit // 8] ^= 1 << (bit % 8)
+    return bytes(changed)
+
+assert flip(bytes(32), 0) == b"\x01" + bytes(31)
+assert flip(bytes(32), 47) == bytes(5) + b"\x80" + bytes(26)
+
 def generate_from_seed(seed, index):
     if len(seed) != 32 or not 0 <= index < 2**48:
         raise ValueError("Expected a 32-byte seed and a 48-bit index")
@@ -45,8 +60,21 @@ def generate_from_seed(seed, index):
 seed = bytes.fromhex("01" * 32)
 assert generate_from_seed(seed, 0) == seed
 generate_from_seed(seed, 1).hex()
-+++
-
+---
+vectors = [
+    ("00", 281474976710655, "02a40c85b6f28da08dfdbe0926c53fab2de6d28c10301f8f7c4073d5e42e3148"),
+    ("ff", 281474976710655, "7cc854b54e3e0dcdb010d7a3fee464a9687be6e8db3be6854c475621e007a5dc"),
+    ("ff", 0xaaaaaaaaaaa, "56f4008fb007ca9acf0e15b054d5c9fd12ee06cea347914ddbaed70d1c13a528"),
+    ("ff", 0x555555555555, "9015daaeb06dba4ccc05b91b2f73bd54405f2be9f217fbacd3c5ac2e62327d31"),
+    ("01", 1, "915c75942a26bb3a433a8ce2cb0427c29ec6c1775cfc78328b57f6ba7bfeaa9c"),
+]
+for byte, index, expected in vectors:
+    actual = generate_from_seed(bytes.fromhex(byte * 32), index).hex()
+    assert actual == expected, (byte, index, actual)
+assert generate_from_seed(bytes.fromhex("01" * 32), 0) == bytes.fromhex("01" * 32)
+---
+The generated secrets must match all five vectors, and index zero must return the seed.
+???
 ## Make the test vectors pass
 
 +++ revocation-vectors python-vm
@@ -62,6 +90,14 @@ for byte, index, expected in vectors:
     assert actual == expected, (byte, index, actual)
 print("All five secret-generation vectors pass.")
 +++
+
+~~~
+id: zero-secret-index
+What does the secret generator return for index zero?
+= The original seed. [No bits are set, so no flip or hash step runs.]
+- SHA256 of the seed. [Hashing happens only after processing a set bit.]
+- An error. [Zero is a valid 48-bit index.]
+~~~
 
 ## Write the commitment number into a transaction
 
@@ -93,15 +129,16 @@ assert recovered == commitment_number
 print("Recovered commitment number:", recovered)
 +++
 
-Change `commitment_number` and rerun the final cell. Which bytes change? Why does setting the high bit of `nSequence` matter for relative locktime interpretation?
+Change `commitment_number` and rerun the final cell. Which bytes change? 
 
 ~~~
-id: zero-secret-index
-What does the secret generator return for index zero?
-= The original seed. [No bits are set, so no flip or hash step runs.]
-- SHA256 of the seed. [Hashing happens only after processing a set bit.]
-- An error. [Zero is a valid 48-bit index.]
+id: commitment-sequence-disable
+Why does a commitment transaction set the high bit of nSequence?
+= It disables BIP 68 relative locktime interpretation for that input. [The lower bits can carry part of the obscured commitment number without imposing a relative delay.]
+- It enables a relative locktime of 2**31 blocks. [Bit 31 is the disable flag, not part of the block delay.]
+- It makes the commitment number public. [The lower bits still contain part of the obscured number.]
 ~~~
+
 
 ::: references
 1. [BOLT 3 — Commitment transactions and secrets](https://github.com/lightning/bolts/blob/master/03-transactions.md)

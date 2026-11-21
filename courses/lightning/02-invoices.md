@@ -24,6 +24,17 @@ Lightning payments exchange money for a preimage. The invoice commits to that pr
 
 This lesson covers BOLT 11. BOLT 12 uses a different encoding and can carry blinded paths; it is not decoded by this parser.
 
+~~~
+id: invoice-payment-information
+What information can a BOLT 11 invoice provide for making a payment?
+= The recipient’s public key. [It may be explicit or recovered from the signature.]
+= The payment hash. [It commits to the preimage released when the payment settles.]
+= An amount to pay. [An amount-bearing invoice encodes it in the human-readable part.]
+= The minimum final CLTV delta. [The c tag sets it; an omitted tag defaults to 18.]
+- The payment preimage. [That secret is released during settlement, not supplied in the invoice.]
+- The recipient’s private key. [An invoice is signed without exposing the private key.]
+~~~
+
 ## The human-readable part
 
 `lnbc2500u` means a Lightning invoice on Bitcoin mainnet for 2500 microbitcoin. Convert amounts to **millisatoshis**, the unit used in Lightning’s payment messages.
@@ -59,6 +70,14 @@ assert parse_hrp("lntb") == ("tb", None)
 assert parse_amt("10p") == 1
 parse_hrp("lnbcrt100n")
 +++
+
+~~~
+id: invoice-amount-units
+How many millisatoshis does the amount 2500u request?
+= 250,000,000 msat. [2500 microbitcoin is 0.0025 BTC, or 250,000 satoshis. Each satoshi is 1,000 msat.]
+- 250,000 msat. [That is the numeric amount in satoshis, before converting to millisatoshis.]
+- 2,500 msat. [The u suffix means microbitcoin, not millisatoshis.]
+~~~
 
 ## Bech32: five-bit words
 

@@ -11,6 +11,7 @@ on:
       - courses/lightning/**
       - scripts/test-course-python.py
       - scripts/test-lightning-course.py
+      - scripts/testdata/lightning-challenge-solutions.json
       - static/guest/course-python.py
       - flake.lock
       - go.mod

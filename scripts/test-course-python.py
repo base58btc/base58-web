@@ -18,6 +18,40 @@ spec.loader.exec_module(kernel)
 
 
 class PythonCells(unittest.TestCase):
+    def test_challenges_preserve_student_definitions_and_isolate_check_names(self):
+        state = {"offset": 2}
+        source = "def answer():\n    return 40 + offset"
+        result = kernel.run_cell(source, state, check="assert answer() == 42\nhidden_fixture = 123")
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["phase"], "check")
+        self.assertNotIn("hidden_fixture", state)
+        self.assertEqual(kernel.run_cell("answer()", state)["output"], "42\n")
+        failed = kernel.run_cell("def answer(): return 0", state, check="assert answer() == 42")
+        self.assertFalse(failed["ok"])
+        self.assertEqual(failed["phase"], "check")
+        self.assertNotIn("course-checks", failed["output"])
+        self.assertEqual(kernel.run_cell("answer()", state)["output"], "0\n")
+        broken = kernel.run_cell("raise ValueError('fix me')", state, check="assert True")
+        self.assertEqual(broken["phase"], "student")
+        self.assertIn("fix me", broken["output"])
+        timeout = kernel.run_cell("pass", state, timeout=0.05, check="while True: pass")
+        self.assertFalse(timeout["ok"])
+        self.assertEqual(kernel.run_cell("6 * 7", state)["output"], "42\n")
+
+    def test_stdio_challenge_and_following_cell_share_the_namespace(self):
+        messages = [{"id": 1, "code": "def answer(): return 42", "check": "assert answer() == 42"},
+                    {"id": 2, "code": "answer()"},
+                    {"id": 3, "code": "def answer(): return 0", "check": "assert answer() == 42"}]
+        result = subprocess.run([sys.executable, str(RUNNER), "--stdio"],
+                                input="".join(json.dumps(m) + "\n" for m in messages),
+                                capture_output=True, text=True, timeout=10)
+        frames = [json.loads(line) for line in result.stdout.splitlines()][1:]
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(frames[0]["ok"])
+        self.assertEqual(frames[0]["phase"], "check")
+        self.assertEqual(frames[1]["output"], "42\n")
+        self.assertFalse(frames[2]["ok"])
+
     def test_stdio_reuses_process_and_separates_protocol_from_student_io(self):
         sources = [
             "import os; first_pid = os.getpid(); value = '⚡'",
@@ -66,6 +100,12 @@ class PythonCells(unittest.TestCase):
                 self.assertEqual(run("value").stdout.strip(), "7")
                 self.assertEqual(run("raise SystemExit(0)").returncode, 1)
                 self.assertEqual(run("value + 1").stdout.strip(), "8")
+                challenge = base64.b64encode(json.dumps({"code": "def answer(): return value * 6",
+                                                        "check": "assert answer() == 42"}).encode()).decode()
+                checked = subprocess.run([sys.executable, str(RUNNER), "--check", challenge],
+                                         env=env, cwd=directory, capture_output=True, text=True, timeout=5)
+                self.assertEqual(checked.returncode, 0, checked.stderr)
+                self.assertEqual(run("answer()").stdout.strip(), "42")
                 # Control characters expand sixfold in JSON but must not break the protocol.
                 escaped = run("print('\\0' * 600000)")
                 self.assertEqual(escaped.returncode, 0, escaped.stderr)

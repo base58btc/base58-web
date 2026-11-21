@@ -18,6 +18,7 @@ import time
 REPO = Path(__file__).resolve().parents[1]
 COURSE = REPO / "courses/lightning"
 CELL = re.compile(r"^\+\+\+ ([\w-]+) python-vm\n(.*?)^\+\+\+\s*$", re.M | re.S)
+BLOCK = re.compile(r"^\+\+\+ ([\w-]+) python-vm\n(.*?)^\+\+\+\s*$|^\?\?\?\n(.*?)^\?\?\?\s*$", re.M | re.S)
 
 
 def check_full_gossip(gossmap):
@@ -48,25 +49,27 @@ def main():
         namespace = {"__name__": "__course__"}
         import lab
         count = 0
+        challenges = 0
+        solutions = json.loads((REPO / "scripts/testdata/lightning-challenge-solutions.json").read_text())
         try:
             for lesson in sorted(COURSE.glob("*.md")):
-                for block_id, code in CELL.findall(lesson.read_text()):
+                for match in BLOCK.finditer(lesson.read_text()):
+                    block_id, code, challenge = match.groups()
+                    check = None
+                    if challenge is not None:
+                        prompt, code, check, *_ = re.split(r"^---\s*$", challenge, flags=re.M)
+                        block_id = re.search(r"^id: ([\w-]+)$", prompt, re.M)[1]
+                        assert "runtime: python-vm" in prompt
                     compile(code, f"{lesson.name}:{block_id}", "exec")
                     if not args.regtest and lesson.name.startswith(("00-", "01-", "05-")):
                         continue
-                    if block_id == "revocation-vectors":
-                        # The notebook exercise intentionally starts with the
-                        # missing assignment. Verify that it fails, then test a
-                        # minimal student correction against the same vectors.
-                        attempt = kernel.run_cell(code, namespace)
-                        assert not attempt["ok"] and "AssertionError" in attempt["output"], attempt
-                        generator = next(source for name, source in CELL.findall(lesson.read_text()) if name == "revocation-generator")
-                        correction = generator.replace("            flip(secret, bit)", "            secret = flip(secret, bit)")
-                        assert correction != generator
-                        fixed = kernel.run_cell(correction, namespace)
-                        assert fixed["ok"], fixed
-                        print("PASS revocation exercise rejects starter and accepts corrected implementation", flush=True)
-                    result = kernel.run_cell(code, namespace)
+                    if check is not None:
+                        attempt = kernel.run_cell(code, namespace, check=check)
+                        assert not attempt["ok"] and attempt["phase"] == "check", attempt
+                        code = solutions[block_id]
+                        challenges += 1
+                        print(f"PASS {block_id} rejects the unfinished starter", flush=True)
+                    result = kernel.run_cell(code, namespace, check=check)
                     if not result["ok"]:
                         raise AssertionError(f"{lesson.name}:{block_id}\n{result['output']}")
                     count += 1
@@ -97,7 +100,7 @@ def main():
             assert namespace["payload"](1000, 151, channel="118x1x0") == "11020203e804019706080000760000010000"
             assert namespace["bigsize"](253).hex() == "fd00fd"
             assert namespace["truncated_integer"](0, 8) == b""
-            print(f"Validated {count} executable Markdown cells and protocol edge cases.", flush=True)
+            print(f"Validated {count} executable Markdown blocks, including {challenges} code challenges, and protocol edge cases.", flush=True)
         finally:
             if args.regtest:
                 for node in lab.NODES:

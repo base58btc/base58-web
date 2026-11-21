@@ -39,7 +39,7 @@ class Output(io.TextIOBase):
             "\n[output truncated]\n" if self.truncated else "")
 
 
-def run_cell(source, namespace, timeout=90):
+def run_cell(source, namespace, timeout=90, check=None):
     output = Output()
 
     def timed_out(*_):
@@ -48,6 +48,7 @@ def run_cell(source, namespace, timeout=90):
     previous = signal.signal(signal.SIGALRM, timed_out)
     signal.setitimer(signal.ITIMER_REAL, timeout)
     ok = True
+    phase = "student"
     try:
         with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
             try:
@@ -59,13 +60,31 @@ def run_cell(source, namespace, timeout=90):
                     namespace["_"] = value
                     if value is not None:
                         print(repr(value))
+                if check is not None:
+                    phase = "check"
+                    # Student definitions stay available to later cells. Test
+                    # names stay out of the notebook namespace.
+                    exec(compile(check, "<course-checks>", "exec"), dict(namespace))
             except BaseException:
                 ok = False
-                traceback.print_exc()
+                if check is None or phase == "student":
+                    traceback.print_exc()
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, previous)
-    return {"ok": ok, "output": output.getvalue()}
+    result = {"ok": ok, "output": output.getvalue()}
+    if check is not None:
+        result["phase"] = phase
+    return result
+
+
+def run_request(message, namespace):
+    source, check = message["code"], message.get("check")
+    if not isinstance(source, str) or len(source.encode()) > 16384:
+        raise ValueError("Python cells must be text under 16 KiB")
+    if "check" in message and (not isinstance(check, str) or len(check.encode()) > 16384):
+        raise ValueError("Python checks must be text under 16 KiB")
+    return run_cell(source, namespace, check=check)
 
 
 def serve():
@@ -84,10 +103,7 @@ def serve():
                         request = reader.readline(131073)
                     if len(request) > 131072:
                         raise ValueError("Python request is too large")
-                    source = json.loads(request)["code"]
-                    if not isinstance(source, str) or len(source.encode()) > 16384:
-                        raise ValueError("Python cells must be text under 16 KiB")
-                    result = run_cell(source, namespace)
+                    result = run_request(json.loads(request), namespace)
                 except Exception as error:
                     result = {"ok": False, "output": str(error)}
                 try:
@@ -111,16 +127,14 @@ def serve_stdio():
             if len(request) > 131072 or not request.endswith(b"\n"):
                 raise ValueError("Invalid Python request frame")
             message = json.loads(request)
-            source = message["code"]
-            if not isinstance(source, str) or len(source.encode()) > 16384:
-                raise ValueError("Python cells must be text under 16 KiB")
-            result = run_cell(source, namespace)
+            result = run_request(message, namespace)
             writer.write(json.dumps({"id": message["id"], **result}) + "\n")
             writer.flush()
 
 
-def execute(encoded):
+def execute(encoded, challenge=False):
     source = base64.b64decode(encoded, validate=True).decode("utf-8")
+    message = json.loads(source) if challenge else {"code": source}
     if not Path(SOCKET).exists():
         with open(SOCKET + ".log", "ab") as log:
             subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--serve"],
@@ -137,7 +151,7 @@ def execute(encoded):
         except OSError as error:
             raise RuntimeError("Python session is unavailable. Undo the last cell or reopen the environment to replay its history; "
                                "the interpreter has not been silently restarted.") from error
-        client.sendall(json.dumps({"code": source}).encode() + b"\n")
+        client.sendall(json.dumps(message).encode() + b"\n")
         with client.makefile("rb") as reader:
             # JSON can expand control characters to six-byte escapes.
             result = json.loads(reader.readline(8 * LIMIT))
@@ -150,7 +164,7 @@ if __name__ == "__main__":
         serve_stdio()
     elif len(sys.argv) == 2 and sys.argv[1] == "--serve":
         serve()
-    elif len(sys.argv) == 3 and sys.argv[1] == "--execute":
-        sys.exit(execute(sys.argv[2]))
+    elif len(sys.argv) == 3 and sys.argv[1] in ("--execute", "--check"):
+        sys.exit(execute(sys.argv[2], challenge=sys.argv[1] == "--check"))
     else:
-        sys.exit("Expected --stdio, --serve or --execute BASE64_SOURCE")
+        sys.exit("Expected --stdio, --serve, --execute BASE64_SOURCE or --check BASE64_REQUEST")

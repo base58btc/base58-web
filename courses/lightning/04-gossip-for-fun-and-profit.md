@@ -40,7 +40,12 @@ find_neighbors(gossmap, my_source, depth=1)
 
 What channels should we use to get from the source to the destination? Search one hop at a time, keeping the half-channels that connect the nodes. A visited set prevents loops and lets the search finish when no route exists.
 
-+++ find-route python-vm
+???
+id: find-route
+runtime: python-vm
+
+Complete `find_route`. Return a list of enabled half-channels forming a route with the fewest hops. Return an empty list when source and destination match, and raise `ValueError` when no route exists.
+---
 from collections import deque
 
 def find_route(gossmap, source, destination):
@@ -51,23 +56,50 @@ def find_route(gossmap, source, destination):
     while queue:
         node, path = queue.popleft()
         for half_channel in sorted(gossmap.get_neighbors_hc(source=node), key=lambda hc: str(hc.channel.scid)):
-            if half_channel.disabled:
-                continue
-            neighbor = half_channel.destination.node_id
-            if neighbor in visited:
-                continue
-            next_path = path + [half_channel]
-            if neighbor == destination:
-                return next_path
-            visited.add(neighbor)
-            queue.append((neighbor, next_path))
+            # Skip disabled directions and nodes already visited.
+            # Extend the path; return it when the destination is reached.
+            # Otherwise mark the neighbor visited and queue it.
+            pass
     raise ValueError("No enabled route exists in this graph")
+---
+from types import SimpleNamespace
 
+class TestGraph:
+    def __init__(self, edges):
+        self.edges, self.visits = edges, 0
+    def get_neighbors_hc(self, source):
+        self.visits += 1
+        assert self.visits <= 100, "Search must terminate on cycles"
+        return [edge for edge in self.edges if edge.source.node_id == source]
+
+def edge(source, destination, scid, disabled=False):
+    return SimpleNamespace(source=SimpleNamespace(node_id=source),
+                           destination=SimpleNamespace(node_id=destination),
+                           channel=SimpleNamespace(scid=scid), disabled=disabled)
+
+ab, bc, cd = edge("A", "B", "1x1x0"), edge("B", "C", "2x1x0"), edge("C", "D", "3x1x0")
+ac = edge("A", "C", "4x1x0")
+ba, disabled = edge("B", "A", "5x1x0"), edge("A", "D", "6x1x0", True)
+graph = TestGraph([ab, bc, cd, ac, ba, disabled])
+assert find_route(graph, "A", "D") == [ac, cd]
+assert find_route(TestGraph([ab, ba]), "A", "A") == []
+assert find_route(TestGraph([ab]), "A", "B") == [ab]
+for graph, source, destination in [(TestGraph([ab, ba]), "A", "D"), (TestGraph([ab]), "B", "A")]:
+    try:
+        find_route(graph, source, destination)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Unreachable destinations must raise ValueError")
+---
+Find the shortest enabled route, respect channel direction, and terminate when a destination is unreachable.
+???
+
++++ gossip-route python-vm
 route_channels = find_route(gossmap, my_source, my_destination)
 path = [my_source] + [hc.destination.node_id for hc in route_channels]
 [str(node) for node in path]
 +++
-
 ## Which half-channels are we using?
 
 Each channel has two directions. Direction 0 goes from the smaller public key to the larger; direction 1 goes the other way.
@@ -95,6 +127,14 @@ half_channels = [half_channel_policy(hc) for hc in route_channels]
 half_channels
 +++
 
+~~~
+id: forwarding-direction
+For Alice → Bob → Carol, which policy determines the fee Bob charges?
+= Bob’s outgoing direction on the Bob–Carol channel. [Bob charges for forwarding over its outgoing channel.]
+- Alice’s outgoing direction on the Alice–Bob channel. [That is the sender’s first channel; Alice does not charge itself a forwarding fee.]
+- Carol’s outgoing direction on the Bob–Carol channel. [That policy applies to payments traveling from Carol to Bob.]
+~~~
+
 ## Can the payment fit?
 
 We will deliver 10,000 satoshis, or 10,000,000 millisatoshis. **Every** direction in the route must be enabled. Bounds are inclusive. Funding capacity is only an upper bound: it cannot tell us how much balance is available on the sending side.
@@ -117,6 +157,13 @@ for edge in half_channels:
     check_amount(edge, payment_amount)
 print("The recipient amount fits the advertised bounds. We still need to add forwarding fees.")
 +++
+
+~~~
+id: capacity-versus-liquidity
+A channel advertises enough total capacity for your payment. Is success guaranteed?
+= No. The sending side may lack balance, or the route may otherwise be unavailable. [Gossip does not publish current channel balances.]
+- Yes, as long as the channel is not disabled. [Advertised policies and total capacity are not a liquidity guarantee.]
+~~~
 
 ## What does the route cost?
 
@@ -148,6 +195,23 @@ print("Fee:", total_fee_msat, "msat;", total_fee_msat / payment_amount * 10_000,
 print("First-hop CLTV delay:", historical_route[0]["delay"], "blocks")
 historical_route
 +++
+
+~~~
+id: routing-fee
+Bob forwards 10,000,000 msat with a base fee of 1,000 msat and a proportional fee of 100 ppm. What fee does Bob charge?
+= 2,000 msat. [1,000 + floor(10,000,000 × 100 / 1,000,000) = 2,000.]
+- 1,000 msat. [This includes the base fee but omits the proportional fee.]
+- 1,001,000 msat. [Parts per million requires division by 1,000,000.]
+~~~
+
+~~~
+id: routing-cltv
+For Alice → Bob → Carol, the invoice requires a final CLTV delta of 18 and Bob’s outgoing policy requires 40. What first-hop delay should Alice use?
+= 58 blocks. [Add the recipient’s final delta and Bob’s forwarding delta.]
+- 18 blocks. [Bob also needs a 40-block margin between its incoming and outgoing HTLCs.]
+- 40 blocks. [The invoice’s final delta must also be included.]
+- 202 blocks if Alice’s outgoing policy advertises 144. [Alice does not add its own forwarding policy to a payment it originates.]
+~~~
 
 ## Serialize the onion payloads
 
@@ -200,14 +264,16 @@ illustrative_hops = make_onion_hops(historical_route, 1_000, "22" * 32)
 illustrative_hops
 +++
 
+~~~
+id: final-onion-payload
+Which data belongs in the final hop’s payload instead of an outgoing short channel ID?
+= The payment secret and total amount in payment_data. [The recipient needs payment data; there is no next channel to forward through.]
+- The payment preimage. [The recipient reveals the preimage only when settling the payment.]
+- The sender’s private key. [Private keys are never included in onion payloads.]
+~~~
+
 Use the same functions with a fresh invoice and the current block height to send a payment in the next lesson.
 
-~~~
-id: capacity-versus-liquidity
-A channel advertises enough total capacity for your payment. Is success guaranteed?
-= No. The sending side may lack balance, or the route may otherwise be unavailable. [Gossip does not publish current channel balances.]
-- Yes, as long as the channel is not disabled. [Advertised policies and total capacity are not a liquidity guarantee.]
-~~~
 
 ::: references
 1. [BOLT 7 — Gossip and forwarding policies](https://github.com/lightning/bolts/blob/master/07-routing-gossip.md)
