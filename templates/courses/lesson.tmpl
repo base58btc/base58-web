@@ -1403,6 +1403,10 @@
       }
     }
 
+    function formatCellOutput(text, ok) {
+      return text || (ok ? "Completed (no output)." : "Execution failed (no output).");
+    }
+
     function applySavedCodeBlockState(block, saved) {
       const textarea = block.querySelector(".code-area");
       const output = block.querySelector(".output");
@@ -1413,8 +1417,8 @@
         resizeCodeArea(textarea);
         updateCodeHighlight(textarea);
       }
-      if (output && typeof saved.outputText === "string" && saved.outputText !== "") {
-        output.textContent = saved.outputText;
+      if (output && typeof saved.outputText === "string" && (saved.outputText !== "" || (Number.isInteger(saved.executionCount) && saved.executionCount > 0))) {
+        output.textContent = formatCellOutput(saved.outputText, saved.outputOk !== false);
         output.classList.toggle("is-error", saved.outputOk === false);
       }
       if (prompt && Number.isInteger(saved.executionCount)) {
@@ -2195,7 +2199,7 @@ def __course_check_cell(student_code, check_code):
         }
         const executionCount = ++courseExecutionCount;
         output.classList.toggle("is-error", !result.ok);
-        output.textContent = result.output;
+        output.textContent = formatCellOutput(result.output, result.ok);
         if (prompt) {
           prompt.textContent = result.ok ? "Out[" + executionCount + "]:" : "Err[" + executionCount + "]:";
         }
