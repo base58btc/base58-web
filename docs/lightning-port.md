@@ -98,6 +98,14 @@ Bitcoin/Lightning regtest nodes. It uploads an artifact named
 `BUILD_COMMIT`. The tar contains the matching course sources, manifest, and NAR
 archives. Download it within seven days; the workflow does not publish a course.
 
+The [first successful build](https://github.com/base58btc/base58-web/actions/runs/44863287070)
+used commit `6cc76009f63b36116f3c1a498ed39bbf634bf88b` and passed all 37 cells on
+ARM64 Linux. Its 92 runtime archives total 188.5 MiB compressed. The downloaded
+bundle passed source and archive verification locally, and the browser VM ran
+Python, coincurve's native secp256k1 public-key derivation, `bitcoind --version`,
+and `lightningd --version` successfully. This smoke test does not cover the full
+three-node lesson sequence or cross-device checkpoint restoration in the browser.
+
 To inspect a downloaded artifact without overwriting local edits:
 
 ```sh
