@@ -41,7 +41,7 @@ build-course-catalog:
 
 .PHONY: course-vm-assets
 course-vm-assets:
-	python3 scripts/fetch-course-vm-assets.py
+	go run ./cmd/course-vm-assets
 
 .PHONY: build-all
 build-all: build build-migrate build-course-sync build-course-catalog course-vm-assets

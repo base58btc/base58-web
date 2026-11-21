@@ -194,8 +194,9 @@ make test
 python3 scripts/preview-course-vm.py --dir ./taproot
 ```
 
-The Nix website package includes these assets automatically. The local asset
-installer downloads `unkernel@0.2.0-261119-040e142`, verifies its archive SHA-256,
+The Nix website package includes these assets automatically. The Go asset
+installer uses only the standard library, so website and Docker builds need no
+Python interpreter. It downloads `unkernel@0.2.0-261119-040e142`, verifies its archive SHA-256,
 and places it under `static/vendor/`. Generated SDK binaries are ignored by Git.
 The SDK's MIT license and the kernel's GPL license ship beside the runtime;
 [the corresponding source revision](https://github.com/pithings/unkernel/tree/040e142)
