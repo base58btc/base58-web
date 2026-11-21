@@ -1204,6 +1204,14 @@
     }
 
     async function hydrateCourseProgressFromServer() {
+      if (isLocalCoursePreview()) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(localCourseProgressKey()) || "null");
+          if (saved && saved.version === 1 && saved.courses) courseProgressState = saved;
+        } catch { /* A fresh preview can run without existing saved answers. */ }
+        restoreCurrentLessonProgress();
+        return;
+      }
       if (isCourseDraftPreview()) {
         return;
       }
@@ -1366,7 +1374,7 @@
     }
 
     async function saveCourseBlockProgressToServer(detail) {
-      if (isCourseDraftPreview()) {
+      if (isCourseDraftPreview() || isLocalCoursePreview()) {
         return;
       }
       if (!detail.courseSlug || !detail.lessonPath || !detail.blockId) {
@@ -1441,6 +1449,21 @@
 
     function writeCourseProgress(progress) {
       courseProgressState = progress && progress.version === 1 ? progress : { version: 1, courses: {} };
+      if (isLocalCoursePreview()) {
+        try { localStorage.setItem(localCourseProgressKey(), JSON.stringify(courseProgressState)); }
+        catch {
+          const status = document.getElementById("course-runtime-status");
+          if (status) { status.hidden = false; status.textContent = "Unable to save lesson answers in this browser. Check available browser storage."; }
+        }
+      }
+    }
+
+    function isLocalCoursePreview() {
+      return document.querySelector(".course-platform_shell")?.dataset.localPreview === "true";
+    }
+
+    function localCourseProgressKey() {
+      return "base58-local-course-preview-v1:" + document.querySelector(".course-platform_shell").dataset.courseSlug;
     }
 
     function isCourseDraftPreview() {
@@ -2193,7 +2216,7 @@ def __course_check_cell(student_code, check_code):
       </div>
       <div class="course-challenge-markers" hidden></div>
     </div>
-    <main class="course-platform_shell" data-course-slug="{{ .CourseSlug }}" data-lesson-path="{{ .Current.Path }}" data-csrf-token="{{ .CSRFToken }}" data-draft-preview="{{ if .IsDraftPreview }}true{{ else }}false{{ end }}"{{ if .Previous }} data-prev-url="{{ .Previous.URL }}"{{ end }}{{ if .Next }} data-next-url="{{ .Next.URL }}"{{ end }}>
+    <main class="course-platform_shell" data-course-slug="{{ .CourseSlug }}" data-lesson-path="{{ .Current.Path }}" data-csrf-token="{{ .CSRFToken }}" data-draft-preview="{{ if .IsDraftPreview }}true{{ else }}false{{ end }}"{{ if .IsLocalPreview }} data-local-preview="true"{{ end }}{{ if .Previous }} data-prev-url="{{ .Previous.URL }}"{{ end }}{{ if .Next }} data-next-url="{{ .Next.URL }}"{{ end }}>
       <button class="course-platform_mobile-toc" type="button" aria-expanded="false" aria-controls="course-platform-toc">
         <span class="course-platform_mobile-toc-label">
           <span class="course-platform_mobile-toc-kicker">Course contents</span>
@@ -2259,6 +2282,9 @@ def __course_check_cell(student_code, check_code):
         {{ end }}
       </aside>
       <section class="course-platform_content">
+        {{ if .IsLocalPreview }}
+        <p class="course-version-banner">Local preview · Executed cells, answers, and VM work are saved in this browser.</p>
+        {{ end }}
         <div class="course-platform_current">{{ .Current.DisplayNumber }} / {{ .Current.Title }}</div>
         <article class="course-platform_article">
           {{ if .HasCode }}

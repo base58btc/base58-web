@@ -101,7 +101,9 @@ func courseMarkdownToHTMLForCourse(ctx *config.AppContext, courseSlug string, md
 }
 
 func renderCourseMarkdownToHTML(md []byte, courseSlug, assetBaseURL string) []byte {
-	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
+	// Definition-list lookahead consumes a following ::: note as a definition
+	// before our block hook can see it. Course notes own the colon fence syntax.
+	extensions := parser.CommonExtensions&^parser.DefinitionLists | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
 	p := parser.NewWithExtensions(extensions)
 	p.Opts.ParserHook = courseParserHook
 

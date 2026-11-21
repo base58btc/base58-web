@@ -212,7 +212,7 @@ func TestLightningCourseMarkdown(t *testing.T) {
 				t.Fatal("lesson is missing navigation or executable cells")
 			}
 			html := courseMarkdownToHTML(outline.Markdown)
-			if bytes.Contains(html, []byte("course-authoring-error")) || bytes.Contains(html, []byte("+++")) || bytes.Contains(html, []byte("~~~")) {
+			if bytes.Contains(html, []byte("course-authoring-error")) || bytes.Contains(html, []byte("+++")) || bytes.Contains(html, []byte("~~~")) || bytes.Contains(html, []byte("::: note")) {
 				t.Fatal("unrendered fence or authoring error in lesson")
 			}
 			cells := openCell.FindAllSubmatch(outline.Markdown, -1)
@@ -234,7 +234,7 @@ func TestLightningCourseMarkdown(t *testing.T) {
 			err = tmpl.ExecuteTemplate(&page, "lesson.tmpl", CourseLessonData{
 				CourseSlug: "lightning", CourseTitle: "Lightning, from transactions to onions",
 				Current: outline.Current, Previous: outline.Previous, Next: outline.Next,
-				Sidebar: outline.Items, ContentHTML: template.HTML(html), HasCode: true,
+				Sidebar: outline.Items, ContentHTML: template.HTML(html), HasCode: true, IsLocalPreview: true,
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -269,6 +269,13 @@ func TestCourseMarkdownRendersNoteBlocksWithNestedBlocks(t *testing.T) {
 	}
 	if strings.Contains(html, "::: note") {
 		t.Fatalf("expected note fence to be consumed, got %s", html)
+	}
+}
+
+func TestCourseNoteAfterParagraph(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("A paragraph before the note.\n\n::: note\nImportant course instructions.\n:::\n")))
+	if strings.Contains(html, ":::") || strings.Contains(html, "<dl>") || !strings.Contains(html, `role="note"`) {
+		t.Fatalf("note was consumed by definition-list parsing: %s", html)
 	}
 }
 

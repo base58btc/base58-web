@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Preview a prepared course bundle locally without a database or asset uploads."""
 import argparse
-import hashlib
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
+from course_preview import load_bundle
 
 def main():
     parser = argparse.ArgumentParser()
@@ -14,28 +14,16 @@ def main():
     args = parser.parse_args()
     course = args.dir.resolve()
     static = Path(__file__).resolve().parents[1] / "static"
-    manifest = json.loads((course / "course-runtime.json").read_text())
-    extensions = {".md", ".nix", ".py", ".sh", ".json", ".toml", ".yaml", ".yml", ".txt", ".conf"}
-    files = {}
-    for file in course.rglob("*"):
-        relative = file.relative_to(course)
-        if not file.is_file() or file.is_symlink() or any(part.startswith(".") for part in relative.parts):
-            continue
-        if str(relative) == "course-runtime.json":
-            continue
-        if str(relative) == "flake.lock" or file.suffix.lower() in extensions:
-            files[relative.as_posix()] = file.read_text()
-    digest = hashlib.sha256("".join(f"{name}:{hashlib.sha256(content.encode()).hexdigest()}\n" for name, content in sorted(files.items())).encode()).hexdigest()
-    if digest != manifest["sourceHash"]:
-        raise SystemExit("Course bundle is stale. Run course-sync bundle again.")
-    archives = {"/" + item["path"] for item in manifest["archives"]}
+    try:
+        environment, archives = load_bundle(course, args.port)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
 
     class Handler(SimpleHTTPRequestHandler):
         def do_GET(self):
             request_path = unquote(urlsplit(self.path).path)
             if request_path == "/environment.json":
-                data = json.dumps({"manifest": manifest, "files": files, "workspace": "preview-" + digest,
-                                   "assetBaseURL": f"http://127.0.0.1:{args.port}/"}).encode()
+                data = json.dumps(environment).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Cache-Control", "no-store")
@@ -51,10 +39,7 @@ def main():
                     self.send_error(404)
                     return
             elif request_path in archives:
-                file = (course / request_path.lstrip("/")).resolve()
-                if course not in file.parents:
-                    self.send_error(404)
-                    return
+                file = archives[request_path]
             else:
                 self.send_error(404)
                 return

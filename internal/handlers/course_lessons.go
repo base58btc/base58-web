@@ -59,6 +59,7 @@ type CourseLessonData struct {
 	HasNewVersion       bool
 	CanPreviewDraft     bool
 	IsDraftPreview      bool
+	IsLocalPreview      bool
 	DraftVersionNumber  int
 	DraftPreviewOnURL   string
 	DraftPreviewOffURL  string

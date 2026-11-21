@@ -76,13 +76,26 @@ nix develop path:./courses/lightning --command python3 scripts/test-lightning-co
 # Persistent interpreter protocol, errors, timeouts, and output bounds.
 python3 scripts/test-course-python.py
 
-# Render the actual production lesson templates for a visual preview.
+# Render the actual production lesson templates (requires the bundle below).
 BASE58_RENDER_COURSE_DIR="$PWD/target/lightning-preview" \
-  nix develop --command go test ./internal/handlers -run '^TestLightningCourseMarkdown$'
+  nix develop --command go test ./internal/handlers -run '^TestLightningCourseMarkdown$' -count=1
 python3 scripts/preview-course-markdown.py
 ```
 
-Open `http://127.0.0.1:8099`. This preview validates layout, navigation, editors, and questions. VM execution requires the application’s environment endpoint and a prepared bundle; this standalone rendering server does not supply them.
+Open `http://127.0.0.1:8099/courses/lightning/00-welcome`. The preview serves all
+six actual lesson pages, the prepared environment endpoint, and the NAR archives.
+Run the welcome cell, then use the sidebar to work through the lessons. Python,
+Bitcoin, and Lightning execute in the browser VM. Executed cell text/output and
+quiz answers persist in local browser storage; the VM journal and checkpoints
+persist in IndexedDB. This local mode needs no database, login, or publishing
+credentials and does not sync to a course account.
+
+The server requires a matching `courses/lightning/course-runtime.json` and
+`runtime/` directory. It rejects stale sources or missing archives. Use
+`--course-dir /path/to/extracted/courses/lightning` for a downloaded bundle, but
+render the pages from those same sources. Re-render after changing lesson text or
+templates. The lesson preview has a separate VM workspace from the terminal
+preview, so terminal experiments do not advance the lesson environment.
 
 ## Build the Linux bundle with GitHub Actions
 
@@ -121,9 +134,8 @@ nix run .#course-sync -- verify-bundle --dir target/lightning-download/extracted
 
 For local execution, install the pinned VM assets with `make course-vm-assets`
 and run `python3 scripts/preview-course-vm.py --dir /absolute/path/to/extracted/courses/lightning`.
-The terminal preview works without a database or asset uploads. The rendered
-Markdown preview above still needs an application environment endpoint to execute
-cells. Any changes to the course sources require a new bundle.
+Both the terminal preview and the actual lesson preview above work without a
+database or asset uploads. Any changes to the course sources require a new bundle.
 
 The Lightning environment starts its services in lesson cells, not at boot.
 In the terminal preview, initialize the funded regtest wallet with:
