@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -168,6 +169,86 @@ func TestCourseMarkdownRendersAnchoredCodeBlocks(t *testing.T) {
 	}
 	if strings.Contains(html, "+++ to-bytes") {
 		t.Fatalf("expected anchored code fence to be consumed, got %s", html)
+	}
+}
+
+func TestCourseMarkdownNativePythonRuntime(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("+++ wallet-state python-vm\nprint('<wallet>')\n+++\n")))
+	for _, expected := range []string{`data-course-runtime="python-vm"`, `data-course-block-id="wallet-state"`, `&lt;wallet&gt;`} {
+		if !strings.Contains(html, expected) {
+			t.Fatalf("missing %s in %s", expected, html)
+		}
+	}
+	invalid := string(courseMarkdownToHTML([]byte("+++ wallet-state unknown-runtime\nprint('hello')\n+++\n")))
+	if !strings.Contains(invalid, "course-authoring-error") {
+		t.Fatal("unknown runtimes must produce an authoring error")
+	}
+}
+
+// Validate the actual notebook port against the production renderer. An optional
+// output directory provides complete lesson pages for local visual inspection.
+func TestLightningCourseMarkdown(t *testing.T) {
+	root := filepath.Join("..", "..", "courses")
+	files, err := filepath.Glob(filepath.Join(root, "lightning", "*.md"))
+	if err != nil || len(files) != 6 {
+		t.Fatalf("expected six Lightning lessons: %v (%d)", err, len(files))
+	}
+	tmpl, err := template.ParseFiles(
+		filepath.Join("..", "..", "templates", "courses", "lesson.tmpl"),
+		filepath.Join("..", "..", "templates", "sections", "head.tmpl"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	openCell := regexp.MustCompile(`(?m)^\+\+\+ ([A-Za-z0-9_-]+) python-vm$`)
+	for _, file := range files {
+		t.Run(filepath.Base(file), func(t *testing.T) {
+			lesson := strings.TrimSuffix(filepath.Base(file), ".md")
+			outline, err := loadLocalCourse(root, "lightning", lesson)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(outline.Pages) != 6 || !markdownHasCourseCode(outline.Markdown) {
+				t.Fatal("lesson is missing navigation or executable cells")
+			}
+			html := courseMarkdownToHTML(outline.Markdown)
+			if bytes.Contains(html, []byte("course-authoring-error")) || bytes.Contains(html, []byte("+++")) || bytes.Contains(html, []byte("~~~")) {
+				t.Fatal("unrendered fence or authoring error in lesson")
+			}
+			cells := openCell.FindAllSubmatch(outline.Markdown, -1)
+			if len(cells) == 0 || bytes.Count(html, []byte(`data-course-runtime="python-vm"`)) != len(cells) {
+				t.Fatal("native Python cell count does not match the Markdown")
+			}
+			seen := map[string]bool{}
+			for _, cell := range cells {
+				id := string(cell[1])
+				if seen[id] || !bytes.Contains(html, []byte(`data-course-block-id="`+id+`"`)) {
+					t.Fatalf("missing or duplicate stable cell ID %s", id)
+				}
+				seen[id] = true
+			}
+			if !bytes.Contains(html, []byte(`class="course-choice-explanation" hidden`)) {
+				t.Fatal("question feedback was not rendered")
+			}
+			var page bytes.Buffer
+			err = tmpl.ExecuteTemplate(&page, "lesson.tmpl", CourseLessonData{
+				CourseSlug: "lightning", CourseTitle: "Lightning, from transactions to onions",
+				Current: outline.Current, Previous: outline.Previous, Next: outline.Next,
+				Sidebar: outline.Items, ContentHTML: template.HTML(html), HasCode: true,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if export := os.Getenv("BASE58_RENDER_COURSE_DIR"); export != "" {
+				dest := filepath.Join(export, "courses", "lightning", lesson)
+				if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(dest, page.Bytes(), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+		})
 	}
 }
 

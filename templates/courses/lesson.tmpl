@@ -306,6 +306,25 @@
       margin: 0.35rem 0 0;
     }
 
+    .course-platform_article table {
+      width: 100%;
+      margin: 1rem 0 1.5rem;
+      border-collapse: collapse;
+      overflow-wrap: anywhere;
+    }
+
+    .course-platform_article th,
+    .course-platform_article td {
+      padding: 0.5rem 0.65rem;
+      border-bottom: 1px solid rgba(20, 20, 20, 0.16);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .course-platform_article th {
+      background: #eee8dc;
+    }
+
     .course-platform_article code {
       border-radius: 0.25rem;
       background: #eee8dc;
@@ -1990,7 +2009,7 @@ def __course_check_cell(student_code, check_code):
       }
     }
     window.addEventListener("DOMContentLoaded", function() {
-      if ([...document.querySelectorAll(".code-area")].some(area => window.CourseExecution.hasRemoteShellLine(area.value))) document.getElementById("course-runtime-open").hidden = false;
+      if (document.querySelector('[data-course-runtime="python-vm"]') || [...document.querySelectorAll(".code-area")].some(area => window.CourseExecution.hasRemoteShellLine(area.value))) document.getElementById("course-runtime-open").hidden = false;
     });
     async function undoCourseCommand() {
       const button = document.getElementById("course-runtime-undo");
@@ -2067,7 +2086,13 @@ def __course_check_cell(student_code, check_code):
 
       try {
         let result;
-        if (window.CourseExecution.hasRemoteShellLine(textarea.value)) {
+        if (cell.dataset.courseRuntime === "python-vm") {
+          const shell = document.querySelector(".course-platform_shell");
+          const executed = await (await getCourseVM()).executePython(textarea.value, {
+            lessonPath: shell.dataset.lessonPath || "", blockId: cell.dataset.courseBlockId || ""
+          });
+          result = {ok: executed.exitCode === 0 && !executed.timedOut, output: executed.stdout + executed.stderr};
+        } else if (window.CourseExecution.hasRemoteShellLine(textarea.value)) {
           result = await runNotebookCell(cell, textarea.value);
         } else {
           result = await runLocalPythonSource(textarea.value);

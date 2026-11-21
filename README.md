@@ -86,7 +86,11 @@ height = 0
 !bitcoin-cli -regtest -datadir=/data/workspace/node getblockhash {height}
 ```
 
-Python continues to run through Pyodide. Lines starting with `!` run in the course
+Existing Python cells use Pyodide. Cells marked `+++ cell-id python-vm` run in
+the course's Nix Python and preserve their interpreter state in VM checkpoints.
+The [Lightning course port](docs/lightning-port.md) uses this runtime throughout;
+its Linux environment can be built with the GitHub Actions workflow documented
+there. Lines starting with `!` in existing Pyodide cells run in the course
 VM through unkernel's JavaScript API. Scalar `{identifier}` values are passed as
 individual arguments. Pipes, redirects, and shell expansion are not implicit;
 a lesson can explicitly invoke `bash -c` when it needs a shell script.

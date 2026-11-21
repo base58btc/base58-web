@@ -97,4 +97,24 @@ func TestBundleExportsProfileDependenciesAndExcludesRawEnvironment(t *testing.T)
 	if err != nil || string(contents) != "archive bytes" {
 		t.Fatalf("incorrect archive: %q, %v", contents, err)
 	}
+	if err := runVerifyBundle([]string{"--dir", course}); err != nil {
+		t.Fatal(err)
+	}
+	// Transfer corruption must be caught even if the file size is unchanged.
+	archivePath := filepath.Join(course, m.Archives[0].Path)
+	compressed, err := os.ReadFile(archivePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	compressed[0] ^= 1
+	write(archivePath, string(compressed), 0o600)
+	if err := runVerifyBundle([]string{"--dir", course}); err == nil || !strings.Contains(err.Error(), "SHA-256 mismatch") {
+		t.Fatalf("expected corrupted archive rejection, got %v", err)
+	}
+	compressed[0] ^= 1
+	write(archivePath, string(compressed), 0o600)
+	write(filepath.Join(course, "01_intro.md"), "# Changed since build\n", 0o600)
+	if err := runVerifyBundle([]string{"--dir", course}); err == nil || !strings.Contains(err.Error(), "stale") {
+		t.Fatalf("expected stale bundle rejection, got %v", err)
+	}
 }

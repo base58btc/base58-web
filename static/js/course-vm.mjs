@@ -97,6 +97,9 @@ export class CourseVM {
       sources.writeFile("/" + path, content);
     }
     sources.writeFile("/.base58-setup.sh", manifest.setup);
+    const pythonRunner = await fetch("/static/guest/course-python.py");
+    if (!pythonRunner.ok) throw new Error("Unable to load course Python runner");
+    sources.writeFile("/.base58-python.py", await pythonRunner.text());
     let next = 0, done = 0;
     await Promise.all([0,1].map(async () => {
       while (next < manifest.archives.length) {
@@ -190,6 +193,15 @@ export class CourseVM {
         throw error;
       }
     });
+  }
+
+  executePython(source, metadata = {}) {
+    const bytes = new TextEncoder().encode(source);
+    // Source and resolved argv both appear in the 64 KiB journal event.
+    if (bytes.length > 16384) throw new Error("Keep Python cells under 16 KiB; put larger helpers in course files.");
+    const encoded = btoa(Array.from(bytes, byte => String.fromCharCode(byte)).join(""));
+    return this.execute({program:"python3", args:["/course/.base58-python.py", "--execute", encoded]},
+      {...metadata, source, timeoutMs:120000});
   }
 
   undo() {

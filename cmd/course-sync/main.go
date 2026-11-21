@@ -82,6 +82,8 @@ func main() {
 	switch os.Args[1] {
 	case "bundle":
 		err = runBundle(os.Args[2:])
+	case "verify-bundle":
+		err = runVerifyBundle(os.Args[2:])
 	case "sync":
 		err = runSync(os.Args[2:])
 	case "watch":
@@ -101,6 +103,7 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   course-sync bundle --dir courses/intro-proto
+  course-sync verify-bundle --dir courses/intro-proto
   course-sync sync  --server http://localhost:8080 --course intro-proto --dir courses/intro-proto
   course-sync watch --server http://localhost:8080 --course intro-proto --dir courses/intro-proto
   course-sync publish --server http://localhost:8080 --course intro-proto

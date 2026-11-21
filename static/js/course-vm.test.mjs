@@ -66,6 +66,20 @@ test("saved output stays within the server byte limit for multibyte text", () =>
   assert.match(value,/output truncated/);
 });
 
+test("native Python keeps original Unicode source and encodes argv without shell evaluation", async () => {
+  const runtime = new CourseVM({});
+  let captured;
+  runtime.execute = async (command, metadata) => { captured = {command, metadata}; return {exitCode:0}; };
+  const source = 'value = "⚡ $(echo unsafe)"\nvalue';
+  await runtime.executePython(source, {lessonPath:"02-invoices", blockId:"invoice"});
+  assert.equal(captured.command.program, "python3");
+  assert.equal(captured.command.args[0], "/course/.base58-python.py");
+  assert.equal(Buffer.from(captured.command.args[2], "base64").toString(), source);
+  assert.equal(captured.metadata.source, source);
+  assert.equal(captured.metadata.blockId, "invoice");
+  assert.throws(() => runtime.executePython("⚡".repeat(6000)), /16 KiB/);
+});
+
 test("records resolved argv before dispatch and commits failed commands only after their checkpoint", async () => {
   const trace=[], storage=memoryJournal(trace);
   const runtime=new CourseVM({});
