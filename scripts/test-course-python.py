@@ -2,6 +2,7 @@
 """Exercise the guest Python protocol without a browser or Nix VM."""
 import base64
 import importlib.util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -17,6 +18,34 @@ spec.loader.exec_module(kernel)
 
 
 class PythonCells(unittest.TestCase):
+    def test_stdio_reuses_process_and_separates_protocol_from_student_io(self):
+        sources = [
+            "import os; first_pid = os.getpid(); value = '⚡'",
+            "print(os.getpid() == first_pid); value + value",
+            "value = 7; raise ValueError('deliberate')",
+            "value + 1",
+            "import subprocess; subprocess.run(['echo', 'child output']); os.write(1, b'raw output\\n'); print('captured')",
+            "input()",
+            "value",
+            "print('\\0' * 600000)",
+        ]
+        requests = "".join(json.dumps({"id": index, "code": source}) + "\n" for index, source in enumerate(sources))
+        result = subprocess.run([sys.executable, str(RUNNER), "--stdio"], input=requests,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        frames = [json.loads(line) for line in result.stdout.splitlines()]
+        self.assertEqual(frames.pop(0), {"ready": 1})
+        self.assertEqual([frame["id"] for frame in frames], list(range(len(sources))))
+        self.assertEqual(frames[1]["output"], "True\n'⚡⚡'\n")
+        self.assertFalse(frames[2]["ok"])
+        self.assertEqual(frames[3]["output"], "8\n")
+        self.assertEqual(frames[4]["output"], "captured\n")
+        self.assertIn("child output", result.stderr)
+        self.assertIn("raw output", result.stderr)
+        self.assertIn("EOFError", frames[5]["output"])
+        self.assertEqual(frames[6]["output"], "7\n")
+        self.assertIn("output truncated", frames[7]["output"])
+
     def test_persistence_errors_unicode_and_files(self):
         with tempfile.TemporaryDirectory(prefix="b58py-") as directory:
             env = {**os.environ, "BASE58_PYTHON_SOCKET": directory + "/python.sock"}

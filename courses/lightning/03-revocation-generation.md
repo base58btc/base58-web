@@ -1,6 +1,6 @@
 # Revocation generation
 
-Let’s implement the per-commitment secret generator from the original notebook. Starting with a 32-byte seed and a 48-bit index, visit the bits from 47 down to 0. For each set bit, flip that bit in the current secret and then hash the result.
+Let’s implement the per-commitment secret generator from BOLT 3. Starting with a 32-byte seed and a 48-bit index, visit the bits from 47 down to 0. For each set bit, flip that bit in the current secret and then hash the result.
 
 ```text
 P = seed
@@ -29,7 +29,7 @@ assert flip(bytes(32), 47) == bytes(5) + b"\x80" + bytes(26)
 
 ## Generate a secret
 
-Try implementing the pseudocode yourself, then compare with this working version. Index zero is valid: no bits are set, so its secret equals the seed. A channel starts allocating secrets from index `2**48 - 1` and counts down.
+Make the five test vectors below pass. Find and fix the error in this implementation. Index zero is valid: no bits are set, so its secret equals the seed. A channel starts allocating secrets from index `2**48 - 1` and counts down.
 
 +++ revocation-generator python-vm
 def generate_from_seed(seed, index):
@@ -38,7 +38,8 @@ def generate_from_seed(seed, index):
     secret = seed
     for bit in range(47, -1, -1):
         if index & (1 << bit):
-            secret = sha256(flip(secret, bit)).digest()
+            flip(secret, bit)
+            secret = sha256(secret).digest()
     return secret
 
 seed = bytes.fromhex("01" * 32)
@@ -46,7 +47,7 @@ assert generate_from_seed(seed, 0) == seed
 generate_from_seed(seed, 1).hex()
 +++
 
-## Make the original test vectors pass
+## Make the test vectors pass
 
 +++ revocation-vectors python-vm
 vectors = [
@@ -69,12 +70,12 @@ The commitment transaction carries an obscured 48-bit commitment number, split b
 The obscurer is the last six bytes of `SHA256(opener_payment_basepoint || accepter_payment_basepoint)`. Ordering matters: these are the payment basepoints in opener/accepter order, not public keys sorted by value.
 
 +++ commitment-basepoints python-vm
-from coincurve import PublicKey
+from coincurve import PrivateKey
 
-opener_payment_basepoint = bytes.fromhex("034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa")
-accepter_payment_basepoint = bytes.fromhex("032c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991")
-PublicKey(opener_payment_basepoint)
-PublicKey(accepter_payment_basepoint)
+opener_payment_basepoint = PrivateKey.from_int(666).public_key.format()
+accepter_payment_basepoint = PrivateKey.from_int(777).public_key.format()
+print("Opener:", opener_payment_basepoint.hex())
+print("Accepter:", accepter_payment_basepoint.hex())
 obscurer = int.from_bytes(sha256(opener_payment_basepoint + accepter_payment_basepoint).digest()[-6:], "big")
 print(f"Obscurer: {obscurer:012x}")
 +++

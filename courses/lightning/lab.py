@@ -12,6 +12,7 @@ import time
 
 ROOT = Path(os.environ.get("BASE58_LAB", str(Path.cwd() / ".lab"))).resolve()
 NODES = ("alice", "bob", "carol")
+GOSSIP_STORE = os.environ.get("LIGHTNING_GOSSIP_STORE", "gossip_stores/nov_17.gossip_store")
 RPC_PORT = int(os.environ.get("BASE58_BITCOIN_RPC_PORT", "18443"))
 PEER_PORT = int(os.environ.get("BASE58_LIGHTNING_PORT", "19731"))
 

@@ -38,6 +38,18 @@ def main():
                     compile(code, f"{lesson.name}:{block_id}", "exec")
                     if not args.regtest and lesson.name.startswith(("00-", "01-", "05-")):
                         continue
+                    if block_id == "revocation-vectors":
+                        # The notebook exercise intentionally starts with the
+                        # missing assignment. Verify that it fails, then test a
+                        # minimal student correction against the same vectors.
+                        attempt = kernel.run_cell(code, namespace)
+                        assert not attempt["ok"] and "AssertionError" in attempt["output"], attempt
+                        generator = next(source for name, source in CELL.findall(lesson.read_text()) if name == "revocation-generator")
+                        correction = generator.replace("            flip(secret, bit)", "            secret = flip(secret, bit)")
+                        assert correction != generator
+                        fixed = kernel.run_cell(correction, namespace)
+                        assert fixed["ok"], fixed
+                        print("PASS revocation exercise rejects starter and accepts corrected implementation", flush=True)
                     result = kernel.run_cell(code, namespace)
                     if not result["ok"]:
                         raise AssertionError(f"{lesson.name}:{block_id}\n{result['output']}")
@@ -60,7 +72,7 @@ def main():
             else:
                 raise AssertionError("Accepted a corrupt invoice checksum")
             try:
-                namespace["find_route"](namespace["edges"], namespace["my_source"], "missing")
+                namespace["find_route"](namespace["gossmap"], namespace["my_source"], "missing")
             except ValueError:
                 pass
             else:

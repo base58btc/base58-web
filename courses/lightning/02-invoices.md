@@ -1,6 +1,8 @@
 # Lightning invoices
 
-The original notebook asks: what information do you need to make a Lightning payment? A BOLT 11 invoice puts that information in one string. Earlier Bitcoin payment formats include BIP 21 payment URIs and the BIP 70 payment protocol.
+What information do you need to make a Lightning payment?
+
+A BOLT 11 invoice puts that information in one string. Earlier Bitcoin payment formats include BIP 21 payment URIs and the BIP 70 payment protocol.
 
 Lightning payments exchange money for a preimage. The invoice commits to that preimage with a **payment hash**. The separately named **payment secret** helps the recipient recognize an intended payment; it is not the preimage.
 
@@ -114,7 +116,7 @@ def parse_number(words):
 
 ## Recover the signing key
 
-Hash the human-readable part together with the packed data before the signature. The final signature byte is the recovery ID. `coincurve` performs secp256k1 public-key recovery inside the VM.
+Hash the human-readable part together with the packed data before the signature. The final signature byte is the recovery ID. `coincurve` performs secp256k1 public-key recovery.
 
 +++ invoice-signature python-vm
 from hashlib import sha256
@@ -181,7 +183,7 @@ def parse_invoice(text):
 
 ## Decode the notebook’s examples
 
-The examples are preserved in `data/invoices.json`. These are historical test invoices; decoding a signature does not mean an invoice is current or payable.
+The examples are in `data/invoices.json`. These are historical test invoices; decoding a signature does not mean an invoice is current or payable.
 
 +++ decode-invoices python-vm
 import json

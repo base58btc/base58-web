@@ -1,6 +1,6 @@
 # CSV and CLTV
 
-I want to make two outputs: one locked with **CLTV**, and one locked with **CSV**. This is the experiment from the original notebook, with fresh transaction IDs and heights from your own regtest chain.
+I want to make two outputs: one locked with **CLTV**, and one locked with **CSV**.
 
 `OP_CHECKLOCKTIMEVERIFY` checks an absolute locktime. `OP_CHECKSEQUENCEVERIFY` checks a relative locktime. We will use block heights for both and keep the delay short enough to explore interactively.
 
@@ -43,26 +43,76 @@ for name, script in (("CSV", csv_script), ("CLTV", cltv_script)):
 
 The opcodes are `b2` for CSV, `b1` for CLTV, `75` for DROP, and `51` for OP_1. Change the delay and run the cell again to inspect a different script.
 
-## Fund two P2WSH outputs
+## Choose a funding input
 
-The witness program is `00 20 <SHA256(script)>`. Bitcoin Core can derive the corresponding address. Let the wallet choose and sign the funding inputs, then locate our outputs by their scripts rather than assuming an output index.
+Inspect the wallet’s unspent outputs and choose one to spend.
+
++++ timelock-unspent python-vm
+from decimal import Decimal
+
+unspent = bitcoin("listunspent")
+unspent
++++
+
++++ timelock-select-input python-vm
+coin = next(output for output in unspent if output["spendable"] and output["solvable"])
+txid_to_spend = coin["txid"]
+vout_to_spend = coin["vout"]
+total_amt = int(Decimal(str(coin["amount"])) * 100_000_000)
+funding_output_amount = (total_amt - 1_000) // 2
+assert funding_output_amount > 1_000
+print("Input:", txid_to_spend, vout_to_spend, total_amt, "sat")
+print("Each timelocked output:", funding_output_amount, "sat")
++++
+
+## Assemble the funding transaction
+
+The witness program is `00 20 <SHA256(script)>`. Construct one input and two outputs. Transaction IDs are reversed in the input; the output index and amounts use little-endian encoding.
+
++++ timelock-funding-transaction python-vm
+from codes import cleanup_tx
+
+csv_wsh = sha256(csv_script).hexdigest()
+cltv_wsh = sha256(cltv_script).hexdigest()
+lockup_tx = cleanup_tx(f"""
+version: 0200 0000
+inputs: 01
+    txid: {bytes.fromhex(txid_to_spend)[::-1].hex()}
+    vout: {vout_to_spend.to_bytes(4, 'little').hex()}
+    scriptSig: 00
+    sequence: ffff ffff
+outputs: 02
+    amount: {funding_output_amount.to_bytes(8, 'little').hex()}
+    scriptPubKey: 22 00 20 {cltv_wsh}
+    amount: {funding_output_amount.to_bytes(8, 'little').hex()}
+    scriptPubKey: 22 00 20 {csv_wsh}
+locktime: 0000 0000
+""")
+print(lockup_tx)
+bitcoin("decoderawtransaction", lockup_tx)
++++
+
+## Sign and broadcast
+
+The wallet owns the funding input. Ask it to sign the transaction, inspect the result, and broadcast it.
+
++++ timelock-sign-funding python-vm
+signed = bitcoin("signrawtransactionwithwallet", lockup_tx)
+assert signed["complete"], signed
+signed_lockup_tx = signed["hex"]
+bitcoin("decoderawtransaction", signed_lockup_tx)
++++
 
 +++ fund-timelocks python-vm
-csv_address = bitcoin("decodescript", csv_script.hex())["segwit"]["address"]
-cltv_address = bitcoin("decodescript", cltv_script.hex())["segwit"]["address"]
-funding_txid = bitcoin("sendmany", "", {csv_address: 0.01, cltv_address: 0.01})
+funding_txid = bitcoin("sendrawtransaction", signed_lockup_tx)
 funding = bitcoin("getrawtransaction", funding_txid, True)
-
-def find_output(script):
-    program = (b"\x00\x20" + sha256(script).digest()).hex()
-    return next(output["n"] for output in funding["vout"] if output["scriptPubKey"]["hex"] == program)
-
-csv_vout = find_output(csv_script)
-cltv_vout = find_output(cltv_script)
+cltv_vout, csv_vout = 0, 1
+assert funding["vout"][cltv_vout]["scriptPubKey"]["hex"] == "0020" + cltv_wsh
+assert funding["vout"][csv_vout]["scriptPubKey"]["hex"] == "0020" + csv_wsh
 mine(1)
 funding_height = bitcoin("getblockcount")
 print("Funding transaction:", funding_txid)
-print("Confirmed at height", funding_height, "CSV output", csv_vout, "CLTV output", cltv_vout)
+print("Confirmed at height", funding_height)
 +++
 
 ## Serialize the spending transactions
@@ -87,7 +137,7 @@ def spending_transaction(vout, witness_script, sequence, locktime):
         (2).to_bytes(4, "little"), b"\x00\x01",  # version, SegWit marker and flag
         b"\x01", bytes.fromhex(funding_txid)[::-1], vout.to_bytes(4, "little"),
         b"\x00", sequence.to_bytes(4, "little"),  # empty scriptSig, sequence
-        b"\x01", (1_000_000 - 1_000).to_bytes(8, "little"),  # one output, 1000 sat fee
+        b"\x01", (funding_output_amount - 1_000).to_bytes(8, "little"),  # one output, 1000 sat fee
         compact_size(len(destination_script)), destination_script,
         b"\x01", compact_size(len(witness_script)), witness_script,  # one witness item
         locktime.to_bytes(4, "little"),
@@ -143,8 +193,6 @@ When does this CSV output’s six-block clock start?
 - When you write the script. [Writing a script does not create an on-chain output.]
 - At a fixed block height chosen before funding. [That describes the absolute height used by CLTV.]
 ~~~
-
-Try Undo after the final cell. Inspect the height and mempool before running it again. Undo rebuilds the wallet and transactions by replaying the earlier cells, so generated addresses and transaction IDs may change.
 
 ::: references
 1. [BIP 65 — Absolute locktimes](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)

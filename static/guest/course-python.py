@@ -1,7 +1,7 @@
 """Persistent Python cells for a live course session. Resume reconstructs them by replay.
 
-The CLI connects to the same interpreter for each cell during a session.
-Only the guest can access this Unix socket. This is not a host execution service.
+The browser keeps one process open and sends cells over its input/output pipes.
+The legacy Unix-socket CLI is retained for standalone command compatibility.
 """
 import ast
 import base64
@@ -96,6 +96,29 @@ def serve():
                     pass  # Client disappeared; completed cell state remains in the VM.
 
 
+def serve_stdio():
+    # Keep the protocol on private descriptors. Student input() sees EOF, and
+    # subprocesses/os.write(1, ...) cannot corrupt the JSON response stream.
+    with os.fdopen(os.dup(0), "rb") as reader, os.fdopen(os.dup(1), "w") as writer:
+        with open(os.devnull, "rb") as empty:
+            os.dup2(empty.fileno(), 0)
+        os.dup2(2, 1)
+        sys.path.insert(0, os.getcwd())
+        namespace = {"__name__": "__course__", "__builtins__": __builtins__}
+        writer.write('{"ready":1}\n')
+        writer.flush()
+        while request := reader.readline(131073):
+            if len(request) > 131072 or not request.endswith(b"\n"):
+                raise ValueError("Invalid Python request frame")
+            message = json.loads(request)
+            source = message["code"]
+            if not isinstance(source, str) or len(source.encode()) > 16384:
+                raise ValueError("Python cells must be text under 16 KiB")
+            result = run_cell(source, namespace)
+            writer.write(json.dumps({"id": message["id"], **result}) + "\n")
+            writer.flush()
+
+
 def execute(encoded):
     source = base64.b64decode(encoded, validate=True).decode("utf-8")
     if not Path(SOCKET).exists():
@@ -123,9 +146,11 @@ def execute(encoded):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2 and sys.argv[1] == "--serve":
+    if len(sys.argv) == 2 and sys.argv[1] == "--stdio":
+        serve_stdio()
+    elif len(sys.argv) == 2 and sys.argv[1] == "--serve":
         serve()
     elif len(sys.argv) == 3 and sys.argv[1] == "--execute":
         sys.exit(execute(sys.argv[2]))
     else:
-        sys.exit("Expected --serve or --execute BASE64_SOURCE")
+        sys.exit("Expected --stdio, --serve or --execute BASE64_SOURCE")

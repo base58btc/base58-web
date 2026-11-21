@@ -1,81 +1,99 @@
 # Lightning gossip for fun and profit
 
-A Lightning node learns about public channels from gossip. A channel announcement identifies the two endpoints. Each endpoint can publish a channel update describing its policy for forwarding in one direction. The notebook calls each direction a **half-channel**.
+A Lightning node learns about public channels from gossip. A channel announcement identifies the two endpoints. Each endpoint can publish a channel update describing its policy for forwarding in one direction. Each direction is a **half-channel**.
 
-## Open the historical graph
-
-The original November 2023 snapshot is about 175 MB. This browser edition includes a reproducible **64-node extract** containing the notebook’s example channel and a route between its original endpoints. It contains real historical policies, including disabled directions. It is not a current network map and does not reveal channel balances.
+## Open the gossip store
 
 +++ load-gossip python-vm
-import json
-from pathlib import Path
+from pyln.client import Gossmap, GossmapNodeId, GossmapStats
+from lab import GOSSIP_STORE
 
-graph = json.loads(Path("data/gossip.json").read_text())
-edges = graph["edges"]
-print(len(graph["nodes"]), "nodes;", len(edges), "directed channel updates")
-print("Original store SHA256:", graph["provenance"]["sha256"])
-example_channel = [edge for edge in edges if edge["short_channel_id"] == "803775x1091x1"]
-example_channel
+gossmap = Gossmap(GOSSIP_STORE)
+print(len(gossmap.nodes), "nodes;", len(gossmap.channels), "channels")
 +++
 
-The `satoshis` value is the funding capacity shared by the two directions. The advertised policy includes:
++++ gossip-example-channel python-vm
+channel = gossmap.get_channel("803775x1091x1")
+channel.satoshis, channel.features
++++
 
-| Field | Meaning |
-| --- | --- |
-| `source`, `destination` | Direction of travel |
-| `direction` | 0 from the smaller public key to the larger, otherwise 1 |
-| `timestamp` | Time of this policy update |
-| `disabled` | Whether this direction is disabled |
-| `htlc_minimum_msat`, `htlc_maximum_msat` | Advertised amount bounds |
-| `fee_base_msat`, `fee_proportional_millionths` | Base and proportional forwarding fees |
-| `cltv_expiry_delta` | Additional incoming timelock required by the forwarding node |
++++ gossip-channel-directions python-vm
+print("Source:", channel.half_channels[0].source)
+print("Destination:", channel.half_channels[0].destination.node_id)
+print("Incoming:", gossmap.get_neighbors_hc(destination=channel.half_channels[0].destination.node_id))
+print("Outgoing:", gossmap.get_neighbors_hc(source=channel.half_channels[0].destination.node_id))
++++
+
+## Find neighbors
 
 +++ gossip-neighbors python-vm
-my_source, my_destination = graph["source"], graph["destination"]
+my_source = GossmapNodeId("0235acd5e943cbe5387815a8fb15ebc109b26556f82fa28cfcb0c2a3fda7da80fa")
+my_destination = GossmapNodeId("02c9477078f21e6f17816257132678d2d27f4c7074c8b0114d8be5ce9cee14bc26")
 
-def neighbors(source):
-    return sorted({edge["destination"] for edge in edges if edge["source"] == source and not edge["disabled"]})
+def find_neighbors(gossmap, node, depth=0):
+    return gossmap.get_neighbors(node, depth=depth)
 
-print("Source:", my_source)
-print("Destination:", my_destination)
-neighbors(my_source)
+find_neighbors(gossmap, my_source, depth=1)
 +++
 
 ## Find a route
 
-Use breadth-first search to find a path with the fewest hops. Keep the actual half-channels, not just node IDs: there can be multiple channels between two nodes. Track visited nodes so a disconnected destination terminates with a useful error.
-
-This is a topology exercise. Fewest hops does not necessarily mean lowest fees or highest payment success probability.
+What channels should we use to get from the source to the destination? Search one hop at a time, keeping the half-channels that connect the nodes. A visited set prevents loops and lets the search finish when no route exists.
 
 +++ find-route python-vm
 from collections import deque
 
-def find_route(edges, source, destination):
+def find_route(gossmap, source, destination):
     if source == destination:
         return []
     queue = deque([(source, [])])
     visited = {source}
     while queue:
         node, path = queue.popleft()
-        for edge in edges:
-            if edge["source"] != node or edge["disabled"]:
+        for half_channel in sorted(gossmap.get_neighbors_hc(source=node), key=lambda hc: str(hc.channel.scid)):
+            if half_channel.disabled:
                 continue
-            neighbor = edge["destination"]
+            neighbor = half_channel.destination.node_id
             if neighbor in visited:
                 continue
-            next_path = path + [edge]
+            next_path = path + [half_channel]
             if neighbor == destination:
                 return next_path
             visited.add(neighbor)
             queue.append((neighbor, next_path))
     raise ValueError("No enabled route exists in this graph")
 
-half_channels = find_route(edges, my_source, my_destination)
-for edge in half_channels:
-    print(edge["source"], "->", edge["destination"], edge["short_channel_id"], "/", edge["direction"])
+route_channels = find_route(gossmap, my_source, my_destination)
+path = [my_source] + [hc.destination.node_id for hc in route_channels]
+[str(node) for node in path]
 +++
 
-Experiment: remove one selected direction from the graph and search again. Does an alternative path exist? What happens if the destination is absent?
+## Which half-channels are we using?
+
+Each channel has two directions. Direction 0 goes from the smaller public key to the larger; direction 1 goes the other way.
+
++++ gossip-half-channels python-vm
+def find_direction(source, destination):
+    return 0 if source < destination else 1
+
+for hc in route_channels:
+    direction = find_direction(hc.source.node_id, hc.destination.node_id)
+    assert hc.channel.half_channels[direction] is hc
+    print(hc.source, "->", hc.destination, hc.channel.scid, "/", direction)
+
+def half_channel_policy(hc):
+    return {
+        "source": str(hc.source.node_id), "destination": str(hc.destination.node_id),
+        "short_channel_id": str(hc.channel.scid), "direction": hc.direction,
+        "satoshis": hc.channel.satoshis, "timestamp": hc.timestamp, "disabled": hc.disabled,
+        "htlc_minimum_msat": hc.htlc_minimum_msat, "htlc_maximum_msat": hc.htlc_maximum_msat,
+        "fee_base_msat": hc.fee_base_msat, "fee_proportional_millionths": hc.fee_proportional_millionths,
+        "cltv_expiry_delta": hc.cltv_expiry_delta,
+    }
+
+half_channels = [half_channel_policy(hc) for hc in route_channels]
+half_channels
++++
 
 ## Can the payment fit?
 
@@ -182,7 +200,7 @@ illustrative_hops = make_onion_hops(historical_route, 1_000, "22" * 32)
 illustrative_hops
 +++
 
-These payloads use the notebook’s illustrative height and secret. They are for inspection only. In the next lesson, use the same functions with real local node IDs, a fresh invoice, and the regtest block height.
+Use the same functions with a fresh invoice and the current block height to send a payment in the next lesson.
 
 ~~~
 id: capacity-versus-liquidity

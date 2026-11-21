@@ -1,12 +1,12 @@
 # Build and send an onion
 
-The original gossip notebook finishes by building an onion and calling `sendonion`. Here we complete that experiment with a payable invoice on a local network: **Alice → Bob → Carol**.
+Build an onion and send a payment on a regtest network: **Alice → Bob → Carol**.
 
-Run the previous lesson first. This lesson reuses its `make_route`, `payload`, and `make_onion_hops` functions. Your Python variables persist between lessons in the same course attempt.
+Run the previous lesson first. This lesson reuses its `make_route`, `payload`, and `make_onion_hops` functions. 
 
 ## Start the three nodes
 
-Each node has its own directory and RPC socket. Connections stay on loopback inside the VM. Start each node separately so each startup is recorded as a command that can be replayed.
+Start Bitcoin and three Lightning nodes.
 
 +++ onion-start-bitcoin python-vm
 from lab import bitcoin, lightning, start_bitcoin, start_node, fund_nodes, open_channel, confirm_channels, sync_nodes
@@ -123,8 +123,6 @@ assert received["status"] == "paid", received
 print("Carol received:", received["amount_received_msat"], "msat")
 +++
 
-Try Undo on the recipient check, then Undo on the send cell. Inspect Carol’s invoice again: the whole VM, including all three nodes, returns to the earlier state. Rebuild and send the onion to repeat the experiment.
-
 ~~~
 id: onion-associated-data
 Which invoice field must the payment onion’s associated data match?
@@ -132,8 +130,6 @@ Which invoice field must the payment onion’s associated data match?
 - The payment secret. [The secret belongs in the final hop’s payment-data TLV.]
 - The recovered signing key. [The public key identifies the recipient; it is not the associated data.]
 ~~~
-
-This lesson retains `sendonion` to match the original notebook’s exercise.
 
 ::: references
 1. [Core Lightning — createonion](https://docs.corelightning.org/reference/createonion)
