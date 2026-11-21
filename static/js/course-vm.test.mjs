@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {gzipSync} from "node:zlib";
 import {createHash} from "node:crypto";
 import {parseNar, mountArchive} from "./course-nar.mjs";
-import {CourseVM, boundedOutput, commandQueue, verifiedArchive} from "./course-vm.mjs";
+import {CourseVM, boundedOutput, commandQueue, verifiedArchive, loadArchives} from "./course-vm.mjs";
 import {CommandJournal, journalState} from "./course-history.mjs";
 
 function nar(...tokens) {
@@ -44,6 +44,29 @@ test("commands stay ordered and a failed cell does not block the next", async ()
   await assert.rejects(first, /cell failed/);
   assert.equal(await second, 7);
   assert.deepEqual(events, ["first", "second"]);
+});
+
+test("archive download order cannot change filesystem inode allocation on restore", async () => {
+  const archives = ["a", "b"].map(name => ({storePath: "/nix/store/" + name.repeat(32) + "-example"}));
+  const load = async reverse => {
+    const inodes = new Map(), pending = new Map();
+    const files = {writeFile: path => inodes.set(path, inodes.size + 1)};
+    const loading = loadArchives(files, archives, "https://example.test/", () => {}, archive =>
+      new Promise(resolve => pending.set(archive.storePath, resolve)));
+    // Force opposite network/cache completion orders without timing assumptions.
+    for (const archive of reverse ? [...archives].reverse() : archives) pending.get(archive.storePath)(file());
+    await loading;
+    return inodes;
+  };
+  assert.deepEqual(await load(false), await load(true));
+});
+
+test("legacy checkpoints are refused before replacing disk state", async () => {
+  const runtime = new CourseVM({});
+  let restored = false;
+  runtime.storage = {restore: async () => { restored = true; }};
+  await assert.rejects(runtime.startKernel({state: {metadata: {}}}), /history and checkpoints have been preserved/);
+  assert.equal(restored, false);
 });
 
 function memoryJournal(trace, refuse = false) {

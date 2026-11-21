@@ -125,6 +125,32 @@ The terminal preview works without a database or asset uploads. The rendered
 Markdown preview above still needs an application environment endpoint to execute
 cells. Any changes to the course sources require a new bundle.
 
+The Lightning environment starts its services in lesson cells, not at boot.
+In the terminal preview, initialize the funded regtest wallet with:
+
+```sh
+python3 -c "from lab import start_bitcoin; print(start_bitcoin())"
+```
+
+This creates `/data/workspace/.lab/bitcoin`, starts Bitcoin Core, and mines the
+initial 101 blocks. Then query it with:
+
+```sh
+bitcoin-cli -regtest -datadir=/data/workspace/.lab/bitcoin getblockchaininfo
+```
+
+The generic preview's `pwd` command works before this initialization. The
+`/data/workspace/node` directory from the README's separate example flake is not
+used by the Lightning course.
+
+The browser now mounts archives in manifest order so filesystem inode numbers
+remain stable across reloads. Initializing Bitcoin, saving, refreshing the page,
+and querying the restored node at height 101 have been checked in the browser.
+Checkpoints from the earlier download-order-dependent implementation are retained
+but require migration before they can resume; they are not silently reset. A
+different preview port provides a fresh browser workspace for testing this fix
+without clearing the old preview's saved work.
+
 ## Browser validation and publishing
 
 The Linux build and native lesson tests do not replace browser acceptance checks.

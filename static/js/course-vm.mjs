@@ -5,6 +5,13 @@ import {CommandJournal, newEvent} from "./course-history.mjs";
 const SDK = "/static/vendor/unkernel-0.2.0-261119-040e142/web.mjs";
 const CACHE = "base58-course-archives-v1";
 const MAX_OUTPUT = 1 << 20;
+const FILESYSTEM_LAYOUT = 1;
+
+function checkFilesystemLayout(checkpoint) {
+  if (checkpoint && checkpoint.state.metadata.base58FilesystemLayout !== FILESYSTEM_LAYOUT) {
+    throw new Error("This saved environment predates the filesystem restore fix and needs migration before it can resume. Its history and checkpoints have been preserved.");
+  }
+}
 
 export function boundedOutput(value) {
   const text = String(value || ""), bytes = new TextEncoder().encode(text);
@@ -28,6 +35,20 @@ export async function verifiedArchive(archive, baseURL, fetcher = fetch) {
   try { await cache?.put(url.href, new Response(bytes)); } catch { /* Quota limits do not prevent execution. */ }
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+export async function loadArchives(files, archives, baseURL, onProgress = () => {}, download = verifiedArchive) {
+  // MemoryFs assigns inode numbers in insertion order. Restored kernels retain
+  // those numbers, so a download race must never change archive mounting order.
+  // Keep downloads parallel and bounded, but mount in the manifest's order.
+  for (let offset = 0; offset < archives.length; offset += 2) {
+    const batch = archives.slice(offset, offset + 2);
+    const contents = await Promise.all(batch.map(archive => download(archive, baseURL)));
+    for (let index = 0; index < batch.length; index++) {
+      mountArchive(files, batch[index].storePath, contents[index]);
+      onProgress(offset + index + 1);
+    }
+  }
 }
 
 // Serialize commands even when students run several cells at once. A rejection
@@ -92,7 +113,7 @@ export class CourseVM {
     this.sdk = await import(SDK);
     const store = new this.sdk.MemoryFs(), sources = new this.sdk.MemoryFs();
     store.mkdirp("/nix/store");
-    for (const [path, content] of Object.entries(files)) {
+    for (const [path, content] of Object.entries(files).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
       if (path.startsWith("/") || path.split("/").some(p => !p || p === "." || p === "..")) throw new Error("Invalid course source path");
       sources.writeFile("/" + path, content);
     }
@@ -100,14 +121,9 @@ export class CourseVM {
     const pythonRunner = await fetch("/static/guest/course-python.py");
     if (!pythonRunner.ok) throw new Error("Unable to load course Python runner");
     sources.writeFile("/.base58-python.py", await pythonRunner.text());
-    let next = 0, done = 0;
-    await Promise.all([0,1].map(async () => {
-      while (next < manifest.archives.length) {
-        const archive = manifest.archives[next++];
-        mountArchive(store, archive.storePath, await verifiedArchive(archive, assetBaseURL));
-        this.onStatus("Loading course tools (" + (++done) + "/" + manifest.archives.length + ")…");
-      }
-    }));
+    await loadArchives(store, manifest.archives, assetBaseURL, done => {
+      this.onStatus("Loading course tools (" + done + "/" + manifest.archives.length + ")…");
+    });
     this.mounts = {"/course-store":{fs:store,readOnly:true}, "/course":{fs:sources,readOnly:true}};
     this.shell = manifest.shell;
     // The device lease has expired or was released before we can reach here.
@@ -123,6 +139,7 @@ export class CourseVM {
       else await this.journal.append(newEvent("interrupted",{commandId:id}));
     }
     this.saved = await this.storage.checkpoint(this.journal.state.head);
+    checkFilesystemLayout(this.saved);
     if (!this.saved) {
       if (this.journal.state.head) throw new Error("The saved VM checkpoint is missing. Your command history has been kept.");
       await this.startKernel();
@@ -133,6 +150,7 @@ export class CourseVM {
   }
 
   async startKernel(checkpoint) {
+    checkFilesystemLayout(checkpoint);
     this.onStatus(checkpoint ? "Resuming course VM…" : "Starting course services…");
     const restore = checkpoint ? await this.storage.restore(checkpoint,this.diskName,SDK) : undefined;
     // This pinned SDK restores host filesystem mounts only in inline mode.
@@ -160,6 +178,7 @@ export class CourseVM {
       }
     }
     await this.vm.stop(); this.vm = null;
+    snapshot.base58FilesystemLayout = FILESYSTEM_LAYOUT;
     return this.storage.save(id,snapshot,this.diskName,SDK,result);
   }
 

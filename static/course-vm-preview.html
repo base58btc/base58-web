@@ -19,7 +19,8 @@
   <button id="undo" disabled>Undo last command</button>
   <p id="status" role="status">Ready to load the prepared course bundle.</p>
   <label for="command">Command</label>
-  <textarea id="command" rows="3">bitcoin-cli -regtest -datadir=/data/workspace/node getblockchaininfo</textarea>
+  <p>Try <code>pwd</code> to check your workspace. Run your lesson's setup commands before querying Bitcoin or Lightning.</p>
+  <textarea id="command" rows="3">pwd</textarea>
   <button id="run" disabled>Run command</button>
   <pre id="output" aria-live="polite"></pre>
   <details><summary>CLI command history</summary><div id="history"></div></details>
