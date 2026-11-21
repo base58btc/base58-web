@@ -124,24 +124,6 @@ func CourseCommands(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	checkpoint := "initial"
-	if request.Event.Type == "result" {
-		checkpoint = request.Event.CommandID
-	}
-	if request.Event.Type == "checkout" && request.Event.Head != "" {
-		checkpoint = request.Event.Head
-	}
-	if request.Event.Type == "result" || request.Event.Type == "checkout" || request.Event.Type == "command" {
-		if request.Event.Type == "command" && request.Event.Parent != "" {
-			checkpoint = request.Event.Parent
-		}
-		var present bool
-		err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM course_vm_checkpoints WHERE attempt_id=$1 AND environment_hash=$2 AND checkpoint_id=$3)`, attempt.ID, manifest.SourceHash, checkpoint).Scan(&present)
-		if err != nil || !present {
-			http.Error(w, "Save the VM checkpoint before advancing history", 409)
-			return
-		}
-	}
 	body, err := json.Marshal(request.Event)
 	if err != nil {
 		http.Error(w, "Invalid command event", 400)

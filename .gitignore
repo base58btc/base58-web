@@ -18,3 +18,7 @@ target
 # Generated, pinned browser VM assets and course Nix archives.
 static/vendor/unkernel-*/
 courses/**/runtime/
+
+# Generated Python bytecode.
+__pycache__/
+*.py[cod]

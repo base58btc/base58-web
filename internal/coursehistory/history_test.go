@@ -43,3 +43,47 @@ func TestInterruptedCommandDoesNotAdvanceHead(t *testing.T) {
 		t.Fatal("incorrect recovery")
 	}
 }
+
+func TestCommandTimeoutBounds(t *testing.T) {
+	for _, timeout := range []int{0, 30000, 120000, -1, 120001} {
+		state := New()
+		err := state.Apply(Event{ID: "command", Type: "command", Command: &Command{Program: "python3", TimeoutMS: timeout}})
+		if (err != nil) != (timeout < 0 || timeout > 120000) {
+			t.Fatalf("timeout %d: %v", timeout, err)
+		}
+	}
+}
+
+func TestResetArchivesCommandsAndStartsANewRoot(t *testing.T) {
+	s := New()
+	apply := func(e Event) {
+		t.Helper()
+		if err := s.Apply(e); err != nil {
+			t.Fatalf("%s: %v", e.ID, err)
+		}
+	}
+	apply(Event{ID: "old", Type: "command", Command: &Command{Program: "pwd"}})
+	if s.Apply(Event{ID: "pending-reset", Type: "reset"}) == nil {
+		t.Fatal("reset discarded an unfinished command")
+	}
+	apply(Event{ID: "result", Type: "result", CommandID: "old", Result: &Result{Stdout: "preserved"}})
+	if s.Apply(Event{ID: "bad-reset", Type: "reset", Head: "old"}) == nil {
+		t.Fatal("allowed reset with a cursor")
+	}
+	apply(Event{ID: "reset", Type: "reset"})
+	if s.Head != "" || s.Commands["old"].Result.Stdout != "preserved" {
+		t.Fatal("reset lost history or retained replay cursor")
+	}
+	if s.Apply(Event{ID: "restore-old", Type: "checkout", Head: "old"}) == nil {
+		t.Fatal("allowed checkout across reset")
+	}
+	if s.Apply(Event{ID: "extend-old", Type: "command", Parent: "old", Command: &Command{Program: "pwd"}}) == nil {
+		t.Fatal("allowed command on archived workspace")
+	}
+	apply(Event{ID: "new", Type: "command", Command: &Command{Program: "pwd"}})
+	apply(Event{ID: "new-result", Type: "result", CommandID: "new", Result: &Result{}})
+	apply(Event{ID: "undo", Type: "checkout"})
+	if s.Head != "" || len(s.Commands) != 2 {
+		t.Fatal("undo crossed reset or lost archive")
+	}
+}

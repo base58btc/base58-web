@@ -13,13 +13,14 @@
 <body>
   <p>BASE58 · COURSE AUTHOR TOOLS</p>
   <h1>Try your course environment</h1>
-  <p>Commands run in this browser. This local preview saves VM checkpoints on this device. Published courses also save them to the student's account.</p>
+  <p>Commands run in this browser. This preview saves command history on this device; published courses save it to your account. Resume and undo replay commands in a fresh environment. Generated values may differ, and unrecorded file changes are not saved.</p>
   <button id="start">Start environment</button>
   <button id="stop" disabled>Save and stop</button>
   <button id="undo" disabled>Undo last command</button>
   <p id="status" role="status">Ready to load the prepared course bundle.</p>
   <label for="command">Command</label>
-  <textarea id="command" rows="3">bitcoin-cli -regtest -datadir=/data/workspace/node getblockchaininfo</textarea>
+  <p>Try <code>pwd</code> to check your workspace. Run your lesson's setup commands before querying Bitcoin or Lightning.</p>
+  <textarea id="command" rows="3">pwd</textarea>
   <button id="run" disabled>Run command</button>
   <pre id="output" aria-live="polite"></pre>
   <details><summary>CLI command history</summary><div id="history"></div></details>

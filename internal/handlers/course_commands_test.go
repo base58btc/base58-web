@@ -186,13 +186,11 @@ func TestCourseCommandsPostgres(t *testing.T) {
 	}
 	call("POST", base+"/lease/session", "device-a", nil, 204)
 	call("POST", base+"/lease/session", "device-b", nil, 409)
-	chunk := []byte("a private compressed checkpoint fixture")
-	hash := courseenv.Hash(chunk)
-	call("PUT", base+"/chunks/"+hash, "device-a", []byte("corrupt"), 400)
-	call("PUT", base+"/chunks/"+hash, "device-a", chunk, 204)
-	checkpoint, _ := json.Marshal(vmCheckpoint{Format: 1, Chunks: []string{hash}, State: json.RawMessage(`{"sdk":"fixture"}`)})
-	call("PUT", base+"/checkpoints/initial", "device-a", checkpoint, 204)
-	event := coursehistory.Event{ID: "cmd-1", Type: "command", Command: &coursehistory.Command{Program: "bitcoin-cli", Args: []string{"createwallet", "course"}}}
+	// Retired snapshot endpoints cannot write new VM state.
+	call("PUT", base+"/chunks/"+strings.Repeat("a", 64), "device-a", []byte("snapshot"), 410)
+	call("PUT", base+"/checkpoints/initial", "device-a", []byte(`{}`), 410)
+	call("GET", base+"/checkpoints/initial", "device-a", nil, 410)
+	event := coursehistory.Event{ID: "cmd-1", Type: "command", Command: &coursehistory.Command{Program: "bitcoin-cli", Args: []string{"createwallet", "course"}, TimeoutMS: 30000}}
 	appendEvent := func(revision int, e coursehistory.Event, want int) {
 		body, _ := json.Marshal(map[string]any{"expectedRevision": revision, "event": e})
 		call("POST", base, "device-a", body, want)
@@ -200,27 +198,38 @@ func TestCourseCommandsPostgres(t *testing.T) {
 	appendEvent(0, event, 200)
 	appendEvent(0, event, 200) // response-loss retry
 	result := coursehistory.Event{ID: "res-1", Type: "result", CommandID: "cmd-1", Result: &coursehistory.Result{Stdout: "wallet created"}}
-	appendEvent(1, result, 409) // history cannot outrun its checkpoint
-	call("PUT", base+"/checkpoints/cmd-1", "device-a", checkpoint, 204)
 	appendEvent(1, result, 200)
 	appendEvent(1, coursehistory.Event{ID: "stale", Type: "checkout"}, 409)
 	appendEvent(2, coursehistory.Event{ID: "undo", Type: "checkout"}, 200)
+	reset := coursehistory.Event{ID: "reset", Type: "reset"}
+	appendEvent(3, reset, 200)
+	appendEvent(3, reset, 200) // reset retries must also be idempotent
+	appendEvent(4, coursehistory.Event{ID: "new-command", Type: "command", Command: &coursehistory.Command{Program: "pwd"}}, 200)
+	appendEvent(5, coursehistory.Event{ID: "new-result", Type: "result", CommandID: "new-command", Result: &coursehistory.Result{Stdout: "fresh"}}, 200)
 	call("DELETE", base+"/lease/session", "device-a", nil, 204)
 	call("POST", base+"/lease/session", "device-b", nil, 204)
-	if got := call("GET", base+"/chunks/"+hash, "device-b", nil, 200); !bytes.Equal(got, chunk) {
-		t.Fatal("cross-device chunk differs")
-	}
 	var journal commandJournalResponse
 	json.Unmarshal(call("GET", base, "device-b", nil, 200), &journal)
-	if journal.Revision != 3 {
+	if len(journal.Events) != 6 || journal.Events[0].Command.TimeoutMS != 30000 || journal.Events[1].Result.Stdout != "wallet created" {
+		t.Fatal("cross-device command history lost execution details")
+	}
+	if journal.Revision != 6 {
 		t.Fatalf("lost or duplicated events: %d", journal.Revision)
+	}
+	state := coursehistory.New()
+	for _, event := range journal.Events {
+		if err := state.Apply(event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if state.Head != "new-command" || state.Commands[state.Head].Event.Parent != "" || len(state.Commands) != 2 {
+		t.Fatal("cross-device reset did not preserve the archive and fresh replay root")
 	}
 	resp, err = client.Get(server.URL + "/login?person=2")
 	if err != nil {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
-	call("GET", base+"/chunks/"+hash, "device-b", nil, 404)
 	var other commandJournalResponse
 	json.Unmarshal(call("GET", base, "device-b", nil, 200), &other)
 	if len(other.Events) != 0 {
@@ -229,14 +238,14 @@ func TestCourseCommandsPostgres(t *testing.T) {
 }
 
 // An opt-in local fixture for testing two independent browser profiles against
-// the real account/checkpoint handlers. It never connects to a production DB.
+// the real account/command-history handlers. It never connects to a production DB.
 func TestCourseCommandBrowserPreview(t *testing.T) {
 	dir := os.Getenv("BASE58_VM_TEST_COURSE_DIR")
 	if dir == "" {
 		t.Skip("browser fixture not requested")
 	}
 	server, _ := commandTestServer(t, dir)
-	t.Log("Browser checkpoint fixture: " + server.URL + "/login")
+	t.Log("Browser replay fixture: " + server.URL + "/login")
 	select {
 	case <-time.After(45 * time.Minute):
 	}
