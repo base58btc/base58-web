@@ -4,7 +4,7 @@
   {{ block "head" .Page }} {{ end }}
   <style>
     .dashboard-main {
-      background: #fffdf8;
+      background: var(--parchment, #fcf1e6);
       color: #191919;
       min-height: 70vh;
       padding: 7rem 5vw 5rem;
@@ -21,15 +21,8 @@
       border-bottom: 1px solid rgba(25, 25, 25, 0.14);
       padding-bottom: 1.5rem;
     }
-    .dashboard-kicker {
-      color: #6f5735;
-      font-size: 0.78rem;
-      font-weight: 800;
-      letter-spacing: 0;
-      text-transform: uppercase;
-    }
     .dashboard-title {
-      margin: 0.25rem 0 0;
+      margin: 0;
       font-size: clamp(2rem, 5vw, 4rem);
       line-height: 1;
     }
@@ -74,7 +67,15 @@
       border-radius: 0.5rem;
       background: #ffffff;
     }
+    .dashboard-course-image-link {
+      display: block;
+    }
+    .dashboard-course-image-link:focus-visible {
+      outline: 3px solid #191919;
+      outline-offset: -3px;
+    }
     .dashboard-course-image {
+      display: block;
       width: 100%;
       aspect-ratio: 16 / 7;
       background: #ece6d8;
@@ -95,43 +96,82 @@
       color: #4b4032;
       line-height: 1.5;
     }
-    .dashboard-stats {
+    .dashboard-progress {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.65rem;
+      gap: 1rem;
     }
-    .dashboard-stat {
-      border: 1px solid rgba(25, 25, 25, 0.12);
-      border-radius: 0.375rem;
-      padding: 0.75rem;
-      background: #fffaf0;
-    }
-    .dashboard-stat-label {
+    .dashboard-progress-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
       color: #665f54;
+      font-size: 0.8rem;
+    }
+    .dashboard-progress-heading label {
+      margin: 0;
+      font-weight: 700;
+    }
+    .dashboard-progress-heading span {
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-progress-bar {
+      appearance: none;
+      display: block;
+      width: 100%;
+      height: 0.5rem;
+      overflow: hidden;
+      border: 0;
+      border-radius: 999px;
+      background: #eee6da;
+      color: #f7931a;
+    }
+    .dashboard-progress-bar::-webkit-progress-bar {
+      border-radius: 999px;
+      background: #eee6da;
+    }
+    .dashboard-progress-bar::-webkit-progress-value {
+      border-radius: 999px;
+      background: #f7931a;
+    }
+    .dashboard-progress-bar::-moz-progress-bar {
+      border-radius: 999px;
+      background: #f7931a;
+    }
+    .dashboard-progress-bar.questions {
+      --correct-end: calc(100% * var(--correct) / max(1, var(--answered)));
+    }
+    .dashboard-progress-bar.questions::-webkit-progress-value {
+      background: linear-gradient(to right, #2f6f4e var(--correct-end), #9b2f24 var(--correct-end));
+    }
+    .dashboard-progress-bar.questions::-moz-progress-bar {
+      background: linear-gradient(to right, #2f6f4e var(--correct-end), #9b2f24 var(--correct-end));
+    }
+    .dashboard-progress-results {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
       font-size: 0.75rem;
-      font-weight: 800;
-      text-transform: uppercase;
     }
-    .dashboard-stat-value {
-      margin-top: 0.25rem;
-      font-size: 1.25rem;
-      font-weight: 850;
-      line-height: 1;
-    }
-    .dashboard-stat-value.pass {
+    .dashboard-progress-results .pass {
       color: #2f6f4e;
     }
-    .dashboard-stat-value.fail {
+    .dashboard-progress-results .fail {
       color: #9b2f24;
     }
     .dashboard-actions {
       display: flex;
-      flex-wrap: wrap;
       gap: 0.75rem;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       border-top: 1px solid rgba(25, 25, 25, 0.12);
       padding-top: 1rem;
+    }
+    .dashboard-actions > .dashboard-link {
+      flex-shrink: 0;
     }
     .dashboard-link {
       border: 1.5px solid #191919;
@@ -146,11 +186,15 @@
     }
     .dashboard-reset {
       border: 0;
+      padding: 0;
       background: transparent;
       color: #8a2d22;
       cursor: pointer;
       font: inherit;
-      font-weight: 800;
+      font-weight: 400;
+      text-align: right;
+      text-decoration: underline;
+      text-underline-offset: 0.15em;
     }
     .dashboard-reset-dialog {
       width: min(92vw, 28rem);
@@ -320,9 +364,6 @@
         align-items: flex-start;
         flex-direction: column;
       }
-      .dashboard-stats {
-        grid-template-columns: 1fr;
-      }
       .dashboard-empty {
         grid-template-columns: 1fr;
       }
@@ -343,7 +384,6 @@
       <div class="dashboard-wrap">
         <header class="dashboard-head">
           <div>
-            <div class="dashboard-kicker">Student Dashboard</div>
             <h1 class="dashboard-title">Courses</h1>
           </div>
           <div class="dashboard-head-actions">
@@ -369,38 +409,40 @@
             {{ range .Courses }}
               <article class="dashboard-course">
                 {{ if .HeaderImg }}
-                  <img class="dashboard-course-image" src="{{ .HeaderImg }}" alt="{{ .Title }} course header" loading="lazy">
+                  <a class="dashboard-course-image-link" href="{{ .CourseURL }}" aria-label="{{ .Title }}">
+                    <img class="dashboard-course-image" src="{{ .HeaderImg }}" alt="{{ .Title }} course header" loading="lazy">
+                  </a>
                 {{ end }}
                 <div class="dashboard-course-body">
                   <div>
                     <h2 class="dashboard-course-title">{{ .Title }}</h2>
                     <p class="dashboard-course-description">{{ .Description }}</p>
                   </div>
-                  <div class="dashboard-stats">
-                    <div class="dashboard-stat">
-                      <div class="dashboard-stat-label">Pages viewed</div>
-                      <div class="dashboard-stat-value">{{ dashboardProgressLabel .PagesViewed .TotalPages }}</div>
+                  <div class="dashboard-progress">
+                    <div>
+                      <div class="dashboard-progress-heading">
+                        <label for="dashboard-pages-{{ .Slug }}">Lesson progress</label>
+                        <span>{{ dashboardProgressLabel .PagesViewed .TotalPages }}</span>
+                      </div>
+                      <progress id="dashboard-pages-{{ .Slug }}" class="dashboard-progress-bar" value="{{ if gt .TotalPages 0 }}{{ .PagesViewed }}{{ else }}0{{ end }}" max="{{ if gt .TotalPages 0 }}{{ .TotalPages }}{{ else }}1{{ end }}" aria-valuetext="{{ dashboardProgressLabel .PagesViewed .TotalPages }}">{{ dashboardProgressLabel .PagesViewed .TotalPages }}</progress>
                     </div>
-                    <div class="dashboard-stat">
-                      <div class="dashboard-stat-label">Questions answered</div>
-                      <div class="dashboard-stat-value">{{ dashboardProgressLabel .QuestionsAnswered .TotalQuestions }}</div>
-                    </div>
-                    <div class="dashboard-stat">
-                      <div class="dashboard-stat-label">Passed</div>
-                      <div class="dashboard-stat-value pass">{{ .QuestionsPassed }}</div>
-                    </div>
-                    <div class="dashboard-stat">
-                      <div class="dashboard-stat-label">Failed</div>
-                      <div class="dashboard-stat-value fail">{{ .QuestionsFailed }}</div>
+                    <div>
+                      <div class="dashboard-progress-heading">
+                        <label for="dashboard-questions-{{ .Slug }}">Questions answered</label>
+                        <span>{{ dashboardProgressLabel .QuestionsAnswered .TotalQuestions }}</span>
+                      </div>
+                      <progress id="dashboard-questions-{{ .Slug }}" class="dashboard-progress-bar questions" style="--correct: {{ .QuestionsPassed }}; --answered: {{ .QuestionsAnswered }};" value="{{ if gt .TotalQuestions 0 }}{{ .QuestionsAnswered }}{{ else }}0{{ end }}" max="{{ if gt .TotalQuestions 0 }}{{ .TotalQuestions }}{{ else }}1{{ end }}" aria-valuetext="{{ dashboardProgressLabel .QuestionsAnswered .TotalQuestions }} answered; {{ .QuestionsPassed }} correct; {{ .QuestionsFailed }} incorrect">{{ dashboardProgressLabel .QuestionsAnswered .TotalQuestions }}</progress>
+                      {{ if .QuestionsAnswered }}
+                        <div class="dashboard-progress-results">
+                          <span class="pass">{{ .QuestionsPassed }} correct</span>
+                          <span class="fail">{{ .QuestionsFailed }} incorrect</span>
+                        </div>
+                      {{ end }}
                     </div>
                   </div>
                   <div class="dashboard-actions">
-                    <div>
-                      <a class="dashboard-link primary" href="{{ .ResumeURL }}">Resume</a>
-                      <a class="dashboard-link" href="{{ .CourseURL }}">Course</a>
-                    </div>
                     {{ if .AllowReset }}
-                      <button class="dashboard-reset" type="button" data-open-reset-dialog data-course-slug="{{ .Slug }}">Reset Course Progress</button>
+                      <button class="dashboard-reset" type="button" data-open-reset-dialog data-course-slug="{{ .Slug }}">Reset course progress</button>
                       <dialog class="dashboard-reset-dialog" aria-labelledby="reset-title-{{ .Slug }}">
                         <form method="post" action="/dashboard/courses/{{ .Slug }}/reset">
                           {{ $.CSRFField }}
@@ -418,6 +460,7 @@
                         </form>
                       </dialog>
                     {{ end }}
+                    <a class="dashboard-link primary" href="{{ .ResumeURL }}">Resume</a>
                   </div>
                 </div>
               </article>
