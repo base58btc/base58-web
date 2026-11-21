@@ -745,16 +745,13 @@ func hashBytes(value []byte) string {
 
 func discoverRuntimeAssets(dir string, files []syncFile) ([]courseAsset, error) {
 	source := courseSourceMap(files)
-	content, ok := source[courseenv.ManifestFile]
+	_, ok := source[courseenv.ManifestFile]
 	if !ok {
 		return nil, nil
 	}
-	manifest, err := courseenv.Parse(content)
+	manifest, err := courseenv.ForFiles(source)
 	if err != nil {
 		return nil, err
-	}
-	if manifest.SourceHash != courseenv.SourceHash(source) {
-		return nil, fmt.Errorf("course runtime is stale; run course-sync bundle again")
 	}
 	var assets []courseAsset
 	for _, archive := range manifest.Archives {

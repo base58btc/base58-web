@@ -62,7 +62,7 @@ native libraries and persistent globals. Existing unmarked cells use Pyodide.
 `bundle` evaluates the locked flake with `nix print-dev-env`, captures shell
 variables/functions without running the shell hook, and exports the resulting
 Nix store closure as gzip-compressed NAR files. It writes `course-runtime.json`
-and `runtime/<source-hash>/*.nar.gz` inside the course directory. This synchronous
+and `runtime/<runtime-hash>/*.nar.gz` inside the course directory. This synchronous
 author/CI step needs Nix; the student's browser does not evaluate the flake or
 build packages.
 
@@ -72,12 +72,25 @@ and `SPACES_SECRET`. The website needs the matching `COURSE_ASSET_*` settings.
 The asset origin must allow browser CORS GET requests. `--no-assets` is available
 when archives are hosted separately at the same course asset URLs.
 
-The generated manifest is versioned alongside the lessons. Its fingerprint
-covers every uploaded source file, including imported `.nix`, `.py`, `.sh`,
-`.json`, `.toml`, `.yaml`, `.yml`, `.txt`, and `.conf` files. Publishing rejects a
-missing or stale bundle. Re-run `bundle` after editing course sources. Hidden
-files and unrelated binary files are excluded. Add `runtime/` to the course
-repository's `.gitignore`; generate the archives again in CI if needed.
+The format-2 manifest stores a **runtime fingerprint** covering `flake.nix`,
+`flake.lock`, imported Nix files, scripts, data, and configuration. Lesson
+Markdown is excluded from both that fingerprint and the source tree supplied to
+Nix. Put any Markdown that a derivation must read under `nix/`, where all source
+files count as runtime inputs. Publishing and `verify-bundle` reject changed
+runtime inputs or missing archives. Re-run `bundle` for those changes.
+When the runtime fingerprint and archive checksums still match, `bundle` reuses
+them without invoking Nix; `--force` explicitly rebuilds the environment.
+
+A separate **content fingerprint** covers all uploaded course sources except the
+generated manifest. It scopes command journals and local preview progress, so
+edited exercises cannot silently replay work from a different course revision.
+Lesson text and code-cell edits can reuse the same runtime archives; template,
+HTML, and CSS changes also need no Linux build. Re-render the local pages or sync
+the revised lessons normally. Existing format-1 manifests retain their original
+all-source validation and remain supported.
+
+Hidden files and unrelated binary files are excluded. Add `runtime/` to the
+course repository's `.gitignore`; generate the archives again in CI if needed.
 
 Published archives use immutable paths and are retained when another version is
 synced, because older student attempts still reference them. The browser verifies

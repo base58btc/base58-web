@@ -41,17 +41,18 @@ func CourseCommands(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 		http.Error(w, "Course environment unavailable", 503)
 		return
 	}
-	manifest, err := courseenv.ForFiles(files)
-	if err != nil || manifest.SourceHash != r.URL.Query().Get("environment") {
+	_, err = courseenv.ForFiles(files)
+	contentHash := courseenv.ContentHash(files)
+	if err != nil || contentHash != r.URL.Query().Get("environment") {
 		http.Error(w, "Course environment changed; reload this lesson", 409)
 		return
 	}
 	if mux.Vars(r)["resource"] != "" {
-		courseVMStorage(w, r, ctx, attempt.ID, manifest.SourceHash)
+		courseVMStorage(w, r, ctx, attempt.ID, contentHash)
 		return
 	}
 	if r.Method == http.MethodGet {
-		journal, err := readCommandJournal(ctx.DB, attempt.ID, manifest.SourceHash)
+		journal, err := readCommandJournal(ctx.DB, attempt.ID, contentHash)
 		if err != nil {
 			http.Error(w, "Unable to read command history", 500)
 			return
@@ -91,11 +92,11 @@ func CourseCommands(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 		http.Error(w, "Unable to save command history", 500)
 		return
 	}
-	if !ownsCourseVM(tx, attempt.ID, manifest.SourceHash, r.Header.Get("X-Course-Session")) {
+	if !ownsCourseVM(tx, attempt.ID, contentHash, r.Header.Get("X-Course-Session")) {
 		http.Error(w, "Course environment is open on another device; close it there first", 409)
 		return
 	}
-	journal, err := readCommandJournal(tx, attempt.ID, manifest.SourceHash)
+	journal, err := readCommandJournal(tx, attempt.ID, contentHash)
 	if err != nil {
 		http.Error(w, "Unable to read command history", 500)
 		return
@@ -129,7 +130,7 @@ func CourseCommands(w http.ResponseWriter, r *http.Request, ctx *config.AppConte
 		http.Error(w, "Invalid command event", 400)
 		return
 	}
-	_, err = tx.ExecContext(r.Context(), `INSERT INTO course_command_events (attempt_id, environment_hash, revision, event_id, event_json) VALUES ($1,$2,$3,$4,$5)`, attempt.ID, manifest.SourceHash, journal.Revision+1, request.Event.ID, string(body))
+	_, err = tx.ExecContext(r.Context(), `INSERT INTO course_command_events (attempt_id, environment_hash, revision, event_id, event_json) VALUES ($1,$2,$3,$4,$5)`, attempt.ID, contentHash, journal.Revision+1, request.Event.ID, string(body))
 	if err != nil {
 		http.Error(w, "Unable to save command history", 500)
 		return

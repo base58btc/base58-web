@@ -9,10 +9,9 @@ on:
       - cmd/course-sync/**
       - internal/courseenv/**
       - courses/lightning/**
-      - scripts/test-course-python.py
-      - scripts/test-lightning-course.py
-      - scripts/testdata/lightning-challenge-solutions.json
-      - static/guest/course-python.py
+      - '!courses/lightning/**/*.[mM][dD]'
+      - '!courses/lightning/course-runtime.json'
+      - courses/lightning/nix/**
       - flake.lock
       - go.mod
       - go.sum
@@ -54,7 +53,7 @@ jobs:
             python3 scripts/test-course-python.py
             python3 scripts/test-lightning-course.py --regtest
           '
-          # Tests must leave the bundled course sources unchanged.
+          # Tests must leave the bundled runtime inputs unchanged.
           target/course-sync verify-bundle --dir courses/lightning
       - name: Package the course sources and runtime together
         run: |

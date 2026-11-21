@@ -12,7 +12,7 @@ import (
 	"github.com/kodylow/base58-website/internal/courseenv"
 )
 
-// Verify both the source fingerprint and the actual archive bytes, including
+// Verify both the runtime fingerprint and the actual archive bytes, including
 // after transferring a bundle from a CI builder to an author's machine.
 func runVerifyBundle(args []string) error {
 	fs := flag.NewFlagSet("verify-bundle", flag.ContinueOnError)
@@ -51,6 +51,6 @@ func runVerifyBundle(args []string) error {
 		}
 		total += size
 	}
-	fmt.Printf("verified %s browser environment: %d archives, %.1f MiB compressed, source %s\n", m.System, len(m.Archives), float64(total)/(1024*1024), m.SourceHash)
+	fmt.Printf("verified %s browser environment: %d archives, %.1f MiB compressed, runtime %s, content %s\n", m.System, len(m.Archives), float64(total)/(1024*1024), m.ArchiveHash(), courseenv.ContentHash(courseSourceMap(files)))
 	return nil
 }

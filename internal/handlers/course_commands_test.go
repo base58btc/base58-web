@@ -28,7 +28,7 @@ import (
 	"github.com/kodylow/base58-website/internal/types"
 )
 
-func commandTestServer(t *testing.T, courseDir string) (*httptest.Server, string) {
+func commandTestServer(t *testing.T, courseDir string) (*httptest.Server, string, *sql.DB) {
 	t.Helper()
 	dsn := os.Getenv("BASE58_TEST_DATABASE_URL")
 	if dsn == "" {
@@ -90,12 +90,12 @@ func commandTestServer(t *testing.T, courseDir string) (*httptest.Server, string
 		}
 	} else {
 		store := "/nix/store/00000000000000000000000000000000-bash"
-		hash := courseenv.SourceHash(files)
-		m := courseenv.Manifest{Format: 1, System: courseenv.System, SourceHash: hash, Shell: store + "/bin/bash", Archives: []courseenv.Archive{{StorePath: store, Path: "runtime/" + hash + "/" + filepath.Base(store) + ".nar.gz", SHA256: strings.Repeat("0", 64), Size: 1}}}
+		hash := courseenv.RuntimeHash(files)
+		m := courseenv.Manifest{Format: 2, System: courseenv.System, RuntimeHash: hash, Shell: store + "/bin/bash", Archives: []courseenv.Archive{{StorePath: store, Path: "runtime/" + hash + "/" + filepath.Base(store) + ".nar.gz", SHA256: strings.Repeat("0", 64), Size: 1}}}
 		content, _ := json.Marshal(m)
 		files[courseenv.ManifestFile] = string(content)
 	}
-	manifest, err := courseenv.ForFiles(files)
+	_, err = courseenv.ForFiles(files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,11 +155,11 @@ func commandTestServer(t *testing.T, courseDir string) (*httptest.Server, string
 	}
 	server.Start()
 	t.Cleanup(server.Close)
-	return server, manifest.SourceHash
+	return server, courseenv.ContentHash(files), testDB
 }
 
 func TestCourseCommandsPostgres(t *testing.T) {
-	server, environment := commandTestServer(t, "")
+	server, environment, _ := commandTestServer(t, "")
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
 	resp, err := client.Get(server.URL + "/login")
@@ -237,6 +237,74 @@ func TestCourseCommandsPostgres(t *testing.T) {
 	}
 }
 
+func TestCourseRuntimeFingerprintPostgres(t *testing.T) {
+	server, originalContent, db := commandTestServer(t, "")
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar}
+	get := func(path string, want int) []byte {
+		t.Helper()
+		resp, err := client.Get(server.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != want {
+			t.Fatalf("GET %s: %d: %s", path, resp.StatusCode, body)
+		}
+		return body
+	}
+	get("/login", 200)
+	type environmentResponse struct {
+		Manifest    courseenv.Manifest `json:"manifest"`
+		ContentHash string             `json:"contentHash"`
+		Workspace   string             `json:"workspace"`
+		JournalURL  string             `json:"journalURL"`
+	}
+	readEnvironment := func() environmentResponse {
+		t.Helper()
+		var result environmentResponse
+		if err := json.Unmarshal(get("/environment.json", 200), &result); err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+	before := readEnvironment()
+	if before.ContentHash != originalContent || before.Manifest.RuntimeHash == originalContent || !strings.HasSuffix(before.JournalURL, originalContent) {
+		t.Fatalf("runtime and journal identities were not separated: %+v", before)
+	}
+	update := func(name, content string) {
+		t.Helper()
+		if _, err := db.Exec(`UPDATE course_version_files SET content=$1, content_hash=$2 WHERE course_version_id=1 AND path=$3`, content, courseenv.Hash([]byte(content)), name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Manifest format alone must not change a student's workspace/journal key.
+	legacy := before.Manifest
+	legacy.Format, legacy.SourceHash, legacy.RuntimeHash = 1, originalContent, ""
+	legacy.Archives = append([]courseenv.Archive(nil), legacy.Archives...)
+	for i := range legacy.Archives {
+		legacy.Archives[i].Path = strings.Replace(legacy.Archives[i].Path, before.Manifest.RuntimeHash, originalContent, 1)
+	}
+	content, _ := json.Marshal(legacy)
+	update(courseenv.ManifestFile, string(content))
+	old := readEnvironment()
+	if old.Workspace != before.Workspace || old.JournalURL != before.JournalURL {
+		t.Fatal("legacy journal identity changed")
+	}
+	content, _ = json.Marshal(before.Manifest)
+	update(courseenv.ManifestFile, string(content))
+	update("01_intro.md", "# Revised lesson\n")
+	after := readEnvironment()
+	if after.Manifest.RuntimeHash != before.Manifest.RuntimeHash || after.ContentHash == originalContent || after.Workspace == before.Workspace {
+		t.Fatalf("lesson edit should reuse the bundle but isolate its journal: %+v", after)
+	}
+	get(before.JournalURL, 409)
+	get(after.JournalURL, 200)
+	update("flake.nix", "{ changed = true; }")
+	get("/environment.json", 409)
+}
+
 // An opt-in local fixture for testing two independent browser profiles against
 // the real account/command-history handlers. It never connects to a production DB.
 func TestCourseCommandBrowserPreview(t *testing.T) {
@@ -244,7 +312,7 @@ func TestCourseCommandBrowserPreview(t *testing.T) {
 	if dir == "" {
 		t.Skip("browser fixture not requested")
 	}
-	server, _ := commandTestServer(t, dir)
+	server, _, _ := commandTestServer(t, dir)
 	t.Log("Browser replay fixture: " + server.URL + "/login")
 	select {
 	case <-time.After(45 * time.Minute):

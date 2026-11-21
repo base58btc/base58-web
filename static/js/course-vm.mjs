@@ -132,7 +132,7 @@ export class CourseVM {
     }
     this.config = config;
     const {manifest, workspace, journalURL} = config;
-    if (manifest.format !== 1 || manifest.system !== "aarch64-linux") throw new Error("Unsupported course environment");
+    if (![1, 2].includes(manifest.format) || manifest.system !== "aarch64-linux") throw new Error("Unsupported course environment");
     this.workspaceName = "base58-course-" + workspace;
     this.release = await workspaceLock(this.workspaceName);
     signal.throwIfAborted();

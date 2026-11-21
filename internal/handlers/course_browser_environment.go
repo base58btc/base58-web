@@ -69,6 +69,7 @@ func CourseBrowserEnvironment(w http.ResponseWriter, r *http.Request, ctx *confi
 		return
 	}
 	delete(files, courseenv.ManifestFile)
+	contentHash := courseenv.ContentHash(files)
 	assetBase := courseAssetBaseURL(ctx)
 	if assetBase == "" {
 		http.Error(w, "Course environment assets are not configured", http.StatusServiceUnavailable)
@@ -76,12 +77,13 @@ func CourseBrowserEnvironment(w http.ResponseWriter, r *http.Request, ctx *confi
 	}
 	journalURL := ""
 	if strings.HasPrefix(workspace, "attempt-") {
-		journalURL = "/api/courses/" + url.PathEscape(courseSlug) + "/commands?environment=" + manifest.SourceHash
+		journalURL = "/api/courses/" + url.PathEscape(courseSlug) + "/commands?environment=" + contentHash
 	}
 	writeCourseEditorJSON(w, http.StatusOK, map[string]any{
 		"manifest": manifest, "files": files,
+		"contentHash":  contentHash,
 		"journalURL":   journalURL,
-		"workspace":    workspace + "-" + manifest.SourceHash,
+		"workspace":    workspace + "-" + contentHash,
 		"assetBaseURL": strings.TrimRight(assetBase, "/") + "/" + url.PathEscape(courseSlug) + "/",
 	})
 }

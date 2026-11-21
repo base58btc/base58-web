@@ -26,8 +26,17 @@ def main():
     class Handler(SimpleHTTPRequestHandler):
         def do_GET(self):
             path = unquote(urlsplit(self.path).path)
+            # Refresh sources on each lesson/environment request so re-rendered
+            # Markdown can reuse the bundle without restarting the preview.
+            current = environment
+            if path == "/api/courses/lightning/environment" or path.startswith("/courses/"):
+                try:
+                    current, _ = load_bundle(args.course_dir, args.port, "lesson-preview-")
+                except (OSError, ValueError) as error:
+                    self.send_error(409, str(error))
+                    return
             if path == "/api/courses/lightning/environment":
-                data = json.dumps(environment).encode()
+                data = json.dumps(current).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Cache-Control", "no-store")
@@ -59,7 +68,7 @@ def main():
             if path.startswith("/courses/"):
                 html = file.read_text(encoding="utf-8").replace(
                     'data-local-preview="true"',
-                    'data-local-preview="true" data-course-source="' + environment["manifest"]["sourceHash"] + '"'
+                    'data-local-preview="true" data-course-source="' + current["contentHash"] + '"'
                 ).encode("utf-8")
             self.send_response(200)
             content_type = "text/html; charset=utf-8" if path.startswith("/courses/") else "text/javascript" if file.suffix == ".mjs" else self.guess_type(str(file))

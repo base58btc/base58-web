@@ -34,13 +34,13 @@ The protocol uses private descriptors so student `input()` sees EOF and raw subp
 
 Lesson navigation replaces the course page content while keeping the VM and interpreter alive. Sidebar, previous/next, keyboard shortcuts, and browser back/forward share this navigation path. Running cells finish and save before the content changes; editor drafts and answers survive navigation. A different attempt/version, preview mode, or course requires a full navigation. Reloading, leaving the course, or Save and stop closes the VM; reopening reconstructs it from the journal.
 
-Chapters with multiple level-two headings display one subchapter at a time: an overview followed by each heading's section. The Lightning Markdown headings define the views linked from the sidebar and Previous/Next controls. A `?section=...` URL opens a particular subchapter; `?section=last` supports returning to the end of the previous chapter. Pagination preserves the original chapter path and cell IDs for saved answers, editor drafts, outputs, and command history. Template-only pagination changes preserve the bundle and history. Course source edits require a new matching bundle. Without JavaScript, the complete chapter is still readable.
+Chapters with multiple level-two headings display one subchapter at a time: an overview followed by each heading's section. The Lightning Markdown headings define the views linked from the sidebar and Previous/Next controls. A `?section=...` URL opens a particular subchapter; `?section=last` supports returning to the end of the previous chapter. Pagination preserves the original chapter path and cell IDs for saved answers, editor drafts, outputs, and command history. Template-only pagination changes preserve the bundle and history. Runtime-input edits require a new matching bundle; lesson Markdown edits reuse it. Without JavaScript, the complete chapter is still readable.
 
 The first visible lesson with VM cells starts preparing its workspace just after the page paints, without waiting for Play. Preparation loads the tools, replays the recorded history, and warms the persistent Python interpreter for Python lessons. It runs no new lesson cells and adds no synthetic commands to the journal. An early Play click waits for the same preparation; later clicks use the warm interpreter. Save and stop cancels background startup and suppresses further automatic startup until the student explicitly resumes or runs a cell. Loading details stay in the Workspace menu.
 
 Replay can generate different wallet keys, addresses, invoices, timestamps, and transaction IDs. Original output remains in the journal. Changes outside recorded cells are not saved. Replay stops on a changed exit status or timeout, and Undo can move the history back to an earlier prefix.
 
-Workspace → **Reset workspace** confirms before starting a fresh VM without replaying earlier commands. A durable `reset` journal event archives the previous commands and results; the next command starts a new history root. The reset syncs with account history and also works in local previews. Local preview answers and editor drafts are scoped to the bundle source hash; previous versions remain stored, and cannot overwrite new exercise starters. Code edits and lesson answers stay, while archived cell output is cleared from the lesson. Rerun prerequisite cells to rebuild their variables, files, and nodes. Reset can cancel background replay and recover a failed replay; Undo cannot return to an archived workspace.
+Workspace → **Reset workspace** confirms before starting a fresh VM without replaying earlier commands. A durable `reset` journal event archives the previous commands and results; the next command starts a new history root. The reset syncs with account history and also works in local previews. Local preview answers and editor drafts are scoped to the course content hash; previous versions remain stored, and cannot overwrite new exercise starters. Code edits and lesson answers stay, while archived cell output is cleared from the lesson. Rerun prerequisite cells to rebuild their variables, files, and nodes. Reset can cancel background replay and recover a failed replay; Undo cannot return to an archived workspace.
 
 The runner prints the final expression, captures Python output and exceptions, limits output and cell source size, and applies a 90-second Python alarm inside the outer 120-second CLI timeout. This is ordinary Python, not an IPython kernel: notebook magics are replaced with explicit Python helpers. Interactive input and rich HTML displays are not implemented.
 
@@ -138,17 +138,21 @@ persists in IndexedDB. This local mode needs no database, login, or publishing
 credentials and does not sync to a course account.
 
 The server requires a matching `courses/lightning/course-runtime.json` and
-`runtime/` directory. It rejects stale sources or missing archives. Use
+`runtime/` directory. It rejects stale runtime inputs or missing archives. Use
 `--course-dir /path/to/extracted/courses/lightning` for a downloaded bundle, but
 render the pages from those same sources. Re-render after changing lesson text or
-templates. The lesson preview has a separate VM workspace from the terminal
+templates, then reload the page; no bundle build or preview-server restart is
+needed. The server refreshes source files and the content fingerprint when serving
+lessons and environment requests. The lesson preview has a separate VM workspace from the terminal
 preview, so terminal experiments do not advance the lesson environment.
 
 ## Build the Linux bundle with GitHub Actions
 
 `.github/workflows/lightning-runtime.yml` uses GitHub's native
-`ubuntu-24.04-arm` runner. Pushing the `codex/lightning-runtime-build` branch starts
-the one-off build. After the workflow is on the default branch, it can also be
+`ubuntu-24.04-arm` runner. Pushing runtime-input or bundler changes to the
+`codex/lightning-runtime-build` branch starts the build. Markdown-only, generated
+manifest, template, and CSS changes do not trigger it. Markdown under `nix/` is
+a build input. After the workflow is on the default branch, it can also be
 started manually from the Actions tab. It needs no server or publishing secrets.
 
 The job tests the bundler, builds the locked `aarch64-linux` closure, verifies
@@ -164,6 +168,13 @@ block checks on ARM64 Linux, including both unfinished starters and their
 reference solutions, the complete graph fingerprint, timelocks, and the three-node
 payment. Its 103 archives total 338.3 MiB compressed. The downloaded bundle
 passed source, archive-size, and SHA-256 verification locally.
+
+The local manifest now uses format 2 with separate runtime and content
+fingerprints. Its existing archives were verified and reused: the Lightning flake
+imports `gossip.py` but does not consume lesson Markdown or the complete flake
+source tree. No Linux rebuild was needed for this conversion. The content hash,
+and therefore the existing command-history and local-progress keys, stayed the
+same. Future runtime changes use the filtered source tree described in the README.
 
 Before adding the graded challenge controls, the restored course passed all 43 cell checks in the browser, including the
 expected exercise failure/correction and Carol receiving 10,000,000 msat. The
@@ -194,7 +205,8 @@ nix run .#course-sync -- verify-bundle --dir target/lightning-download/extracted
 For local execution, install the pinned VM assets with `make course-vm-assets`
 and run `python3 scripts/preview-course-vm.py --dir /absolute/path/to/extracted/courses/lightning`.
 Both the terminal preview and the actual lesson preview above work without a
-database or asset uploads. Any changes to the course sources require a new bundle.
+database or asset uploads. Only runtime-input changes require a new bundle;
+lesson edits reuse the existing archives.
 
 The Lightning environment starts its services in lesson cells, not at boot.
 In the terminal preview, initialize the funded regtest wallet with:
@@ -232,6 +244,6 @@ course-sync bundle --dir ./courses/lightning
 course-sync sync --server https://YOUR-COURSE-SERVER --course lightning --dir ./courses/lightning
 ```
 
-Review the draft with the bundled environment, then publish through the normal course workflow. Rebuild after any course source change. No deployment or publication is performed by this port.
+Review the draft with the bundled environment, then publish through the normal course workflow. Rebuild after runtime-input changes; lesson-only edits reuse the bundle. No deployment or publication is performed by this port.
 
 Before publishing, run the lessons in a supported browser, confirm the 10,000-satoshi payment settles, stop and resume on another device, verify Python globals and all three nodes are rebuilt by replay, and undo the send cell to verify the replayed invoice is unpaid. Generated identifiers may differ. Measure initial download, replay duration, and memory use against the 1 GiB VM budget (the full graph exceeds the previous 512 MiB limit during loading).

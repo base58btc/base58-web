@@ -36,6 +36,7 @@ func runBundle(args []string) error {
 	dir := fs.String("dir", "", "course directory containing flake.nix and flake.lock")
 	nix := fs.String("nix", "nix", "Nix executable")
 	nixStore := fs.String("nix-store", "nix-store", "nix-store executable")
+	force := fs.Bool("force", false, "rebuild even when the verified runtime inputs are unchanged")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -47,20 +48,26 @@ func runBundle(args []string) error {
 		return err
 	}
 	source := courseSourceMap(files)
-	if _, ok := source["flake.lock"]; !ok {
+	if !*force {
+		if manifest, err := courseenv.ForFiles(source); err == nil && manifest.Format == 2 {
+			if err := runVerifyBundle([]string{"--dir", *dir}); err == nil {
+				fmt.Println("reused existing bundle; runtime inputs are unchanged")
+				return nil
+			}
+		}
+	}
+	_, hasFlake := source["flake.nix"]
+	if _, ok := source["flake.lock"]; !ok || !hasFlake {
 		return fmt.Errorf("course bundle requires flake.nix and flake.lock")
 	}
-	// Work from the exact uploaded source set. Ignored files and previous bundles
-	// cannot silently influence evaluation, and Nix cannot rewrite the author's lock.
+	// Evaluate exactly the fingerprinted runtime inputs. Lessons, ignored files,
+	// and previous bundles cannot influence Nix; the author's lock stays untouched.
 	root, err := os.MkdirTemp("", "base58-course-flake-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(root)
-	for name, content := range source {
-		if name == courseenv.ManifestFile {
-			continue
-		}
+	for name, content := range courseenv.RuntimeFiles(source) {
 		dest := filepath.Join(root, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
 			return err
@@ -112,9 +119,9 @@ func runBundle(args []string) error {
 		pathsList = append(pathsList, storePath)
 	}
 	sort.Strings(pathsList)
-	m := courseenv.Manifest{Format: 1, System: courseenv.System, SourceHash: courseenv.SourceHash(source), Shell: shell, Setup: setup}
+	m := courseenv.Manifest{Format: 2, System: courseenv.System, RuntimeHash: courseenv.RuntimeHash(source), Shell: shell, Setup: setup}
 	for _, storePath := range pathsList {
-		asset := "runtime/" + m.SourceHash + "/" + filepath.Base(storePath) + ".nar.gz"
+		asset := "runtime/" + m.RuntimeHash + "/" + filepath.Base(storePath) + ".nar.gz"
 		destination := filepath.Join(*dir, filepath.FromSlash(asset))
 		if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
 			return err

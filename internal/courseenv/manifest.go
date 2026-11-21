@@ -24,12 +24,13 @@ type Archive struct {
 }
 
 type Manifest struct {
-	Format     int       `json:"format"`
-	System     string    `json:"system"`
-	SourceHash string    `json:"sourceHash"`
-	Shell      string    `json:"shell"`
-	Setup      string    `json:"setup"`
-	Archives   []Archive `json:"archives"`
+	Format      int       `json:"format"`
+	System      string    `json:"system"`
+	SourceHash  string    `json:"sourceHash,omitempty"`  // Format 1: all course sources.
+	RuntimeHash string    `json:"runtimeHash,omitempty"` // Format 2: build inputs only.
+	Shell       string    `json:"shell"`
+	Setup       string    `json:"setup"`
+	Archives    []Archive `json:"archives"`
 }
 
 var storePathPattern = regexp.MustCompile(`^/nix/store/[0-9a-z]{32}-[A-Za-z0-9+._?=-]+$`)
@@ -40,8 +41,10 @@ func Hash(data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Hash every source file, including imported scripts; never include the generated manifest.
-func SourceHash(files map[string]string) string {
+// ContentHash identifies the complete course revision, including lessons and
+// imported scripts. Excluding the generated manifest preserves existing journals
+// when a format-1 bundle is replaced with an equivalent format-2 bundle.
+func ContentHash(files map[string]string) string {
 	paths := make([]string, 0, len(files))
 	for name := range files {
 		if name != ManifestFile {
@@ -56,12 +59,38 @@ func SourceHash(files map[string]string) string {
 	return Hash([]byte(manifest.String()))
 }
 
+// RuntimeFiles is also the exact source tree supplied to Nix. Lesson Markdown
+// cannot become a hidden build dependency. Authors can put Markdown needed by a
+// derivation under nix/, where every source file is treated as a build input.
+// Other scripts, data, and configuration remain inputs conservatively: a flake
+// may import or package any of them.
+func RuntimeFiles(files map[string]string) map[string]string {
+	inputs := make(map[string]string)
+	for name, content := range files {
+		if name == ManifestFile || (strings.EqualFold(path.Ext(name), ".md") && !strings.HasPrefix(name, "nix/")) {
+			continue
+		}
+		inputs[name] = content
+	}
+	return inputs
+}
+
+func RuntimeHash(files map[string]string) string { return ContentHash(RuntimeFiles(files)) }
+
+func (m *Manifest) ArchiveHash() string {
+	if m.Format == 1 {
+		return m.SourceHash
+	}
+	return m.RuntimeHash
+}
+
 func Parse(content string) (*Manifest, error) {
 	var m Manifest
 	if err := json.Unmarshal([]byte(content), &m); err != nil {
 		return nil, err
 	}
-	if m.Format != 1 || m.System != System || !hashPattern.MatchString(m.SourceHash) {
+	if (m.Format != 1 && m.Format != 2) || m.System != System || !hashPattern.MatchString(m.ArchiveHash()) ||
+		(m.Format == 1 && m.RuntimeHash != "") || (m.Format == 2 && m.SourceHash != "") {
 		return nil, errors.New("unsupported course runtime manifest")
 	}
 	if !strings.HasSuffix(m.Shell, "/bin/bash") || !storePathPattern.MatchString(strings.TrimSuffix(m.Shell, "/bin/bash")) {
@@ -73,7 +102,7 @@ func Parse(content string) (*Manifest, error) {
 	seen := map[string]bool{}
 	hasShell := false
 	for _, archive := range m.Archives {
-		want := "runtime/" + m.SourceHash + "/" + path.Base(archive.StorePath) + ".nar.gz"
+		want := "runtime/" + m.ArchiveHash() + "/" + path.Base(archive.StorePath) + ".nar.gz"
 		if !storePathPattern.MatchString(archive.StorePath) || archive.Path != want || !hashPattern.MatchString(archive.SHA256) || archive.Size <= 0 || seen[archive.StorePath] {
 			return nil, errors.New("invalid course runtime archive")
 		}
@@ -101,7 +130,11 @@ func ForFiles(files map[string]string) (*Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	if m.SourceHash != SourceHash(files) {
+	want := ContentHash(files)
+	if m.Format == 2 {
+		want = RuntimeHash(files)
+	}
+	if m.ArchiveHash() != want {
 		return nil, errors.New("course environment is stale; run course-sync bundle again")
 	}
 	return m, nil

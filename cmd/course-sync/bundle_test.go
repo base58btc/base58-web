@@ -55,6 +55,7 @@ func TestBundleExportsProfileDependenciesAndExcludesRawEnvironment(t *testing.T)
 	write(filepath.Join(course, "01_intro.md"), "# Intro\n", 0o600)
 	write(filepath.Join(course, "flake.nix"), "{}", 0o600)
 	write(filepath.Join(course, "flake.lock"), "{}", 0o600)
+	write(filepath.Join(course, "helper.py"), "print('helper')", 0o600)
 	profile := filepath.Join(dir, "raw-environment")
 	write(profile, "private environment metadata", 0o600)
 	shellStore := "/nix/store/" + strings.Repeat("a", 32) + "-bash"
@@ -66,7 +67,7 @@ func TestBundleExportsProfileDependenciesAndExcludesRawEnvironment(t *testing.T)
 	write(envFile, string(env), 0o600)
 	closure, _ := json.Marshal(map[string]any{profile: map[string]any{}, shellStore: map[string]any{}})
 	nix := filepath.Join(dir, "nix")
-	write(nix, "#!/bin/sh\nset -eu\ncase \"$1\" in\nprint-dev-env)\n shift; while [ $# -gt 0 ]; do if [ \"$1\" = --profile ]; then shift; ln -s "+quoteShell(profile)+" \"$1\"; fi; shift; done\ncat "+quoteShell(envFile)+"\n;;\npath-info)\n test \"$4\" = "+quoteShell(profile)+"\nprintf '%s' "+quoteShell(string(closure))+"\n;;\n*) exit 1;;\nesac\n", 0o700)
+	write(nix, "#!/bin/sh\nset -eu\ncase \"$1\" in\nprint-dev-env)\n shift; while [ $# -gt 0 ]; do if [ \"$1\" = --profile ]; then shift; root=$(dirname \"$1\"); test ! -e \"$root/01_intro.md\"; test -f \"$root/helper.py\"; ln -s "+quoteShell(profile)+" \"$1\"; fi; shift; done\ncat "+quoteShell(envFile)+"\n;;\npath-info)\n test \"$4\" = "+quoteShell(profile)+"\nprintf '%s' "+quoteShell(string(closure))+"\n;;\n*) exit 1;;\nesac\n", 0o700)
 	nixStore := filepath.Join(dir, "nix-store")
 	write(nixStore, "#!/bin/sh\nset -eu\ntest \"$1\" = --dump\ntest \"$2\" = "+quoteShell(shellStore)+"\nprintf 'archive bytes'\n", 0o700)
 	if err := runBundle([]string{"--dir", course, "--nix", nix, "--nix-store", nixStore}); err != nil {
@@ -114,7 +115,34 @@ func TestBundleExportsProfileDependenciesAndExcludesRawEnvironment(t *testing.T)
 	compressed[0] ^= 1
 	write(archivePath, string(compressed), 0o600)
 	write(filepath.Join(course, "01_intro.md"), "# Changed since build\n", 0o600)
+	if err := runVerifyBundle([]string{"--dir", course}); err != nil {
+		t.Fatalf("lesson edits should reuse the existing bundle: %v", err)
+	}
+	// No Linux builder (or even a Nix executable) is needed for a content edit.
+	missingNix := filepath.Join(dir, "no-linux-builder")
+	if err := runBundle([]string{"--dir", course, "--nix", missingNix, "--nix-store", missingNix}); err != nil {
+		t.Fatalf("unchanged runtime must skip Nix entirely: %v", err)
+	}
+	if err := runBundle([]string{"--dir", course, "--force", "--nix", missingNix}); err == nil {
+		t.Fatal("--force must invoke the builder")
+	}
+	files, err = readCourseFiles(course)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assets, err := discoverRuntimeAssets(course, files)
+	if err != nil || len(assets) != 1 || assets[0].Path != m.Archives[0].Path {
+		t.Fatalf("sync must reuse the same immutable runtime assets: %v, %v", assets, err)
+	}
+	write(filepath.Join(course, "helper.py"), "print('changed runtime')", 0o600)
 	if err := runVerifyBundle([]string{"--dir", course}); err == nil || !strings.Contains(err.Error(), "stale") {
 		t.Fatalf("expected stale bundle rejection, got %v", err)
+	}
+	files, err = readCourseFiles(course)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := discoverRuntimeAssets(course, files); err == nil {
+		t.Fatal("sync accepted stale runtime inputs")
 	}
 }

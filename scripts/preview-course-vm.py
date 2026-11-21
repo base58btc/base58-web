@@ -23,7 +23,12 @@ def main():
         def do_GET(self):
             request_path = unquote(urlsplit(self.path).path)
             if request_path == "/environment.json":
-                data = json.dumps(environment).encode()
+                try:
+                    current, _ = load_bundle(course, args.port)
+                except (OSError, ValueError) as error:
+                    self.send_error(409, str(error))
+                    return
+                data = json.dumps(current).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Cache-Control", "no-store")
