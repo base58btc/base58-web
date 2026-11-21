@@ -1,0 +1,27 @@
+$ORIGIN base58.school.
+$TTL 1800
+base58.school. IN SOA ns1.digitalocean.com. hostmaster.base58.school. 1778976008 10800 3600 604800 1800
+base58.school. 30 IN A 172.66.0.96
+base58.school. 30 IN A 162.159.140.98
+zap.base58.school. 3600 IN A 45.55.129.100
+workshop.base58.school. 3600 IN A 34.111.179.208
+base58.school. 30 IN AAAA 2606:4700:7::60
+base58.school. 30 IN AAAA 2a06:98c1:58::60
+email.mg.base58.school. 43200 IN CNAME mailgun.org.
+protonmail._domainkey.base58.school. 43200 IN CNAME protonmail.domainkey.dt6x3phy2fpx5re7jyirhvoonzamd4esn2gsynjvwglkw74dqslaa.domains.proton.ch.
+protonmail2._domainkey.base58.school. 43200 IN CNAME protonmail2.domainkey.dt6x3phy2fpx5re7jyirhvoonzamd4esn2gsynjvwglkw74dqslaa.domains.proton.ch.
+protonmail3._domainkey.base58.school. 43200 IN CNAME protonmail3.domainkey.dt6x3phy2fpx5re7jyirhvoonzamd4esn2gsynjvwglkw74dqslaa.domains.proton.ch.
+mg.base58.school. 14400 IN MX 10 mxa.mailgun.org.
+mg.base58.school. 14400 IN MX 10 mxb.mailgun.org.
+base58.school. 14400 IN MX 10 mail.protonmail.ch.
+base58.school. 14400 IN MX 20 mailsec.protonmail.ch.
+base58.school. 1800 IN NS ns1.digitalocean.com.
+base58.school. 1800 IN NS ns2.digitalocean.com.
+base58.school. 1800 IN NS ns3.digitalocean.com.
+mg.base58.school. 3600 IN TXT v=spf1 include:mailgun.org ~all
+mailo._domainkey.mg.base58.school. 3600 IN TXT k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDdJkjqjgNhHs1WGMtCQ3VjtIg08K/5TuMxmtff+9fjSjYGXwAIxPV2cnYF88qMrxdwAEg9GUkpOPTb9D98q/SGn15hZPjcZY/voZWq2M4zhH5Bv5VW1Za9odkKqEP5hJbj0geJ8nVKmFzqkwS5DPIg3TeeSVuAFxxRq6mQFky0IwIDAQAB
+base58.school. 3600 IN TXT protonmail-verification=3846f8b9467f2f06cb03f9c2c649f7ca7639c7eb
+base58.school. 3600 IN TXT v=spf1 include:_spf.protonmail.ch mx ~all
+_dmarc.base58.school. 3600 IN TXT v=DMARC1; p=quarantine; sp=none; fo=1;
+workshop.base58.school. 3600 IN TXT replit-verify=caafba7b-64cd-44ca-b8ab-4e27c04fa495
+base58.school. 3600 IN TXT google-site-verification=gAbAp23yOu0Kb5s2UrqaK6VRWpI7Hetb012DBbKfs1Q

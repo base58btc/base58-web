@@ -1,0 +1,26 @@
+$ORIGIN base58.info.
+$TTL 1800
+base58.info. IN SOA ns1.digitalocean.com. hostmaster.base58.info. 1777763821 10800 3600 604800 1800
+base58.info. 30 IN A 162.159.140.98
+base58.info. 30 IN A 172.66.0.96
+base58.info. 30 IN AAAA 2606:4700:7::60
+base58.info. 30 IN AAAA 2a06:98c1:58::60
+protonmail._domainkey.base58.info. 43200 IN CNAME protonmail.domainkey.dabojpxieucjpb3njg7sytabxd5e63m6np63o66bmcgeuwm7ve3oq.domains.proton.ch.
+protonmail2._domainkey.base58.info. 43200 IN CNAME protonmail2.domainkey.dabojpxieucjpb3njg7sytabxd5e63m6np63o66bmcgeuwm7ve3oq.domains.proton.ch.
+protonmail3._domainkey.base58.info. 43200 IN CNAME protonmail3.domainkey.dabojpxieucjpb3njg7sytabxd5e63m6np63o66bmcgeuwm7ve3oq.domains.proton.ch.
+k2._domainkey.base58.info. 43200 IN CNAME dkim2.mcsv.net.
+k3._domainkey.base58.info. 43200 IN CNAME dkim3.mcsv.net.
+email.mx.base58.info. 43200 IN CNAME mailgun.org.
+www.base58.info. 43200 IN CNAME stingray-app-no9es.ondigitalocean.app.
+base58.info. 14400 IN MX 10 mail.protonmail.ch.
+base58.info. 14400 IN MX 20 mailsec.protonmail.ch.
+mx.base58.info. 14400 IN MX 10 mxa.mailgun.org.
+mx.base58.info. 14400 IN MX 10 mxb.mailgun.org.
+base58.info. 1800 IN NS ns1.digitalocean.com.
+base58.info. 1800 IN NS ns2.digitalocean.com.
+base58.info. 1800 IN NS ns3.digitalocean.com.
+base58.info. 3600 IN TXT protonmail-verification=c1ccb1feb322d21531d451a64f167f4eb49b7456
+base58.info. 3600 IN TXT v=spf1 include:_spf.protonmail.ch mx ~all
+_dmarc.base58.info. 3600 IN TXT v=DMARC1; p=quarantine; sp=none; fo=1;
+mx.base58.info. 3600 IN TXT v=spf1 include:mailgun.org ~all
+mx._domainkey.mx.base58.info. 3600 IN TXT k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCnCs92jlfrmEKqNt2t2UZzTzsrqGdmgH+8PdV7Z8IXE2xsHnpsYREG2bompDQQ+Gu676J2vXiMAhbKZOj8ysL07ntr6kl5vvdc9fnzV41hKNIwMrXN65qAO1Mr6S67L5gmVd0Wa3NSqO+pzcEThGS49Ze7hmvG3xcFtkSItGArAQIDAQAB
