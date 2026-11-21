@@ -45,7 +45,7 @@ build-all: build build-migrate build-course-sync course-vm-assets
 .PHONY: test
 test:
 	go test ./...
-	node --test static/js/course-execution.test.js static/js/course-vm.test.mjs
+	node --test static/js/course-execution.test.js static/js/course-vm.test.mjs static/js/course-python.test.mjs static/js/course-navigation.test.mjs
 
 .PHONY: db-status
 db-status:

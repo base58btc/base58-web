@@ -35,6 +35,7 @@ var (
 type courseCodeBlock struct {
 	ast.Leaf
 	ID      string
+	Runtime string
 	Content string
 	Err     string
 }
@@ -56,6 +57,7 @@ type courseChoiceOption struct {
 type courseCodeChallengeBlock struct {
 	ast.Leaf
 	ID             string
+	Runtime        string
 	Prompt         string
 	StarterCode    string
 	CheckCode      string
@@ -79,10 +81,16 @@ type courseNoteBlock struct {
 	Content string
 }
 
+type courseReferencesBlock struct {
+	ast.Leaf
+	Content string
+}
+
 type courseMarkdownRenderer struct {
 	multipleChoiceCount int
 	codeBlockCount      int
 	codeChallengeCount  int
+	referencesCount     int
 	courseSlug          string
 	assetBaseURL        string
 }
@@ -100,7 +108,9 @@ func courseMarkdownToHTMLForCourse(ctx *config.AppContext, courseSlug string, md
 }
 
 func renderCourseMarkdownToHTML(md []byte, courseSlug, assetBaseURL string) []byte {
-	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
+	// Definition-list lookahead consumes a following ::: note as a definition
+	// before our block hook can see it. Course notes own the colon fence syntax.
+	extensions := parser.CommonExtensions&^parser.DefinitionLists | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
 	p := parser.NewWithExtensions(extensions)
 	p.Opts.ParserHook = courseParserHook
 
@@ -141,6 +151,9 @@ func courseParserHook(data []byte) (ast.Node, []byte, int) {
 	if node, remaining, consumed := parseCourseNoteBlock(data); node != nil {
 		return node, remaining, consumed
 	}
+	if node, remaining, consumed := parseCourseReferencesBlock(data); node != nil {
+		return node, remaining, consumed
+	}
 	if node, remaining, consumed := parseCourseMultipleChoiceBlock(data); node != nil {
 		return node, remaining, consumed
 	}
@@ -152,12 +165,12 @@ func courseParserHook(data []byte) (ast.Node, []byte, int) {
 }
 
 func parseCourseCodeBlock(data []byte) (ast.Node, []byte, int) {
-	content, id, consumed, err, ok := parseCourseCodeFencedContent(data)
+	content, id, runtime, consumed, err, ok := parseCourseCodeFencedContent(data)
 	if !ok {
 		return nil, nil, 0
 	}
 
-	return &courseCodeBlock{ID: id, Content: content, Err: err}, nil, consumed
+	return &courseCodeBlock{ID: id, Runtime: runtime, Content: content, Err: err}, nil, consumed
 }
 
 func parseCourseMultipleChoiceBlock(data []byte) (ast.Node, []byte, int) {
@@ -196,35 +209,50 @@ func parseCourseNoteBlock(data []byte) (ast.Node, []byte, int) {
 	return &courseNoteBlock{Content: content}, nil, consumed
 }
 
-func parseCourseCodeFencedContent(data []byte) (string, string, int, string, bool) {
+func parseCourseReferencesBlock(data []byte) (ast.Node, []byte, int) {
+	content, consumed, ok := parseCourseNamedFencedContent(data, courseAdmonitionFence, "references")
+	if !ok {
+		return nil, nil, 0
+	}
+	return &courseReferencesBlock{Content: content}, nil, consumed
+}
+
+func parseCourseCodeFencedContent(data []byte) (string, string, string, int, string, bool) {
 	if !bytes.HasPrefix(data, courseCodeFence) {
-		return "", "", 0, "", false
+		return "", "", "", 0, "", false
 	}
 
 	openLineEnd := bytes.IndexByte(data, '\n')
 	if openLineEnd < 0 {
-		return "", "", 0, "", false
+		return "", "", "", 0, "", false
 	}
 
 	openLine := string(bytes.Trim(data[:openLineEnd], " \t\r"))
 	fields := strings.Fields(openLine)
 	if len(fields) == 1 && fields[0] == string(courseCodeFence) {
 		content, consumed, ok := parseCourseFencedContent(data, courseCodeFence)
-		return content, "", consumed, "", ok
+		return content, "", "", consumed, "", ok
 	}
-	if len(fields) != 2 || fields[0] != string(courseCodeFence) {
-		return "", "", 0, "", false
+	if (len(fields) != 2 && len(fields) != 3) || fields[0] != string(courseCodeFence) {
+		return "", "", "", 0, "", false
 	}
 
 	content, consumed, ok := parseCourseFencedContentAfterOpen(data, courseCodeFence, openLineEnd)
 	if !ok {
-		return "", "", 0, "", false
+		return "", "", "", 0, "", false
 	}
 	id := fields[1]
 	if !courseBlockIDPattern.MatchString(id) {
-		return content, "", consumed, "Course code block id can only include letters, numbers, underscores, or hyphens, and must start with a letter or number.", true
+		return content, "", "", consumed, "Course code block id can only include letters, numbers, underscores, or hyphens, and must start with a letter or number.", true
 	}
-	return content, id, consumed, "", true
+	runtime := ""
+	if len(fields) == 3 {
+		if fields[2] != "python-vm" {
+			return content, id, "", consumed, "Course code runtime must be python-vm, or omitted for browser Python.", true
+		}
+		runtime = fields[2]
+	}
+	return content, id, runtime, consumed, "", true
 }
 
 func parseCourseFencedContent(data []byte, fence []byte) (string, int, bool) {
@@ -503,6 +531,14 @@ func parseCourseCodeChallengeContent(content string) *courseCodeChallengeBlock {
 	if err != "" {
 		return &courseCodeChallengeBlock{Err: err}
 	}
+	runtime := ""
+	if len(promptLines) > 0 && strings.HasPrefix(strings.TrimSpace(promptLines[0]), "runtime:") {
+		runtime = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(promptLines[0]), "runtime:"))
+		if runtime != "python-vm" {
+			return &courseCodeChallengeBlock{Err: "Unsupported code challenge runtime. Use python-vm or omit runtime."}
+		}
+		promptLines = promptLines[1:]
+	}
 
 	prompt := strings.TrimSpace(strings.Join(promptLines, "\n"))
 	checkCode := strings.TrimSpace(sections[2])
@@ -520,6 +556,7 @@ func parseCourseCodeChallengeContent(content string) *courseCodeChallengeBlock {
 
 	return &courseCodeChallengeBlock{
 		ID:             id,
+		Runtime:        runtime,
 		Prompt:         prompt,
 		StarterCode:    strings.Trim(sections[1], "\r\n"),
 		CheckCode:      checkCode,
@@ -602,6 +639,20 @@ func (r *courseMarkdownRenderer) renderHook(w io.Writer, node ast.Node, entering
 		}
 		return ast.GoToNext, true
 	}
+	if references, ok := node.(*courseReferencesBlock); ok {
+		if entering {
+			r.referencesCount++
+			id := "references"
+			if r.referencesCount > 1 {
+				id = fmt.Sprintf("references-%d", r.referencesCount)
+			}
+			fmt.Fprintf(w, `<section id="%s" class="course-references" aria-labelledby="%s-title">
+  <h2 id="%s-title">References</h2>
+  <div class="course-references-body">%s</div>
+</section>`, id, id, id, renderCourseMarkdownFragment(references.Content))
+		}
+		return ast.GoToNext, true
+	}
 	if mc, ok := node.(*courseMultipleChoiceBlock); ok {
 		if entering {
 			r.multipleChoiceCount++
@@ -668,7 +719,7 @@ func renderCourseCodeBlock(w io.Writer, cb *courseCodeBlock, blockID string) {
 		idAttr = fmt.Sprintf(` id="%s"`, escapedID)
 	}
 	escaped := template.HTMLEscapeString(cb.Content)
-	fmt.Fprintf(w, `<div%s class="cell codeset course-code-cell" data-course-block-id="%s" data-course-block-type="code-cell">
+	fmt.Fprintf(w, `<div%s class="cell codeset course-code-cell" data-course-block-id="%s" data-course-block-type="code-cell" data-course-runtime="%s">
   <div class="code-runner">
     <button class="run-btn" type="button" onclick="runCellCode(this)" aria-label="Run code">
       <svg fill="currentColor" height="16" width="16" viewBox="0 0 330 330" aria-hidden="true">
@@ -682,7 +733,7 @@ func renderCourseCodeBlock(w io.Writer, cb *courseCodeBlock, blockID string) {
   </div>
   <div class="output-prompt" aria-hidden="true"></div>
   <div class="output" aria-live="polite"></div>
-</div>`, idAttr, escapedID, escaped)
+</div>`, idAttr, escapedID, template.HTMLEscapeString(cb.Runtime), escaped)
 }
 
 func renderCourseVideoBlock(w io.Writer, block *courseVideoBlock) {
@@ -821,9 +872,13 @@ func renderCourseCodeChallengeBlock(w io.Writer, block *courseCodeChallengeBlock
 	}
 
 	escapedID := template.HTMLEscapeString(blockID)
-	fmt.Fprintf(w, `<div class="course-challenge course-code-challenge" data-course-block-id="%s" data-course-block-type="code-check" data-course-block-correct="false" data-check-code="%s" data-failure-message="%s">
+	runtimeAttr := ""
+	if block.Runtime != "" {
+		runtimeAttr = ` data-course-runtime="` + template.HTMLEscapeString(block.Runtime) + `"`
+	}
+	fmt.Fprintf(w, `<div class="course-challenge course-code-challenge" id="%s" data-course-block-id="%s" data-course-block-type="code-check" data-course-block-correct="false"%s data-check-code="%s" data-failure-message="%s">
   <div class="course-challenge-prompt">%s</div>
-  <div class="cell codeset code-challenge-cell" data-course-block-id="%s" data-course-block-type="code-cell">
+  <div class="cell codeset code-challenge-cell" data-course-block-id="%s" data-course-block-type="code-cell"%s>
     <div class="code-runner">
       <button class="run-btn" type="button" onclick="runCellCode(this)" aria-label="Run code">
         <svg fill="currentColor" height="16" width="16" viewBox="0 0 330 330" aria-hidden="true">
@@ -845,10 +900,13 @@ func renderCourseCodeChallengeBlock(w io.Writer, block *courseCodeChallengeBlock
   </div>
 </div>`,
 		escapedID,
+		escapedID,
+		runtimeAttr,
 		template.HTMLEscapeString(base64.StdEncoding.EncodeToString([]byte(block.CheckCode))),
 		template.HTMLEscapeString(base64.StdEncoding.EncodeToString([]byte(block.FailureMessage))),
 		renderCourseMarkdownFragment(block.Prompt),
 		escapedID,
+		runtimeAttr,
 		template.HTMLEscapeString(block.StarterCode),
 	)
 }

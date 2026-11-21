@@ -12,22 +12,24 @@ import (
 	"github.com/kodylow/base58-website/internal/types"
 )
 
-func TestCourseLessonTemplateIncludesNotebookExecutionDispatcher(t *testing.T) {
+func TestCourseLessonTemplateSupportsNavigationFromTextOnlyPage(t *testing.T) {
 	tmpl, err := template.ParseFiles(filepath.Join("..", "..", "templates", "courses", "lesson.tmpl"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var output bytes.Buffer
 	err = tmpl.ExecuteTemplate(&output, "lesson.tmpl", CourseLessonData{
-		CourseSlug: "taproot",
-		Current:    &CourseNavItem{DisplayNumber: "01", Title: "Intro", Path: "01_intro"},
-		HasCode:    true,
+		CourseSlug:    "taproot",
+		Current:       &CourseNavItem{DisplayNumber: "01", Title: "Intro", Path: "01_intro"},
+		HasCode:       false,
+		AttemptID:     42,
+		VersionNumber: 3,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	html := output.String()
-	for _, expected := range []string{"runNotebookCell", "interpolateCourseToken", "/api/courses/", "/environment", "CourseVM", "runBrowserShellCell"} {
+	for _, expected := range []string{"runNotebookCell", "interpolateCourseToken", "/api/courses/", "/environment", "CourseVM", "runBrowserShellCell", "course-navigation.mjs", `data-course-attempt="42"`, `data-course-version="3"`, `id="course-runtime-history"`} {
 		if !strings.Contains(html, expected) {
 			t.Fatalf("rendered lesson template is missing %q", expected)
 		}
@@ -171,6 +173,19 @@ func TestCourseMarkdownRendersAnchoredCodeBlocks(t *testing.T) {
 	}
 }
 
+func TestCourseMarkdownNativePythonRuntime(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("+++ wallet-state python-vm\nprint('<wallet>')\n+++\n")))
+	for _, expected := range []string{`data-course-runtime="python-vm"`, `data-course-block-id="wallet-state"`, `&lt;wallet&gt;`} {
+		if !strings.Contains(html, expected) {
+			t.Fatalf("missing %s in %s", expected, html)
+		}
+	}
+	invalid := string(courseMarkdownToHTML([]byte("+++ wallet-state unknown-runtime\nprint('hello')\n+++\n")))
+	if !strings.Contains(invalid, "course-authoring-error") {
+		t.Fatal("unknown runtimes must produce an authoring error")
+	}
+}
+
 func TestCourseMarkdownRendersNoteBlocksWithNestedBlocks(t *testing.T) {
 	html := string(courseMarkdownToHTML([]byte("Before\n\n::: note\nRemember this detail.\n\n+++ note-code\nprint(\"inside\")\n+++\n:::\n\nAfter\n")))
 
@@ -188,6 +203,29 @@ func TestCourseMarkdownRendersNoteBlocksWithNestedBlocks(t *testing.T) {
 	}
 	if strings.Contains(html, "::: note") {
 		t.Fatalf("expected note fence to be consumed, got %s", html)
+	}
+}
+
+func TestCourseNoteAfterParagraph(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("A paragraph before the note.\n\n::: note\nImportant course instructions.\n:::\n")))
+	if strings.Contains(html, ":::") || strings.Contains(html, "<dl>") || !strings.Contains(html, `role="note"`) {
+		t.Fatalf("note was consumed by definition-list parsing: %s", html)
+	}
+}
+
+func TestCourseReferencesAfterParagraph(t *testing.T) {
+	block := "::: references\n1. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)\n\n    Explains `OP_CHECKLOCKTIMEVERIFY` and **absolute locktimes**.\n\n2. [BIP 68](https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki)\n\n    Explains relative locktimes.\n:::\n"
+	html := string(courseMarkdownToHTML([]byte("Continue reading below.\n\n" + block + "\n" + block)))
+	for _, expected := range []string{`class="course-references"`, `aria-labelledby="references-title"`, `id="references-title"`, `id="references-2"`, `<ol>`, `href="https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki"`, "<code>OP_CHECKLOCKTIMEVERIFY</code>", "<strong>absolute locktimes</strong>", "Explains relative locktimes."} {
+		if !strings.Contains(html, expected) {
+			t.Fatalf("missing %q in references: %s", expected, html)
+		}
+	}
+	if strings.Contains(html, ":::") || strings.Contains(html, "<dl>") || strings.Count(html, `id="references"`) != 1 {
+		t.Fatalf("references were not rendered as distinct named sections: %s", html)
+	}
+	if strings.Count(html, "<ol>") != 2 || strings.Count(html, "<li>") != 4 || strings.Index(html, "Explains <code>") > strings.Index(html, "</li>") {
+		t.Fatalf("descriptions must stay inside one continuous numbered list per references block: %s", html)
 	}
 }
 
@@ -410,6 +448,20 @@ func TestCourseMarkdownRendersStableCodeChallengeIDs(t *testing.T) {
 	}
 	if strings.Contains(html, `id: write-answer`) {
 		t.Fatalf("expected id metadata to be consumed, got %s", html)
+	}
+}
+
+func TestCourseMarkdownNativePythonChallenges(t *testing.T) {
+	html := string(courseMarkdownToHTML([]byte("???\nid: route\nruntime: python-vm\n\nFind a route.\n---\ndef route():\n    pass\n---\nassert route()\n???\n")))
+	if strings.Count(html, `data-course-runtime="python-vm"`) != 2 || !strings.Contains(html, `id="route"`) {
+		t.Fatalf("challenge and Play must use the same native runtime: %s", html)
+	}
+	if strings.Contains(html, "runtime:") || strings.Contains(html, "assert route()") || strings.Contains(html, "%!") {
+		t.Fatalf("challenge metadata or check leaked into rendering: %s", html)
+	}
+	bad := string(courseMarkdownToHTML([]byte("???\nruntime: unsupported\nPrompt\n---\npass\n---\nassert True\n???\n")))
+	if !strings.Contains(bad, "Unsupported code challenge runtime") {
+		t.Fatal("unsupported runtime must produce an authoring error")
 	}
 }
 

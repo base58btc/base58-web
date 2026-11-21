@@ -33,3 +33,19 @@ test("interpolates scalar variables without creating new arguments", async () =>
 test("rejects non-scalar interpolation", async () => {
   await assert.rejects(execution.interpolateToken("{items}", async () => ["one", "two"]), /scalar/);
 });
+
+test("missing invoice helpers point to their definition, not later function calls", () => {
+  const sources = [
+    'def bech32_decode(text):\n    return text',
+    'def parse_invoice(text):\n    return bech32_decode(text)'
+  ];
+  assert.deepEqual(execution.missingPythonDefinition("Traceback (most recent call last):\nNameError: name 'bech32_decode' is not defined\n", sources), {name:"bech32_decode",index:0});
+  assert.deepEqual(execution.missingPythonDefinition("NameError: name 'CHARSET' is not defined", ['CHARSET = "qpzry"']), {name:"CHARSET",index:0});
+});
+
+test("unrelated errors, nested definitions, and misspelled names do not suggest an earlier cell", () => {
+  assert.equal(execution.missingPythonDefinition("NameError: name 'bech32_decode' is not defined", ['def outer():\n    def bech32_decode(text): pass']), null);
+  assert.equal(execution.missingPythonDefinition("NameError: name 'bech32_decode' is not defined", ['def bech32_decoder(text): pass']), null);
+  assert.equal(execution.missingPythonDefinition("ValueError: Invalid BOLT 11 Bech32 checksum", ['def bech32_decode(text): pass']), null);
+  assert.equal(execution.missingPythonDefinition("NameError: name 'value' is not defined", ['value == 3']), null);
+});

@@ -54,11 +54,13 @@ type CourseLessonData struct {
 	HeroURL             string
 	HeroAlt             string
 	CSRFToken           string
+	AttemptID           int64
 	VersionNumber       int
 	LatestVersionNumber int
 	HasNewVersion       bool
 	CanPreviewDraft     bool
 	IsDraftPreview      bool
+	IsLocalPreview      bool
 	DraftVersionNumber  int
 	DraftPreviewOnURL   string
 	DraftPreviewOffURL  string
@@ -160,6 +162,7 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		HeroURL:             heroURL,
 		HeroAlt:             heroAlt,
 		CSRFToken:           studentCSRFToken(r, ctx),
+		AttemptID:           attempt.ID,
 		VersionNumber:       versionNumber,
 		LatestVersionNumber: latestVersionNumber,
 		HasNewVersion:       latestVersionNumber > versionNumber && versionNumber > 0,

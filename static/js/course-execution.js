@@ -81,5 +81,18 @@
     return result + token.slice(offset);
   }
 
-  return {hasRemoteShellLine, tokenizeCommand, interpolateToken};
+  // A navigation hint, not a Python dependency resolver. Only suggest an
+  // earlier cell when its source contains a matching top-level definition.
+  function missingPythonDefinition(output, sources) {
+    const lastLine = output.trim().split(/\r?\n/).at(-1) || "";
+    const name = lastLine.match(/^NameError: name '([A-Za-z_][A-Za-z0-9_]*)' is not defined\b/)?.[1];
+    if (!name) return null;
+    const definition = new RegExp("^(?:(?:async[ \\t]+)?def[ \\t]+" + name + "[ \\t]*\\(|class[ \\t]+" + name + "[ \\t]*[:(]|" + name + "[ \\t]*=(?!=))", "m");
+    for (let index = sources.length - 1; index >= 0; index--) {
+      if (definition.test(sources[index])) return {name, index};
+    }
+    return null;
+  }
+
+  return {hasRemoteShellLine, tokenizeCommand, interpolateToken, missingPythonDefinition};
 });

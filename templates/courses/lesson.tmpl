@@ -9,6 +9,116 @@
       position: relative;
     }
 
+    #course-navigation-status {
+      margin: 0 auto;
+      padding: .75rem 2rem;
+      max-width: 76rem;
+    }
+
+    .course-workspace { position: relative; flex-shrink: 0; margin: 1rem 1rem 0 0; }
+    .course-workspace > summary {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .4rem .7rem;
+      border: 1px solid #dedbd2;
+      border-radius: .4rem;
+      color: #57534b;
+      background: #f8f7f3;
+      font-family: inherit;
+      font-size: .75rem;
+      font-weight: 500;
+      line-height: 1.4;
+      cursor: pointer;
+      list-style: none;
+    }
+    .course-workspace > summary::-webkit-details-marker { display: none; }
+    .course-workspace > summary::after { content: "⌄"; margin-left: auto; }
+    .course-workspace[open] > summary { background: #eeebe3; }
+    .course-workspace > summary:focus-visible { outline: 2px solid #8f6b32; outline-offset: 3px; }
+    .course-workspace_badge { font-size: .7rem; color: #8f6b32; font-variant-numeric: tabular-nums; }
+    .course-workspace_badge[data-error="true"] { color: #a43c25; }
+    .course-workspace_progress {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 3px;
+      overflow: hidden;
+      background: #8f6b3226;
+      pointer-events: none;
+    }
+    .course-workspace_progress > span {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #8f6b32;
+      transform-origin: left;
+      transform: scaleX(var(--workspace-progress, 0));
+      transition: transform .15s ease-out;
+    }
+    .course-workspace_progress[data-indeterminate="true"] > span {
+      width: 35%;
+      animation: course-workspace-loading 1.3s ease-in-out infinite;
+    }
+    @keyframes course-workspace-loading {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(290%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .course-workspace_progress > span { transition: none; }
+      .course-workspace_progress[data-indeterminate="true"] > span {
+        animation: none;
+        transform: none;
+        width: 100%;
+        opacity: .5;
+      }
+    }
+    .course-workspace_panel {
+      margin-top: .5rem;
+      width: 100%;
+      max-height: min(28rem, 55vh);
+      overflow: auto;
+      padding: 1.1rem;
+      border: 1px solid #dedbd2;
+      border-radius: .6rem;
+      background: #fcfbf8;
+      box-shadow: 0 .6rem 2rem #19191914;
+      color: #57534b;
+      font-size: .8125rem;
+      line-height: 1.5;
+    }
+    .course-workspace_panel p { margin: 0 0 .85rem; }
+    .course-workspace_actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+    .course-workspace_actions button, .course-workspace_reset button {
+      padding: .45rem .7rem;
+      border: 1px solid #d7d1c4;
+      border-radius: .35rem;
+      background: #eeebe3;
+      color: #191919;
+      font: inherit;
+      cursor: pointer;
+    }
+    .course-workspace_actions button:disabled { opacity: .45; cursor: default; }
+    .course-workspace_hint { color: #777168; font-size: .75rem; }
+    #course-runtime-history { border-top: 1px solid #e6e1d7; padding-top: .8rem; }
+    #course-runtime-history > summary { font-weight: 600; cursor: pointer; margin-bottom: .6rem; }
+    #course-runtime-commands { overflow-wrap: anywhere; }
+    #course-runtime-commands details { padding: .5rem 0; border-top: 1px solid #e6e1d7; }
+    #course-runtime-commands details > summary { cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #course-runtime-commands pre { margin: .5rem 0 0; white-space: pre-wrap; font-size: .7rem; }
+    .course-workspace_reset { width: min(28rem, calc(100% - 2rem)); padding: 1.5rem; border: 1px solid #d5cdbf; border-radius: .5rem; background: #faf8f3; color: #302c26; }
+    .course-workspace_reset::backdrop { background: rgb(0 0 0 / .35); }
+    .course-workspace_reset h2 { margin: 0 0 1rem; font-size: 1.25rem; }
+    .course-workspace_reset p { margin-bottom: 1rem; }
+    .course-workspace_reset form { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+    .course-workspace_reset button[value="reset"] { border-color: #a43c25; color: #a43c25; }
+    @media screen and (max-width: 480px) {
+      .course-workspace > summary { padding: .4rem .5rem; }
+    }
+
     .course-platform_shell {
       display: grid;
       grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
@@ -34,12 +144,21 @@
       object-position: center;
     }
 
-    .course-platform_sidebar {
+    .course-platform_rail {
       align-self: start;
       position: sticky;
       top: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
       max-height: calc(100vh - 3rem);
-      overflow: auto;
+      max-height: calc(100dvh - 3rem);
+      overflow-y: auto;
+    }
+
+    .course-platform_sidebar {
+      flex: none;
+      min-height: 0;
       padding-right: 1rem;
       border-right: 1px solid rgba(20, 20, 20, 0.12);
     }
@@ -183,13 +302,6 @@
       max-width: 47rem;
     }
 
-    .course-platform_current {
-      margin: 0 0 1rem;
-      color: #73592f;
-      font-size: 0.875rem;
-      font-weight: 700;
-    }
-
     .course-version-banner {
       display: grid;
       gap: 0.75rem;
@@ -256,9 +368,14 @@
       line-height: 1.7;
     }
 
+    .course-platform_sections .course-platform_nav-link {
+      grid-template-columns: 2.8rem minmax(0, 1fr);
+      font-size: .8125rem;
+    }
+
     .course-platform_article h1 {
       margin: 0 0 1rem;
-      font-size: clamp(2rem, 5vw, 4.5rem);
+      font-size: clamp(1.6rem, 4vw, 3.6rem);
       line-height: 0.98;
       letter-spacing: 0;
     }
@@ -268,6 +385,11 @@
       font-size: 1.75rem;
       line-height: 1.15;
       letter-spacing: 0;
+    }
+
+    .course-platform_article [data-course-section]:not([data-overview]) > h1 {
+      font-size: clamp(1.4rem, 2.4vw, 2rem);
+      line-height: 1.1;
     }
 
     .course-platform_article h3 {
@@ -304,6 +426,25 @@
     .course-platform_article li > ul,
     .course-platform_article li > ol {
       margin: 0.35rem 0 0;
+    }
+
+    .course-platform_article table {
+      width: 100%;
+      margin: 1rem 0 1.5rem;
+      border-collapse: collapse;
+      overflow-wrap: anywhere;
+    }
+
+    .course-platform_article th,
+    .course-platform_article td {
+      padding: 0.5rem 0.65rem;
+      border-bottom: 1px solid rgba(20, 20, 20, 0.16);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .course-platform_article th {
+      background: #eee8dc;
     }
 
     .course-platform_article code {
@@ -354,6 +495,79 @@
 
     .course-note-body > :last-child {
       margin-bottom: 0;
+    }
+
+    .course-references {
+      margin: 2.5rem 0 1.5rem;
+      padding: 1.25rem clamp(1rem, 3vw, 1.5rem);
+      border: 1px solid #d8cebf;
+      border-top: 2px solid #b7a185;
+      border-radius: 0.5rem;
+      background: #f7f4ee;
+      color: #62594e;
+      font-size: 0.9375rem;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+      scroll-margin-top: 1.5rem;
+    }
+
+    .course-platform_article .course-references h2 {
+      margin: 0 0 0.5rem;
+      color: #73592f;
+      font-size: 0.8125rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      line-height: 1.4;
+      text-transform: uppercase;
+    }
+
+    .course-platform_article .course-references ol {
+      margin: 0;
+      padding-left: 1.8rem;
+      list-style: decimal-leading-zero;
+    }
+
+    .course-platform_article .course-references li {
+      margin: 0;
+      padding: 0.8rem 0 0.8rem 0.4rem;
+      border-bottom: 1px solid #ded6c9;
+    }
+
+    .course-references li::marker {
+      color: #73592f;
+      font-family: ui-monospace, monospace;
+      font-size: 0.8125rem;
+    }
+
+    .course-platform_article .course-references li:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .course-platform_article .course-references p {
+      margin: 0.3rem 0 0;
+    }
+
+    .course-platform_article .course-references li > p:first-child {
+      margin-top: 0;
+    }
+
+    .course-references a {
+      color: #4b3a1f;
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.2em;
+    }
+
+    .course-references a:hover {
+      color: #191919;
+    }
+
+    .course-references a:focus-visible {
+      outline: 2px solid #73592f;
+      outline-offset: 3px;
+      border-radius: 2px;
     }
 
     .codeset {
@@ -497,11 +711,14 @@
 
     .codeset .output {
       width: 100%;
+      min-width: 0;
       min-height: 2.5rem;
       border-radius: 0.5rem;
       background: #eee8dc;
       padding: 0.75rem 1rem;
       white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      overflow-x: auto;
       color: #25301a;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       font-size: 0.875rem;
@@ -511,6 +728,19 @@
     .codeset .output.is-error {
       color: #8a2d22;
     }
+
+    .course-cell-help {
+      grid-column: 2;
+      min-width: 0;
+      margin: .5rem 0 1rem;
+      padding: .75rem 1rem;
+      border-left: 3px solid #8f6b32;
+      background: #f4efe4;
+      font-size: .875rem;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+    .course-cell-help a { color: #73592f; text-decoration: underline; }
 
     .course-video {
       margin: 1.5rem 0;
@@ -804,6 +1034,16 @@
         height: 3.25rem;
       }
 
+      .course-platform_rail {
+        position: static;
+        max-height: none;
+        overflow: visible;
+        margin-top: -1rem;
+      }
+
+      .course-platform_rail:has(.course-workspace[hidden]) { display: contents; }
+      .course-workspace { margin: 0; }
+
       .course-platform_sidebar {
         position: fixed;
         z-index: 1200;
@@ -951,23 +1191,101 @@
   <script>
     let courseProgressState = { version: 1, courses: {} };
     const codeIndent = "    ";
+    let courseLessonReady = Promise.resolve();
+    let courseLessonListeners;
+    let courseNavigationBusy = false;
+    let navigateCourseLesson;
+    const coursePendingTasks = new Set();
+    const courseEditorDrafts = new Map();
+
+    function trackCourseTask(task) {
+      coursePendingTasks.add(task);
+      task.then(() => coursePendingTasks.delete(task), () => coursePendingTasks.delete(task));
+      return task;
+    }
+
+    async function finishCourseWork() {
+      await courseLessonReady;
+      while (coursePendingTasks.size) await Promise.allSettled([...coursePendingTasks]);
+    }
+
+    function rememberCourseEditors() {
+      const shell = document.querySelector(".course-platform_shell");
+      courseEditorDrafts.set(shell.dataset.lessonPath, {
+        code:[...shell.querySelectorAll(".code-area")].map(area => ({
+          blockId:area.closest("[data-course-block-id]").dataset.courseBlockId, value:area.value
+        })),
+        choices:[...shell.querySelectorAll(".course-choice-input:checked")].map(input => ({
+          blockId:input.closest("[data-course-block-id]").dataset.courseBlockId,
+          choice:input.closest(".course-choice").dataset.choiceIndex
+        }))
+      });
+    }
+
+    function initializeCourseLesson() {
+      courseLessonListeners?.abort();
+      courseLessonListeners = new AbortController();
+      window.CourseSections?.mount(document.querySelector(".course-platform_shell"), {
+        signal:courseLessonListeners.signal,
+        onChange:function() {
+          document.querySelectorAll(".code-area").forEach(resizeCodeArea);
+          setupCourseChallengeMarkers();
+          updateCourseScrollProgress();
+        }
+      });
+      restoreCurrentLessonProgress();
+      const shell = document.querySelector(".course-platform_shell");
+      const drafts = courseEditorDrafts.get(shell.dataset.lessonPath);
+      for (const draft of drafts?.code || []) {
+        const area = shell.querySelector('[data-course-block-id="' + CSS.escape(draft.blockId) + '"] .code-area');
+        if (area) area.value = draft.value;
+      }
+      for (const draft of drafts?.choices || []) {
+        const input = shell.querySelector('[data-course-block-id="' + CSS.escape(draft.blockId) + '"] [data-choice-index="' + CSS.escape(draft.choice) + '"] input');
+        if (input && !input.disabled) input.checked = true;
+      }
+      setupAutoResizeCodeAreas();
+      setupCourseChallengeMarkers();
+      setupMobileCourseToc();
+      updateCourseSidebarProgress();
+      updateCourseScrollProgress();
+      refreshCourseRuntimeControls();
+      preloadCourseEnvironment();
+      const workspace = document.getElementById("course-workspace");
+      document.addEventListener("click", event => {
+        if (!workspace.contains(event.target)) workspace.open = false;
+      }, {signal:courseLessonListeners.signal});
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && workspace.open && !document.getElementById("course-workspace-reset").open) {
+          workspace.open = false; workspace.querySelector("summary").focus();
+        }
+      }, {signal:courseLessonListeners.signal});
+    }
 
     document.addEventListener("DOMContentLoaded", function() {
+      // Begin after the first paint, independently of the progress API request.
+      preloadCourseEnvironment();
       const hydration = isCourseDraftPreview() ? Promise.resolve() : hydrateCourseProgressFromServer();
-      hydration.finally(function() {
-        setupAutoResizeCodeAreas();
-        setupCourseChallengeMarkers();
-        setupMobileCourseToc();
-        updateCourseSidebarProgress();
-        updateCourseScrollProgress();
+      courseLessonReady = hydration.finally(initializeCourseLesson);
+      import("/static/js/course-navigation.mjs").then(function({installCourseNavigation}) {
+        navigateCourseLesson = installCourseNavigation({
+          beforeNavigate:finishCourseWork, beforeSwap:rememberCourseEditors,
+          afterSwap:initializeCourseLesson, leave:saveCourseEnvironment,
+          setBusy:value => { courseNavigationBusy = value; }
+        });
+      }).catch(function() {
+        // Ordinary links remain usable if the navigation module cannot load.
       });
     });
 
     window.addEventListener("scroll", requestCourseScrollProgressUpdate, { passive: true });
     window.addEventListener("resize", requestCourseScrollProgressUpdate);
+    window.addEventListener("resize", function() {
+      document.querySelectorAll(".code-area").forEach(resizeCodeArea);
+    });
     window.addEventListener("course:block-result", function(event) {
       saveCourseBlockProgress(event.detail || {});
-      saveCourseBlockProgressToServer(event.detail || {});
+      trackCourseTask(saveCourseBlockProgressToServer(event.detail || {}));
       updateCourseChallengeMarker(event);
       updateCourseSidebarProgress();
     });
@@ -1012,28 +1330,29 @@
         toggle.setAttribute("aria-expanded", open ? "true" : "false");
         document.body.classList.toggle("no-scroll", open);
       }
+      const options = {signal:courseLessonListeners.signal};
 
       toggle.addEventListener("click", function() {
         setOpen(!shell.classList.contains("is-toc-open"));
-      });
+      }, options);
 
       if (closeButton) {
         closeButton.addEventListener("click", function() {
           setOpen(false);
           toggle.focus();
-        });
+        }, options);
       }
 
       if (overlay) {
         overlay.addEventListener("click", function() {
           setOpen(false);
-        });
+        }, options);
       }
 
       sidebar.querySelectorAll(".course-platform_nav-link").forEach(function(link) {
         link.addEventListener("click", function() {
           setOpen(false);
-        });
+        }, options);
       });
 
       document.addEventListener("keydown", function(event) {
@@ -1041,13 +1360,13 @@
           setOpen(false);
           toggle.focus();
         }
-      });
+      }, options);
 
       window.addEventListener("resize", function() {
         if (window.matchMedia("(min-width: 861px)").matches) {
           setOpen(false);
         }
-      });
+      }, options);
     }
 
     function setupCourseChallengeMarkers() {
@@ -1056,7 +1375,8 @@
         return;
       }
 
-      const challenges = Array.from(document.querySelectorAll(".course-multiple-choice, .course-code-challenge"));
+      const challenges = Array.from(document.querySelectorAll(".course-multiple-choice, .course-code-challenge"))
+        .filter(block => !block.closest("[data-course-section][hidden]"));
       container.innerHTML = "";
       container.hidden = challenges.length === 0;
       challenges.forEach(function(challenge, index) {
@@ -1185,6 +1505,14 @@
     }
 
     async function hydrateCourseProgressFromServer() {
+      if (isLocalCoursePreview()) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(localCourseProgressKey()) || "null");
+          if (saved && saved.version === 1 && saved.courses) courseProgressState = saved;
+        } catch { /* A fresh preview can run without existing saved answers. */ }
+        restoreCurrentLessonProgress();
+        return;
+      }
       if (isCourseDraftPreview()) {
         return;
       }
@@ -1270,11 +1598,14 @@
       });
       document.querySelectorAll(".course-code-cell, .course-code-challenge .code-challenge-cell").forEach(function(block) {
         const saved = lesson.codeBlocks[block.dataset.courseBlockId || ""];
+        const graded = block.closest(".course-code-challenge") && lesson.blocks[block.dataset.courseBlockId || ""];
+        if (graded && (!saved || (graded.answeredAt || "") >= (saved.answeredAt || ""))) return;
         if (!saved) {
           return;
         }
         applySavedCodeBlockState(block, saved);
       });
+      clearArchivedCellOutputs(courseVM?.journal?.state);
     }
 
     function applySavedCourseBlockState(block, saved) {
@@ -1303,6 +1634,10 @@
       }
     }
 
+    function formatCellOutput(text, ok) {
+      return text || (ok ? "Completed (no output)." : "Execution failed (no output).");
+    }
+
     function applySavedCodeBlockState(block, saved) {
       const textarea = block.querySelector(".code-area");
       const output = block.querySelector(".output");
@@ -1313,13 +1648,38 @@
         resizeCodeArea(textarea);
         updateCodeHighlight(textarea);
       }
-      if (output && typeof saved.outputText === "string" && saved.outputText !== "") {
-        output.textContent = saved.outputText;
+      if (output && typeof saved.outputText === "string" && (saved.outputText !== "" || (Number.isInteger(saved.executionCount) && saved.executionCount > 0))) {
+        output.textContent = formatCellOutput(saved.outputText, saved.outputOk !== false);
         output.classList.toggle("is-error", saved.outputOk === false);
       }
       if (prompt && Number.isInteger(saved.executionCount)) {
         prompt.textContent = saved.outputOk === false ? "Err[" + saved.executionCount + "]:" : "Out[" + saved.executionCount + "]:";
       }
+      updateCourseCellHelp(block, saved.outputOk === false ? saved.outputText || "" : "");
+    }
+
+    function updateCourseCellHelp(cell, output) {
+      cell.querySelector(".course-cell-help")?.remove();
+      if (cell.dataset.courseRuntime !== "python-vm") return;
+      const cells = [...document.querySelectorAll('.course-code-cell[data-course-runtime="python-vm"], .code-challenge-cell[data-course-runtime="python-vm"]')];
+      const earlier = cells.slice(0, Math.max(0, cells.indexOf(cell)));
+      const missing = window.CourseExecution.missingPythonDefinition(output, earlier.map(block => block.querySelector(".code-area").value));
+      if (!missing) return;
+      const definition = earlier[missing.index], section = definition.closest("[data-course-section]");
+      const anchor = definition.id || definition.closest(".course-code-challenge")?.id;
+      if (!anchor) return;
+      const title = section?.querySelector("h1, h2")?.textContent || "the earlier code cell";
+      const url = new URL(location.href);
+      if (section) url.searchParams.set("section", section.dataset.courseSection);
+      url.hash = anchor;
+      const help = document.createElement("div"), name = document.createElement("code"), link = document.createElement("a");
+      help.className = "course-cell-help";
+      help.setAttribute("role", "note");
+      name.textContent = missing.name;
+      link.href = url.pathname + url.search + url.hash;
+      link.textContent = title;
+      help.append("Run ", link, " first to define ", name, ".");
+      cell.append(help);
     }
 
     function restoreMultipleChoiceState(block, saved) {
@@ -1347,7 +1707,7 @@
     }
 
     async function saveCourseBlockProgressToServer(detail) {
-      if (isCourseDraftPreview()) {
+      if (isCourseDraftPreview() || isLocalCoursePreview()) {
         return;
       }
       if (!detail.courseSlug || !detail.lessonPath || !detail.blockId) {
@@ -1402,7 +1762,7 @@
       };
 
       saveCourseBlockProgress(detail);
-      saveCourseBlockProgressToServer(detail);
+      return saveCourseBlockProgressToServer(detail);
     }
 
     function getStoredCourseLesson(courseSlug, lessonPath) {
@@ -1422,6 +1782,21 @@
 
     function writeCourseProgress(progress) {
       courseProgressState = progress && progress.version === 1 ? progress : { version: 1, courses: {} };
+      if (isLocalCoursePreview()) {
+        try { localStorage.setItem(localCourseProgressKey(), JSON.stringify(courseProgressState)); }
+        catch {
+          setCourseRuntimeStatus("Unable to save lesson answers in this browser. Check available browser storage.", true);
+        }
+      }
+    }
+
+    function isLocalCoursePreview() {
+      return document.querySelector(".course-platform_shell")?.dataset.localPreview === "true";
+    }
+
+    function localCourseProgressKey() {
+      const data = document.querySelector(".course-platform_shell").dataset;
+      return "base58-local-course-preview-v1:" + data.courseSlug + (data.courseSource ? ":" + data.courseSource : "");
     }
 
     function isCourseDraftPreview() {
@@ -1482,7 +1857,8 @@
 
       if (destination) {
         event.preventDefault();
-        window.location.href = destination;
+        if (navigateCourseLesson) navigateCourseLesson(destination);
+        else window.location.href = destination;
       }
     });
 
@@ -1524,7 +1900,7 @@
     }
 
     function resizeCodeArea(textarea) {
-      if (!(textarea instanceof HTMLTextAreaElement)) {
+      if (!(textarea instanceof HTMLTextAreaElement) || textarea.closest("[data-course-section][hidden]")) {
         return;
       }
 
@@ -1811,8 +2187,8 @@
       return new TextDecoder().decode(bytes);
     }
   </script>
-  {{ if .HasCode }}
   <script src="/static/js/course-execution.js"></script>
+  <script src="/static/js/course-sections.js"></script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
   <script>
     let pyodideReady;
@@ -1945,11 +2321,86 @@ def __course_check_cell(student_code, check_code):
 
     let courseVM;
     let courseVMPromise;
+    let courseRuntimeStatus = "";
+    let courseRuntimeIssue = false;
+    let renderCourseHistory;
+    let coursePreloadStarted = false;
+    let courseWorkspaceStopped = false;
+    let courseWorkspaceResetting = false;
+    function courseLessonUsesVM() {
+      return Boolean(document.querySelector('[data-course-runtime="python-vm"]')) || [...document.querySelectorAll(".code-area")].some(area => window.CourseExecution.hasRemoteShellLine(area.value));
+    }
+    function preloadCourseEnvironment() {
+      if (coursePreloadStarted || courseWorkspaceStopped || document.visibilityState !== "visible" || !courseLessonUsesVM()) return;
+      coursePreloadStarted = true;
+      requestAnimationFrame(() => setTimeout(async () => {
+        if (courseWorkspaceStopped) return;
+        if (document.visibilityState !== "visible") { coursePreloadStarted = false; return; }
+        try {
+          setCourseRuntimeStatus("Loading workspace…");
+          const runtime = await getCourseVM();
+          if (!courseWorkspaceStopped) await runtime.prepare({python:Boolean(document.querySelector('[data-course-runtime="python-vm"]'))});
+        } catch (error) {
+          if (!courseWorkspaceStopped && !courseWorkspaceResetting) setCourseRuntimeStatus(error.message, true);
+        }
+      }, 0));
+    }
+    document.addEventListener("visibilitychange", preloadCourseEnvironment);
+    function setCourseRuntimeStatus(message, error = false) {
+      courseRuntimeStatus = message;
+      courseRuntimeIssue = error;
+      updateCourseRuntimeStatus();
+    }
+    function updateCourseRuntimeStatus() {
+      const status = document.getElementById("course-runtime-status");
+      status.textContent = courseRuntimeStatus || "Run a code cell to start your workspace.";
+      const phase = courseRuntimeStatus.match(/^(Loading|Starting|Replaying|Running|Saving|Resetting)\b/)?.[1];
+      const busy = !courseRuntimeIssue && Boolean(phase);
+      const counter = busy && (phase === "Loading" || phase === "Replaying") && courseRuntimeStatus.match(/\b(\d+)\/(\d+)\b/);
+      const badge = document.getElementById("course-runtime-badge");
+      badge.hidden = !busy && !courseRuntimeIssue;
+      badge.textContent = courseRuntimeIssue ? "Needs attention" : counter ? phase + " " + counter[1] + "/" + counter[2] : busy ? phase + "…" : "";
+      badge.dataset.error = String(courseRuntimeIssue);
+      const progress = document.getElementById("course-runtime-progress");
+      const total = counter ? Number(counter[2]) : 0;
+      // Replay reports the command currently running; only earlier commands
+      // are complete. Archive loading reports tools already loaded.
+      const completed = counter ? Number(counter[1]) - (phase === "Replaying" ? 1 : 0) : 0;
+      progress.hidden = !busy;
+      progress.dataset.indeterminate = String(total === 0);
+      progress.style.setProperty("--workspace-progress", total ? Math.max(0, Math.min(1, completed / total)) : 0);
+      document.querySelector("#course-workspace > summary").title = courseRuntimeStatus;
+      const open = document.getElementById("course-runtime-open");
+      open.hidden = Boolean(courseVM?.vm);
+      open.disabled = busy || courseWorkspaceResetting;
+      open.textContent = courseVM ? "Resume workspace" : "Start workspace";
+      document.getElementById("course-runtime-stop").hidden = !courseVM?.vm && !courseVM?.booting;
+      document.getElementById("course-runtime-stop").disabled = courseWorkspaceResetting;
+      document.getElementById("course-runtime-reset").disabled = courseWorkspaceResetting;
+    }
+    function refreshCourseRuntimeControls() {
+      const token = document.querySelector(".course-platform_shell").dataset.csrfToken || "";
+      if (courseVM) {
+        courseVM.csrfToken = token;
+        if (courseVM.storage) courseVM.storage.csrfToken = token;
+      }
+      const available = courseLessonUsesVM();
+      document.getElementById("course-workspace").hidden = !available && !courseVM;
+      updateCourseRuntimeStatus();
+      const state = courseVM?.journal?.state;
+      if (state && renderCourseHistory) {
+        document.getElementById("course-runtime-history").hidden = false;
+        renderCourseHistory(document.getElementById("course-runtime-commands"), state);
+        document.getElementById("course-runtime-undo").disabled = courseWorkspaceResetting || !state.head || Boolean(state.pending);
+        clearArchivedCellOutputs(state);
+      }
+    }
     function getCourseVM() {
       if (!courseVMPromise) courseVMPromise = (async function() {
         const shell = document.querySelector(".course-platform_shell");
         const {CourseVM} = await import("/static/js/course-vm.mjs");
         const {renderCommandHistory} = await import("/static/js/course-history-view.mjs");
+        renderCourseHistory = renderCommandHistory;
         const preview = shell.dataset.draftPreview === "true" ? "?preview=draft" : "";
         courseVM = new CourseVM({
           environmentURL: "/api/courses/" + encodeURIComponent(shell.dataset.courseSlug) + "/environment" + preview,
@@ -1957,15 +2408,15 @@ def __course_check_cell(student_code, check_code):
           onHistory: function(state) {
             document.getElementById("course-runtime-history").hidden = false;
             renderCommandHistory(document.getElementById("course-runtime-commands"), state);
-            document.getElementById("course-runtime-undo").disabled = !state.head || Boolean(state.pending);
+            document.getElementById("course-runtime-undo").disabled = courseWorkspaceResetting || !state.head || Boolean(state.pending);
+            clearArchivedCellOutputs(state);
           },
           onStatus: function(message) {
-            const status = document.getElementById("course-runtime-status");
-            if (status) { status.hidden = false; status.textContent = message; document.getElementById("course-runtime-stop").hidden = false; }
+            setCourseRuntimeStatus(message, Boolean(courseVM?.failed || courseVM?.replayFailure));
           }
         });
         return courseVM;
-      })();
+      })().catch(error => { courseVMPromise = null; throw error; });
       return courseVMPromise;
     }
 
@@ -1980,19 +2431,69 @@ def __course_check_cell(student_code, check_code):
     }
 
     async function saveCourseEnvironment() {
+      courseWorkspaceStopped = true;
+      await finishCourseWork();
+      if (courseVMPromise) await courseVMPromise;
       if (courseVM) await courseVM.saveAndStop();
     }
     async function openCourseEnvironment() {
-      try { await (await getCourseVM()).ready(); }
+      courseWorkspaceStopped = false;
+      coursePreloadStarted = true;
+      try { await (await getCourseVM()).prepare({python:Boolean(document.querySelector('[data-course-runtime="python-vm"]'))}); }
       catch (error) {
-        const status = document.getElementById("course-runtime-status");
-        status.hidden = false; status.textContent = error.message;
+        setCourseRuntimeStatus(error.message, true);
       }
     }
-    window.addEventListener("DOMContentLoaded", function() {
-      if ([...document.querySelectorAll(".code-area")].some(area => window.CourseExecution.hasRemoteShellLine(area.value))) document.getElementById("course-runtime-open").hidden = false;
-    });
-    async function undoCourseCommand() {
+    function confirmCourseWorkspaceReset() {
+      if (courseNavigationBusy || courseWorkspaceResetting) return;
+      const dialog = document.getElementById("course-workspace-reset");
+      dialog.returnValue = "";
+      dialog.addEventListener("close", function() {
+        if (dialog.returnValue === "reset") resetCourseWorkspace();
+      }, {once:true});
+      dialog.showModal();
+    }
+    function resetCourseWorkspace() {
+      if (courseNavigationBusy || courseWorkspaceResetting) return;
+      courseWorkspaceResetting = true;
+      courseWorkspaceStopped = false;
+      coursePreloadStarted = true;
+      const pending = [...coursePendingTasks];
+      return trackCourseTask((async function() {
+        setCourseRuntimeStatus("Resetting workspace…");
+        try {
+          await courseLessonReady;
+          await Promise.allSettled(pending);
+          await (await getCourseVM()).reset({python:Boolean(document.querySelector('[data-course-runtime="python-vm"]'))});
+        } catch (error) { setCourseRuntimeStatus(error.message, true); }
+        finally { courseWorkspaceResetting = false; refreshCourseRuntimeControls(); }
+      })());
+    }
+    function clearArchivedCellOutputs(state) {
+      if (!state?.workspace) return;
+      const lessonPath = document.querySelector(".course-platform_shell")?.dataset.lessonPath;
+      const current = new Set();
+      for (let id = state.head; id; id = state.commands.get(id).parent) {
+        const command = state.commands.get(id).command;
+        if (command.lessonPath === lessonPath) current.add(command.blockId);
+      }
+      const pending = state.commands.get(state.pending)?.command;
+      if (pending?.lessonPath === lessonPath) current.add(pending.blockId);
+      document.querySelectorAll(".course-code-cell, .course-code-challenge .code-challenge-cell").forEach(function(cell) {
+        const area = cell.querySelector(".code-area");
+        const usesVM = cell.dataset.courseRuntime === "python-vm" || (area && window.CourseExecution.hasRemoteShellLine(area.value));
+        if (!usesVM || current.has(cell.dataset.courseBlockId)) return;
+        const output = cell.querySelector(".output"), prompt = cell.querySelector(".output-prompt");
+        if (output) { output.textContent = ""; output.classList.remove("is-error"); }
+        if (prompt) prompt.textContent = "";
+        cell.querySelector(".course-cell-help")?.remove();
+      });
+    }
+    function undoCourseCommand() {
+      if (courseNavigationBusy) return;
+      return trackCourseTask(performCourseUndo());
+    }
+    async function performCourseUndo() {
       const button = document.getElementById("course-runtime-undo");
       button.disabled = true;
       try {
@@ -2007,19 +2508,13 @@ def __course_check_cell(student_code, check_code):
             saveRunnableCodeBlock(cell, result, courseExecutionCount);
           }
         }
-      } catch (error) { document.getElementById("course-runtime-status").textContent = error.message; }
+      } catch (error) { setCourseRuntimeStatus(error.message, true); }
       finally { button.disabled = !courseVM?.journal?.state.head || Boolean(courseVM?.journal?.state.pending); }
     }
-    document.addEventListener("click", async function(event) {
-      const link = event.target.closest("a[href]");
-      if (!courseVM || !link || link.target || link.hasAttribute("download") || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const url = new URL(link.href, location.href);
-      if (url.origin !== location.origin || (url.pathname === location.pathname && url.search === location.search)) return;
-      event.preventDefault();
-      try { await saveCourseEnvironment(); location.assign(url.href); }
-      catch (error) { document.getElementById("course-runtime-status").textContent = "Unable to finish saving: " + error.message; }
+    window.addEventListener("pagehide", function() {
+      courseWorkspaceStopped = true;
+      if (courseVMPromise) courseVMPromise.then(runtime => runtime.close()).catch(() => {});
     });
-    window.addEventListener("pagehide", function() { if (courseVM) courseVM.close().catch(() => {}); });
 
     async function runLocalPythonSource(code) {
       if (!code.trim()) return {ok: true, output: ""};
@@ -2053,46 +2548,64 @@ def __course_check_cell(student_code, check_code):
       return {ok: ok, output: combined};
     }
 
-    async function runCellCode(button) {
+    function runCellCode(button) {
+      if (courseNavigationBusy || courseWorkspaceResetting || button.disabled) return;
+      return trackCourseTask(executeCellCode(button));
+    }
+    async function executeCellCode(button) {
       const cell = button.closest(".cell");
       const textarea = cell.querySelector(".code-area");
       const output = cell.querySelector(".output");
       const prompt = cell.querySelector(".output-prompt");
+      cell.querySelector(".course-cell-help")?.remove();
       output.classList.remove("is-error");
       output.textContent = "Running...";
       if (prompt) {
         prompt.textContent = "Out[*]:";
       }
-      button.disabled = true;
+      const buttons = cell.querySelectorAll("button");
+      buttons.forEach(item => { item.disabled = true; });
 
       try {
         let result;
-        if (window.CourseExecution.hasRemoteShellLine(textarea.value)) {
+        if (cell.dataset.courseRuntime === "python-vm") {
+          const shell = document.querySelector(".course-platform_shell");
+          const executed = await (await getCourseVM()).executePython(textarea.value, {
+            lessonPath: shell.dataset.lessonPath || "", blockId: cell.dataset.courseBlockId || ""
+          });
+          result = {ok: executed.exitCode === 0 && !executed.timedOut, output: executed.stdout + executed.stderr};
+        } else if (window.CourseExecution.hasRemoteShellLine(textarea.value)) {
           result = await runNotebookCell(cell, textarea.value);
         } else {
           result = await runLocalPythonSource(textarea.value);
         }
         const executionCount = ++courseExecutionCount;
         output.classList.toggle("is-error", !result.ok);
-        output.textContent = result.output;
+        output.textContent = formatCellOutput(result.output, result.ok);
+        updateCourseCellHelp(cell, result.ok ? "" : result.output);
         if (prompt) {
           prompt.textContent = result.ok ? "Out[" + executionCount + "]:" : "Err[" + executionCount + "]:";
         }
-        saveRunnableCodeBlock(cell, result, executionCount);
+        await saveRunnableCodeBlock(cell, result, executionCount);
       } catch (err) {
         const executionCount = ++courseExecutionCount;
         output.classList.add("is-error");
         output.textContent = err.message;
+        updateCourseCellHelp(cell, err.message);
         if (prompt) {
           prompt.textContent = "Err[" + executionCount + "]:";
         }
-        saveRunnableCodeBlock(cell, { ok: false, output: err.message }, executionCount);
+        await saveRunnableCodeBlock(cell, { ok: false, output: err.message }, executionCount);
       } finally {
-        button.disabled = false;
+        buttons.forEach(item => { item.disabled = false; });
       }
     }
 
-    async function submitCodeChallenge(button) {
+    function submitCodeChallenge(button) {
+      if (courseNavigationBusy || courseWorkspaceResetting || button.disabled) return;
+      return trackCourseTask(executeCodeChallenge(button));
+    }
+    async function executeCodeChallenge(button) {
       const block = button.closest(".course-code-challenge");
       if (!block) {
         return;
@@ -2103,20 +2616,31 @@ def __course_check_cell(student_code, check_code):
 
       output.classList.remove("is-error");
       output.textContent = "Checking...";
-      button.disabled = true;
+      const buttons = block.querySelectorAll("button");
+      buttons.forEach(item => { item.disabled = true; });
+      block.querySelector(".course-cell-help")?.remove();
 
       try {
-        const pyodide = await getCoursePyodide();
         const checkCode = decodeCourseBlockData(block.dataset.checkCode || "");
         const failureMessage = decodeCourseBlockData(block.dataset.failureMessage || "") || "Not quite. Try again.";
-        pyodide.globals.set("__course_challenge_code", textarea.value);
-        pyodide.globals.set("__course_challenge_check", checkCode);
         let result;
-        try {
-          result = JSON.parse(pyodide.runPython("__course_check_cell(__course_challenge_code, __course_challenge_check)"));
-        } finally {
-          pyodide.globals.delete("__course_challenge_code");
-          pyodide.globals.delete("__course_challenge_check");
+        if (block.dataset.courseRuntime === "python-vm") {
+          const shell = document.querySelector(".course-platform_shell");
+          const executed = await (await getCourseVM()).checkPython(textarea.value, checkCode, {
+            lessonPath:shell.dataset.lessonPath || "", blockId:block.dataset.courseBlockId || ""
+          });
+          result = {ok:executed.exitCode === 0 && !executed.timedOut,
+            output:executed.stdout + executed.stderr, phase:executed.phase || "student"};
+        } else {
+          const pyodide = await getCoursePyodide();
+          pyodide.globals.set("__course_challenge_code", textarea.value);
+          pyodide.globals.set("__course_challenge_check", checkCode);
+          try {
+            result = JSON.parse(pyodide.runPython("__course_check_cell(__course_challenge_code, __course_challenge_check)"));
+          } finally {
+            pyodide.globals.delete("__course_challenge_code");
+            pyodide.globals.delete("__course_challenge_check");
+          }
         }
 
         if (result.ok) {
@@ -2132,6 +2656,7 @@ def __course_check_cell(student_code, check_code):
 
         output.classList.add("is-error");
         output.textContent = result.phase === "student" && result.output ? result.output : failureMessage;
+        updateCourseCellHelp(block.querySelector(".cell"), result.phase === "student" ? result.output : "");
         markCourseBlockResult(block, {
           correct: false,
           codeText: textarea.value,
@@ -2148,11 +2673,10 @@ def __course_check_cell(student_code, check_code):
           outputOk: false
         });
       } finally {
-        button.disabled = false;
+        buttons.forEach(item => { item.disabled = false; });
       }
     }
   </script>
-  {{ end }}
 </head>
 <body>
   <div class="page-wrapper course-platform">
@@ -2168,7 +2692,8 @@ def __course_check_cell(student_code, check_code):
       </div>
       <div class="course-challenge-markers" hidden></div>
     </div>
-    <main class="course-platform_shell" data-course-slug="{{ .CourseSlug }}" data-lesson-path="{{ .Current.Path }}" data-csrf-token="{{ .CSRFToken }}" data-draft-preview="{{ if .IsDraftPreview }}true{{ else }}false{{ end }}"{{ if .Previous }} data-prev-url="{{ .Previous.URL }}"{{ end }}{{ if .Next }} data-next-url="{{ .Next.URL }}"{{ end }}>
+    <p id="course-navigation-status" role="status" hidden></p>
+    <main class="course-platform_shell" data-course-navigation="1" data-course-attempt="{{ .AttemptID }}" data-course-version="{{ .VersionNumber }}" data-draft-version="{{ .DraftVersionNumber }}" data-course-slug="{{ .CourseSlug }}" data-lesson-path="{{ .Current.Path }}" data-csrf-token="{{ .CSRFToken }}" data-draft-preview="{{ if .IsDraftPreview }}true{{ else }}false{{ end }}"{{ if .IsLocalPreview }} data-local-preview="true"{{ end }}{{ if .Previous }} data-prev-url="{{ .Previous.URL }}"{{ end }}{{ if .Next }} data-next-url="{{ .Next.URL }}"{{ end }}>
       <button class="course-platform_mobile-toc" type="button" aria-expanded="false" aria-controls="course-platform-toc">
         <span class="course-platform_mobile-toc-label">
           <span class="course-platform_mobile-toc-kicker">Course contents</span>
@@ -2177,74 +2702,95 @@ def __course_check_cell(student_code, check_code):
         <span class="course-platform_mobile-toc-icon" aria-hidden="true">+</span>
       </button>
       <div class="course-platform_toc-overlay" aria-hidden="true"></div>
-      <aside class="course-platform_sidebar" id="course-platform-toc" aria-label="Course pages">
-        <button class="course-platform_toc-close" type="button" aria-label="Close course contents">×</button>
-        <h2 class="course-platform_course-title">{{ .CourseTitle }}</h2>
-        <nav class="course-platform_nav">
-          {{ range .Sidebar }}
-            <div class="course-platform_nav-item">
-              <a href="{{ .URL }}" class="course-platform_nav-link{{ if .Current }} is-current{{ else if .Active }} is-active{{ end }}" data-lesson-path="{{ .Path }}" data-challenge-count="{{ .ChallengeCount }}"{{ if .Current }} aria-current="page"{{ end }}>
-                <span class="course-platform_nav-number">{{ .Number }}</span>
-                <span class="course-platform_nav-title">{{ .Title }}</span>
-                <span class="course-platform_challenge-status" hidden></span>
-              </a>
-              {{ if and .Children .Active }}
-                <div class="course-platform_subpages">
-                  {{ range .Children }}
-                    <a href="{{ .URL }}" class="course-platform_nav-link{{ if .Current }} is-current{{ else if .Active }} is-active{{ end }}" data-lesson-path="{{ .Path }}" data-challenge-count="{{ .ChallengeCount }}"{{ if .Current }} aria-current="page"{{ end }}>
-                      <span class="course-platform_nav-number">{{ .Number }}</span>
-                      <span class="course-platform_nav-title">{{ .Title }}</span>
-                      <span class="course-platform_challenge-status" hidden></span>
-                    </a>
-                  {{ end }}
-                </div>
-              {{ end }}
-            </div>
+      <div class="course-platform_rail">
+        <aside class="course-platform_sidebar" id="course-platform-toc" aria-label="Course pages">
+          <button class="course-platform_toc-close" type="button" aria-label="Close course contents">×</button>
+          <h2 class="course-platform_course-title">{{ .CourseTitle }}</h2>
+          <nav class="course-platform_nav">
+            {{ range .Sidebar }}
+              <div class="course-platform_nav-item">
+                <a href="{{ .URL }}" class="course-platform_nav-link{{ if .Current }} is-current{{ else if .Active }} is-active{{ end }}" data-lesson-path="{{ .Path }}" data-challenge-count="{{ .ChallengeCount }}"{{ if .Current }} aria-current="page"{{ end }}>
+                  <span class="course-platform_nav-number">{{ .Number }}</span>
+                  <span class="course-platform_nav-title">{{ .Title }}</span>
+                  <span class="course-platform_challenge-status" hidden></span>
+                </a>
+                {{ if and .Children .Active }}
+                  <div class="course-platform_subpages">
+                    {{ range .Children }}
+                      <a href="{{ .URL }}" class="course-platform_nav-link{{ if .Current }} is-current{{ else if .Active }} is-active{{ end }}" data-lesson-path="{{ .Path }}" data-challenge-count="{{ .ChallengeCount }}"{{ if .Current }} aria-current="page"{{ end }}>
+                        <span class="course-platform_nav-number">{{ .Number }}</span>
+                        <span class="course-platform_nav-title">{{ .Title }}</span>
+                        <span class="course-platform_challenge-status" hidden></span>
+                      </a>
+                    {{ end }}
+                  </div>
+                {{ end }}
+              </div>
+            {{ end }}
+          </nav>
+          {{ if .CanPreviewDraft }}
+            {{ if .IsDraftPreview }}
+              <div class="course-version-banner is-draft-preview" role="status">
+                <p>You are previewing the synced draft{{ if .DraftVersionNumber }} version {{ .DraftVersionNumber }}{{ end }}. Progress is not saved in draft preview.</p>
+                <a href="{{ .DraftPreviewOffURL }}">Return to Published Version</a>
+                <form method="post" action="/courses/{{ .CourseSlug }}/publish-draft" onsubmit="return confirm('Publish the latest synced draft for this course? Students will see the new version.');">
+                  <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
+                  <button type="submit">Publish Draft</button>
+                </form>
+              </div>
+            {{ else }}
+              <div class="course-version-banner is-draft-preview" role="status">
+                <p>Editor preview is available for this course.</p>
+                <a href="{{ .DraftPreviewOnURL }}">Preview Synced Draft</a>
+                <form method="post" action="/courses/{{ .CourseSlug }}/publish-draft" onsubmit="return confirm('Publish the latest synced draft for this course? Students will see the new version.');">
+                  <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
+                  <button type="submit">Publish Draft</button>
+                </form>
+              </div>
+            {{ end }}
           {{ end }}
-        </nav>
-        {{ if .CanPreviewDraft }}
-          {{ if .IsDraftPreview }}
-            <div class="course-version-banner is-draft-preview" role="status">
-              <p>You are previewing the synced draft{{ if .DraftVersionNumber }} version {{ .DraftVersionNumber }}{{ end }}. Progress is not saved in draft preview.</p>
-              <a href="{{ .DraftPreviewOffURL }}">Return to Published Version</a>
-              <form method="post" action="/courses/{{ .CourseSlug }}/publish-draft" onsubmit="return confirm('Publish the latest synced draft for this course? Students will see the new version.');">
+          {{ if .HasNewVersion }}
+            <div class="course-version-banner" role="status">
+              <p>You are working on version {{ .VersionNumber }}. Version {{ .LatestVersionNumber }} is available.</p>
+              <form method="post" action="/courses/{{ .CourseSlug }}/versions/latest/start">
                 <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
-                <button type="submit">Publish Draft</button>
+                <button type="submit">Start Fresh on Latest Version</button>
               </form>
             </div>
-          {{ else }}
-            <div class="course-version-banner is-draft-preview" role="status">
-              <p>Editor preview is available for this course.</p>
-              <a href="{{ .DraftPreviewOnURL }}">Preview Synced Draft</a>
-              <form method="post" action="/courses/{{ .CourseSlug }}/publish-draft" onsubmit="return confirm('Publish the latest synced draft for this course? Students will see the new version.');">
-                <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
-                <button type="submit">Publish Draft</button>
-              </form>
-            </div>
           {{ end }}
-        {{ end }}
-        {{ if .HasNewVersion }}
-          <div class="course-version-banner" role="status">
-            <p>You are working on version {{ .VersionNumber }}. Version {{ .LatestVersionNumber }} is available.</p>
-            <form method="post" action="/courses/{{ .CourseSlug }}/versions/latest/start">
-              <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
-              <button type="submit">Start Fresh on Latest Version</button>
-            </form>
+        </aside>
+        <details id="course-workspace" class="course-workspace" hidden>
+          <summary>
+            <span>Workspace</span><span id="course-runtime-badge" class="course-workspace_badge" hidden></span>
+            <span id="course-runtime-progress" class="course-workspace_progress" aria-hidden="true" hidden><span></span></span>
+          </summary>
+          <div class="course-workspace_panel">
+            <p id="course-runtime-status" role="status">Run a code cell to start your workspace.</p>
+            <div class="course-workspace_actions">
+              <button id="course-runtime-open" type="button" onclick="openCourseEnvironment()">Start workspace</button>
+              <button id="course-runtime-stop" type="button" hidden onclick="saveCourseEnvironment().catch(function(error) { setCourseRuntimeStatus(error.message, true); })">Save and stop</button>
+              <button id="course-runtime-undo" type="button" disabled onclick="undoCourseCommand()">Undo last command</button>
+              <button id="course-runtime-reset" type="button" onclick="confirmCourseWorkspaceReset()">Reset workspace</button>
+            </div>
+            <details id="course-runtime-history" hidden><summary>Command history</summary>
+              <div id="course-runtime-commands"></div>
+            </details>
+            <dialog id="course-workspace-reset" class="course-workspace_reset" aria-labelledby="course-workspace-reset-title" aria-describedby="course-workspace-reset-description">
+              <h2 id="course-workspace-reset-title">Reset workspace?</h2>
+              <div id="course-workspace-reset-description">
+                <p>This clears variables, files you created, and running nodes. Your code edits and lesson answers stay.</p>
+                <p>You’ll need to rerun any prerequisite cells.</p>
+              </div>
+              <form method="dialog">
+                <button value="cancel" autofocus>Cancel</button>
+                <button value="reset">Reset workspace</button>
+              </form>
+            </dialog>
           </div>
-        {{ end }}
-      </aside>
+        </details>
+      </div>
       <section class="course-platform_content">
-        <div class="course-platform_current">{{ .Current.DisplayNumber }} / {{ .Current.Title }}</div>
         <article class="course-platform_article">
-          {{ if .HasCode }}
-          <p id="course-runtime-status" role="status" hidden></p>
-          <button id="course-runtime-open" type="button" hidden onclick="openCourseEnvironment()">Resume CLI environment</button>
-          <button id="course-runtime-stop" type="button" hidden onclick="saveCourseEnvironment().catch(function(error) { document.getElementById('course-runtime-status').textContent = error.message; })">Save and stop environment</button>
-          <details id="course-runtime-history" hidden><summary>CLI command history</summary>
-            <button id="course-runtime-undo" type="button" disabled onclick="undoCourseCommand()">Undo last command</button>
-            <div id="course-runtime-commands" style="overflow-wrap:anywhere"></div>
-          </details>
-          {{ end }}
             {{ .ContentHTML }}
         </article>
         <nav class="course-platform_pager" aria-label="Course page navigation">
