@@ -194,9 +194,9 @@ A channel advertises enough total capacity for your payment. Is success guarante
 ::: references
 1. [BOLT 7 — Gossip and forwarding policies](https://github.com/lightning/bolts/blob/master/07-routing-gossip.md)
 
-   Specifies node and channel announcements, channel updates, and the fees and timelock policies used to construct a route.
+    Specifies node and channel announcements, channel updates, and the fees and timelock policies used to construct a route.
 
 2. [BOLT 4 — Onion routing and payloads](https://github.com/lightning/bolts/blob/master/04-onion-routing.md)
 
-   Defines the onion packet format and the per-hop payment instructions encoded in the payloads you build in this lesson.
+    Defines the onion packet format and the per-hop payment instructions encoded in the payloads you build in this lesson.
 :::

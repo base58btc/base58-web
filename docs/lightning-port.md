@@ -35,14 +35,14 @@ The runner prints the final expression, captures Python output and exceptions, l
 ## References in course Markdown
 
 Use a `::: references` block for a numbered bibliography with linked titles and
-short descriptions. Put each description in an indented paragraph beneath its
+short descriptions. Indent each description by four spaces in a paragraph beneath its
 link. The renderer supplies the References heading and a subdued callout style.
 
 ```markdown
 ::: references
 1. [BIP 65 — Absolute locktimes](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)
 
-   The specification for `OP_CHECKLOCKTIMEVERIFY`.
+    The specification for `OP_CHECKLOCKTIMEVERIFY`.
 :::
 ```
 

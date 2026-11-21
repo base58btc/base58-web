@@ -149,13 +149,13 @@ Try Undo after the final cell. Inspect the height and mempool before running it 
 ::: references
 1. [BIP 65 — Absolute locktimes](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)
 
-   Introduces `OP_CHECKLOCKTIMEVERIFY`: require a transaction's locktime to reach a specified block height or time before an output can be spent.
+    Defines `OP_CHECKLOCKTIMEVERIFY`, which prevents spending before a specified block height or time.
 
 2. [BIP 68 — Relative locktimes](https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki)
 
-   Defines how transaction input sequence numbers encode a delay measured from the confirmation of the output being spent.
+    Explains how input sequence numbers encode a delay measured from an output's confirmation.
 
 3. [BIP 112 — Checking relative locktimes](https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki)
 
-   Introduces `OP_CHECKSEQUENCEVERIFY`: enforce a minimum relative locktime from within a Bitcoin script.
+    Defines `OP_CHECKSEQUENCEVERIFY`, which enforces a minimum relative locktime within a Bitcoin script.
 :::

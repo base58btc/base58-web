@@ -280,7 +280,7 @@ func TestCourseNoteAfterParagraph(t *testing.T) {
 }
 
 func TestCourseReferencesAfterParagraph(t *testing.T) {
-	block := "::: references\n1. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)\n\n   Explains `OP_CHECKLOCKTIMEVERIFY` and **absolute locktimes**.\n\n2. [BIP 68](https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki)\n\n   Explains relative locktimes.\n:::\n"
+	block := "::: references\n1. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)\n\n    Explains `OP_CHECKLOCKTIMEVERIFY` and **absolute locktimes**.\n\n2. [BIP 68](https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki)\n\n    Explains relative locktimes.\n:::\n"
 	html := string(courseMarkdownToHTML([]byte("Continue reading below.\n\n" + block + "\n" + block)))
 	for _, expected := range []string{`class="course-references"`, `aria-labelledby="references-title"`, `id="references-title"`, `id="references-2"`, `<ol>`, `href="https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki"`, "<code>OP_CHECKLOCKTIMEVERIFY</code>", "<strong>absolute locktimes</strong>", "Explains relative locktimes."} {
 		if !strings.Contains(html, expected) {
@@ -289,6 +289,9 @@ func TestCourseReferencesAfterParagraph(t *testing.T) {
 	}
 	if strings.Contains(html, ":::") || strings.Contains(html, "<dl>") || strings.Count(html, `id="references"`) != 1 {
 		t.Fatalf("references were not rendered as distinct named sections: %s", html)
+	}
+	if strings.Count(html, "<ol>") != 2 || strings.Count(html, "<li>") != 4 || strings.Index(html, "Explains <code>") > strings.Index(html, "</li>") {
+		t.Fatalf("descriptions must stay inside one continuous numbered list per references block: %s", html)
 	}
 }
 
