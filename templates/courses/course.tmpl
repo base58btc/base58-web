@@ -122,6 +122,20 @@
   color: #4b4032;
   font-weight: 650;
 }
+@media screen and (max-width: 991px) {
+  .individualcourse_container {
+    row-gap: 1.5rem;
+  }
+  .individualcourse_content-right {
+    grid-row: 1;
+  }
+  .individualcourse_content-right .course-image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+  }
+}
 </style>
 </head>
 <body>
@@ -444,9 +458,9 @@ margin: 0rem !important;
               </div>
               <div class="individualcourse_content-right">
                 {{ if .Course.HeaderImg }}
-                <img src="{{ .Course.HeaderImg }}" loading="lazy" alt="" class="course-image">
+                <img src="{{ .Course.HeaderImg }}" loading="eager" fetchpriority="high" alt="" class="course-image">
                 {{ else }}
-                <img src="/static/img/courses/{{ .Course.Tag }}.png" loading="lazy" sizes="(max-width: 1024px) 100vw, 1024px" srcset="/static/img/courses/{{ .Course.Tag}}-500.png 500w, /static/img/courses/{{ .Course.Tag }}.png 1024w" alt="" class="course-image">
+                <img src="/static/img/courses/{{ .Course.Tag }}.png" loading="eager" fetchpriority="high" sizes="(max-width: 1024px) 100vw, 1024px" srcset="/static/img/courses/{{ .Course.Tag}}-500.png 500w, /static/img/courses/{{ .Course.Tag }}.png 1024w" alt="" class="course-image">
                 {{ end }}
               </div>
             </div>
