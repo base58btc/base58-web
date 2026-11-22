@@ -92,3 +92,30 @@ func TestManifestRejectsArchiveOutsideItsVersion(t *testing.T) {
 		}
 	}
 }
+
+func TestFallbackPreservesHistoryAndValidatesArchitecture(t *testing.T) {
+	files := preparedFiles(t, 2)
+	before := ContentHash(files)
+	m, _ := ForFiles(files)
+	m.System = FallbackSystem
+	content, _ := json.Marshal(m)
+	files[FallbackManifestFile] = string(content)
+	if ContentHash(files) != before {
+		t.Fatal("adding a fallback changed the student's history identity")
+	}
+	if _, err := ForFiles(files); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ForSystem(files, FallbackSystem); err != nil {
+		t.Fatal(err)
+	}
+	files[FallbackManifestFile] = files[ManifestFile]
+	if _, err := ForSystem(files, FallbackSystem); err == nil {
+		t.Fatal("accepted ARM archives as the x86 runtime")
+	}
+	files[FallbackManifestFile] = string(content)
+	files["helper.py"] = "changed"
+	if _, err := ForSystem(files, FallbackSystem); err == nil {
+		t.Fatal("accepted a stale fallback")
+	}
+}

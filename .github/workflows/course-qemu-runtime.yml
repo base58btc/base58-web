@@ -1,0 +1,71 @@
+name: Build QEMU course runtimes
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/course-qemu-fallback]
+    paths:
+      - .github/workflows/course-qemu-runtime.yml
+      - cmd/course-sync/**
+      - internal/courseenv/**
+      - courses/**/flake.nix
+      - courses/**/flake.lock
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        course: [lightning, taproot]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@d698718aa798980d17dd749f03beae0b51183399 # v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - name: Build and test the bundle tool
+        run: |
+          mkdir -p target
+          nix shell --inputs-from . nixpkgs#go_1_25 --command sh -eu -c '
+            go test ./cmd/course-sync ./internal/courseenv
+            go build -o target/course-sync ./cmd/course-sync
+          '
+      - name: Build and verify the x86 Linux environment
+        env:
+          COURSE: ${{ matrix.course }}
+        run: |
+          target/course-sync bundle --dir "courses/$COURSE" --system x86_64-linux
+          target/course-sync verify-bundle --dir "courses/$COURSE" --system x86_64-linux
+      - name: Exercise the lesson cells on x86 Linux
+        env:
+          COURSE: ${{ matrix.course }}
+        run: |
+          if [ "$COURSE" = lightning ]; then
+            nix develop path:./courses/lightning --no-update-lock-file --no-write-lock-file --command python3 scripts/test-lightning-course.py --regtest
+          else
+            nix develop path:./courses/taproot --no-update-lock-file --no-write-lock-file --command python3 scripts/test-taproot-course.py
+          fi
+          target/course-sync verify-bundle --dir "courses/$COURSE" --system x86_64-linux
+      - name: Package fallback bundle
+        env:
+          COURSE: ${{ matrix.course }}
+        run: |
+          mkdir -p target/artifact
+          tar -C "courses/$COURSE" -cf "target/artifact/$COURSE-qemu.tar" course-runtime-x86_64.json runtime
+          git rev-parse HEAD > target/artifact/BUILD_COMMIT
+          cd target/artifact
+          sha256sum "$COURSE-qemu.tar" > SHA256SUMS
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ${{ matrix.course }}-qemu-${{ github.sha }}
+          path: target/artifact/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

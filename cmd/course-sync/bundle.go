@@ -34,6 +34,7 @@ var shellIdentifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 func runBundle(args []string) error {
 	fs := flag.NewFlagSet("bundle", flag.ContinueOnError)
 	dir := fs.String("dir", "", "course directory containing flake.nix and flake.lock")
+	system := fs.String("system", courseenv.System, "guest system: aarch64-linux or x86_64-linux")
 	nix := fs.String("nix", "nix", "Nix executable")
 	nixStore := fs.String("nix-store", "nix-store", "nix-store executable")
 	force := fs.Bool("force", false, "rebuild even when the verified runtime inputs are unchanged")
@@ -43,14 +44,17 @@ func runBundle(args []string) error {
 	if *dir == "" {
 		return fmt.Errorf("--dir is required")
 	}
+	if *system != courseenv.System && *system != courseenv.FallbackSystem {
+		return fmt.Errorf("unsupported guest system %q", *system)
+	}
 	files, err := readCourseFiles(*dir)
 	if err != nil {
 		return err
 	}
 	source := courseSourceMap(files)
 	if !*force {
-		if manifest, err := courseenv.ForFiles(source); err == nil && manifest.Format == 2 {
-			if err := runVerifyBundle([]string{"--dir", *dir}); err == nil {
+		if manifest, err := courseenv.ForSystem(source, *system); err == nil && manifest.Format == 2 {
+			if err := runVerifyBundle([]string{"--dir", *dir, "--system", *system}); err == nil {
 				fmt.Println("reused existing bundle; runtime inputs are unchanged")
 				return nil
 			}
@@ -79,11 +83,11 @@ func runBundle(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 	profile := filepath.Join(root, ".base58-environment")
-	cmd := exec.CommandContext(ctx, *nix, "print-dev-env", "--json", "--profile", profile, "--no-update-lock-file", "--no-write-lock-file", "path:"+root+"#devShells."+courseenv.System+".default")
+	cmd := exec.CommandContext(ctx, *nix, "print-dev-env", "--json", "--profile", profile, "--no-update-lock-file", "--no-write-lock-file", "path:"+root+"#devShells."+*system+".default")
 	cmd.Stderr = os.Stderr
 	output, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("preparing %s shell (requires a Linux builder or substitutes): %w", courseenv.System, err)
+		return fmt.Errorf("preparing %s shell (requires a Linux builder or substitutes): %w", *system, err)
 	}
 	var env nixEnvironment
 	if err := json.Unmarshal(output, &env); err != nil {
@@ -119,7 +123,7 @@ func runBundle(args []string) error {
 		pathsList = append(pathsList, storePath)
 	}
 	sort.Strings(pathsList)
-	m := courseenv.Manifest{Format: 2, System: courseenv.System, RuntimeHash: courseenv.RuntimeHash(source), Shell: shell, Setup: setup}
+	m := courseenv.Manifest{Format: 2, System: *system, RuntimeHash: courseenv.RuntimeHash(source), Shell: shell, Setup: setup}
 	for _, storePath := range pathsList {
 		asset := "runtime/" + m.RuntimeHash + "/" + filepath.Base(storePath) + ".nar.gz"
 		destination := filepath.Join(*dir, filepath.FromSlash(asset))
@@ -139,7 +143,7 @@ func runBundle(args []string) error {
 	if _, err := courseenv.Parse(string(content)); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(*dir, courseenv.ManifestFile), append(content, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(*dir, courseenv.ManifestName(*system)), append(content, '\n'), 0o644); err != nil {
 		return err
 	}
 	fmt.Printf("prepared %s browser environment: %d store paths; run course-sync sync to upload\n", m.System, len(m.Archives))

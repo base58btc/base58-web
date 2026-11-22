@@ -15,6 +15,17 @@ import (
 
 const ManifestFile = "course-runtime.json"
 const System = "aarch64-linux"
+const FallbackManifestFile = "course-runtime-x86_64.json"
+const FallbackSystem = "x86_64-linux"
+
+func ManifestName(system string) string {
+	if system == FallbackSystem {
+		return FallbackManifestFile
+	}
+	return ManifestFile
+}
+
+func IsManifest(name string) bool { return name == ManifestFile || name == FallbackManifestFile }
 
 type Archive struct {
 	StorePath string `json:"storePath"`
@@ -47,7 +58,7 @@ func Hash(data []byte) string {
 func ContentHash(files map[string]string) string {
 	paths := make([]string, 0, len(files))
 	for name := range files {
-		if name != ManifestFile {
+		if !IsManifest(name) {
 			paths = append(paths, name)
 		}
 	}
@@ -67,7 +78,7 @@ func ContentHash(files map[string]string) string {
 func RuntimeFiles(files map[string]string) map[string]string {
 	inputs := make(map[string]string)
 	for name, content := range files {
-		if name == ManifestFile || (strings.EqualFold(path.Ext(name), ".md") && !strings.HasPrefix(name, "nix/")) {
+		if IsManifest(name) || (strings.EqualFold(path.Ext(name), ".md") && !strings.HasPrefix(name, "nix/")) {
 			continue
 		}
 		inputs[name] = content
@@ -89,7 +100,7 @@ func Parse(content string) (*Manifest, error) {
 	if err := json.Unmarshal([]byte(content), &m); err != nil {
 		return nil, err
 	}
-	if (m.Format != 1 && m.Format != 2) || m.System != System || !hashPattern.MatchString(m.ArchiveHash()) ||
+	if (m.Format != 1 && m.Format != 2) || (m.System != System && m.System != FallbackSystem) || !hashPattern.MatchString(m.ArchiveHash()) ||
 		(m.Format == 1 && m.RuntimeHash != "") || (m.Format == 2 && m.SourceHash != "") {
 		return nil, errors.New("unsupported course runtime manifest")
 	}
@@ -116,19 +127,29 @@ func Parse(content string) (*Manifest, error) {
 }
 
 func ForFiles(files map[string]string) (*Manifest, error) {
+	return ForSystem(files, System)
+}
+
+func ForSystem(files map[string]string, system string) (*Manifest, error) {
+	if system != System && system != FallbackSystem {
+		return nil, errors.New("unsupported course runtime system")
+	}
 	if _, ok := files["flake.nix"]; !ok {
 		return nil, errors.New("course runtime requires flake.nix and flake.lock")
 	}
 	if _, ok := files["flake.lock"]; !ok {
 		return nil, errors.New("course runtime requires flake.nix and flake.lock")
 	}
-	content, ok := files[ManifestFile]
+	content, ok := files[ManifestName(system)]
 	if !ok {
 		return nil, errors.New("run course-sync bundle before publishing this course environment")
 	}
 	m, err := Parse(content)
 	if err != nil {
 		return nil, err
+	}
+	if m.System != system {
+		return nil, errors.New("course runtime architecture does not match its manifest file")
 	}
 	want := ContentHash(files)
 	if m.Format == 2 {

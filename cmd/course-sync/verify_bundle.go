@@ -17,6 +17,7 @@ import (
 func runVerifyBundle(args []string) error {
 	fs := flag.NewFlagSet("verify-bundle", flag.ContinueOnError)
 	dir := fs.String("dir", "", "course directory containing the prepared runtime")
+	system := fs.String("system", courseenv.System, "guest system to verify")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -27,7 +28,7 @@ func runVerifyBundle(args []string) error {
 	if err != nil {
 		return err
 	}
-	m, err := courseenv.ForFiles(courseSourceMap(files))
+	m, err := courseenv.ForSystem(courseSourceMap(files), *system)
 	if err != nil {
 		return err
 	}

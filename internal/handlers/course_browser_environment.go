@@ -71,11 +71,20 @@ func CourseBrowserEnvironment(w http.ResponseWriter, r *http.Request, ctx *confi
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
+	var fallback *courseenv.Manifest
+	if _, ok := files[courseenv.FallbackManifestFile]; ok {
+		fallback, err = courseenv.ForSystem(files, courseenv.FallbackSystem)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+	}
 	delete(files, courseenv.ManifestFile)
+	delete(files, courseenv.FallbackManifestFile)
 	contentHash := courseenv.ContentHash(files)
 	assetBase := courseAssetBaseURL(ctx)
 	assetURL := strings.TrimRight(assetBase, "/") + "/" + url.PathEscape(courseSlug) + "/"
-	if !ctx.IsProd && localRuntimeAvailable(courseSlug, manifest) {
+	if !ctx.IsProd && localRuntimeAvailable(courseSlug, manifest) && (fallback == nil || localRuntimeAvailable(courseSlug, fallback)) {
 		scheme := "http"
 		if r.TLS != nil {
 			scheme = "https"
@@ -93,10 +102,11 @@ func CourseBrowserEnvironment(w http.ResponseWriter, r *http.Request, ctx *confi
 	}
 	writeCourseEditorJSON(w, http.StatusOK, map[string]any{
 		"manifest": manifest, "files": files,
-		"contentHash":  contentHash,
-		"journalURL":   journalURL,
-		"workspace":    workspace + "-" + contentHash,
-		"assetBaseURL": assetURL,
+		"fallbackManifest": fallback,
+		"contentHash":      contentHash,
+		"journalURL":       journalURL,
+		"workspace":        workspace + "-" + contentHash,
+		"assetBaseURL":     assetURL,
 	})
 }
 

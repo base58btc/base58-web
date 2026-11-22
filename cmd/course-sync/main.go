@@ -749,21 +749,31 @@ func discoverRuntimeAssets(dir string, files []syncFile) ([]courseAsset, error) 
 	if !ok {
 		return nil, nil
 	}
-	manifest, err := courseenv.ForFiles(source)
-	if err != nil {
-		return nil, err
-	}
 	var assets []courseAsset
-	for _, archive := range manifest.Archives {
-		fullPath := filepath.Join(dir, filepath.FromSlash(archive.Path))
-		data, err := os.ReadFile(fullPath)
+	seen := make(map[string]bool)
+	for _, system := range []string{courseenv.System, courseenv.FallbackSystem} {
+		if _, ok := source[courseenv.ManifestName(system)]; !ok {
+			continue
+		}
+		manifest, err := courseenv.ForSystem(source, system)
 		if err != nil {
-			return nil, fmt.Errorf("reading runtime archive: %w", err)
+			return nil, err
 		}
-		if int64(len(data)) != archive.Size || courseenv.Hash(data) != archive.SHA256 {
-			return nil, fmt.Errorf("runtime archive changed: %s", archive.Path)
+		for _, archive := range manifest.Archives {
+			if seen[archive.Path] {
+				continue
+			}
+			seen[archive.Path] = true
+			fullPath := filepath.Join(dir, filepath.FromSlash(archive.Path))
+			data, err := os.ReadFile(fullPath)
+			if err != nil {
+				return nil, fmt.Errorf("reading runtime archive: %w", err)
+			}
+			if int64(len(data)) != archive.Size || courseenv.Hash(data) != archive.SHA256 {
+				return nil, fmt.Errorf("runtime archive changed: %s", archive.Path)
+			}
+			assets = append(assets, courseAsset{Path: archive.Path, FullPath: fullPath, ContentHash: archive.SHA256})
 		}
-		assets = append(assets, courseAsset{Path: archive.Path, FullPath: fullPath, ContentHash: archive.SHA256})
 	}
 	return assets, nil
 }
