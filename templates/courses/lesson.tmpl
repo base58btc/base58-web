@@ -128,12 +128,12 @@
       gap: 6rem;
       width: min(100%, 76rem);
       margin: 0 auto;
-      padding: 2rem 2rem 5rem;
+      padding: 2.3rem 2rem 5rem;
     }
 
     .course-platform_header-art {
       width: 100%;
-      height: clamp(3.125rem, 7vw, 5rem);
+      height: clamp(3.75rem, 8.4vw, 6rem);
       overflow: hidden;
       background: #191919;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -1031,16 +1031,18 @@
       .course-platform {
         --course-toc-footer-height: calc(4.5rem + env(safe-area-inset-bottom, 0px));
         --course-workspace-footer-width: 8.5rem;
+        --course-mobile-gutter: 2rem;
+        --course-code-bleed: var(--course-mobile-gutter);
       }
 
       .course-platform_shell {
         grid-template-columns: 1fr;
         gap: 2rem;
-        padding: 2rem 2rem calc(var(--course-toc-footer-height) + 3rem);
+        padding: 2.3rem var(--course-mobile-gutter) calc(var(--course-toc-footer-height) + 3rem);
       }
 
       .course-platform_header-art {
-        height: 3.25rem;
+        height: 3.575rem;
       }
 
       .course-platform_rail {
@@ -1226,9 +1228,88 @@
       }
 
       .codeset {
-        width: 100%;
-        grid-template-columns: 2.5rem minmax(0, 1fr);
-        margin-left: 0;
+        width: calc(100% + 2 * var(--course-code-bleed));
+        grid-template-columns: minmax(0, 1fr);
+        margin-left: calc(-1 * var(--course-code-bleed));
+      }
+
+      .codeset .code-editor-shell {
+        grid-area: 1 / 1;
+        margin-bottom: 3.5rem;
+        border-inline: 0;
+        border-radius: 0;
+      }
+
+      .codeset .code-area,
+      .codeset .code-highlight {
+        white-space: pre;
+        overflow-wrap: normal;
+        word-break: normal;
+      }
+
+      .codeset .code-area {
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+      }
+
+      .codeset .code-runner {
+        grid-area: 1 / 1;
+        z-index: 5;
+        justify-self: stretch;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: flex-start;
+        padding: .375rem max(1rem, env(safe-area-inset-left, 0px));
+        pointer-events: none;
+      }
+
+      .codeset .run-btn {
+        top: auto;
+        bottom: calc(var(--course-toc-footer-height) + 2.5rem);
+        flex: none;
+        width: 2.75rem;
+        height: 2.75rem;
+        box-shadow: 0 .2rem .65rem rgba(20, 20, 20, .2);
+        pointer-events: auto;
+      }
+
+      .codeset .output-prompt {
+        min-height: 0;
+        padding: 0 1rem;
+        text-align: left;
+      }
+
+      .codeset .output-prompt:empty,
+      .codeset .output:empty,
+      .codeset .code-challenge-spacer {
+        display: none;
+      }
+
+      .codeset .output {
+        border-radius: 0;
+      }
+
+      .codeset .course-cell-help {
+        grid-column: 1;
+        margin-inline: 1rem;
+      }
+
+      .course-platform_article > pre,
+      .course-platform_article [data-course-section] > pre {
+        width: calc(100% + 2 * var(--course-code-bleed));
+        margin-left: calc(-1 * var(--course-code-bleed));
+        border-inline: 0;
+        border-radius: 0;
+      }
+
+      .course-code-challenge {
+        --course-code-bleed: calc(var(--course-mobile-gutter) + 1rem + 1px);
+      }
+
+      .course-code-challenge .course-challenge-actions {
+        padding-inline: 1rem;
       }
 
       .course-code-challenge .code-runner {
@@ -1986,12 +2067,16 @@
       const scrollX = window.scrollX;
       const scrollY = window.scrollY;
       textarea.style.height = "auto";
-      textarea.style.height = textarea.scrollHeight + "px";
+      // Reserve room for a horizontal scrollbar on platforms that don't overlay
+      // it, so the last source line stays visible without vertical scrolling.
+      const scrollbarHeight = textarea.offsetHeight - textarea.clientHeight;
+      textarea.style.height = (textarea.scrollHeight + scrollbarHeight) + "px";
 
       const shell = textarea.closest(".code-editor-shell");
       if (shell) {
         shell.style.height = textarea.style.height;
       }
+      syncCodeHighlightScroll(textarea);
       window.scrollTo(scrollX, scrollY);
     }
 
