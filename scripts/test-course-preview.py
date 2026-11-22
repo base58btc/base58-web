@@ -46,6 +46,19 @@ class BundleTests(unittest.TestCase):
         self.assertNotEqual(before["workspace"], after["workspace"])
         self.assertEqual(after["files"]["01_intro.md"], "# Updated exercise\n")
 
+    def test_fallback_keeps_the_same_workspace_and_checks_its_fingerprint(self):
+        before, _ = load_bundle(self.root, 8099)
+        fallback = {**self.manifest, "system": "x86_64-linux"}
+        self.write("course-runtime-x86_64.json", json.dumps(fallback))
+        after, _ = load_bundle(self.root, 8099)
+        self.assertEqual(before["workspace"], after["workspace"])
+        self.assertEqual(after["fallbackManifest"], fallback)
+        self.assertNotIn("course-runtime-x86_64.json", after["files"])
+        fallback["runtimeHash"] = "0" * 64
+        self.write("course-runtime-x86_64.json", json.dumps(fallback))
+        with self.assertRaises(ValueError):
+            load_bundle(self.root, 8099)
+
     def test_runtime_changes_additions_and_deletions_are_stale(self):
         for name in ("flake.nix", "flake.lock", "lab.py", "nix/notes.md", "data/é.json", "new.conf"):
             with self.subTest(name=name):

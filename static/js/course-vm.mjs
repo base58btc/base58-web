@@ -1,48 +1,15 @@
-import {mountArchive} from "./course-nar.mjs";
+import {verifiedArchive, loadArchives} from "./course-archives.mjs";
+export {verifiedArchive, loadArchives} from "./course-archives.mjs";
+import {courseEngine, QemuKernel} from "./course-qemu.mjs";
 import {CommandStorage} from "./course-command-storage.mjs";
 import {CommandJournal, newEvent, replayCommands} from "./course-history.mjs";
 import {PythonSession, pythonCellRequest} from "./course-python.mjs";
 
 const SDK = "/static/vendor/unkernel-0.2.0-261119-040e142/web.mjs";
-const CACHE = "base58-course-archives-v1";
 const MAX_OUTPUT = 1 << 20;
 export function boundedOutput(value) {
   const text = String(value || ""), bytes = new TextEncoder().encode(text);
   return bytes.length <= MAX_OUTPUT ? text : new TextDecoder().decode(bytes.subarray(0, MAX_OUTPUT - 32)) + "\n[output truncated]\n";
-}
-
-export async function verifiedArchive(archive, baseURL, fetcher = fetch, signal) {
-  signal?.throwIfAborted();
-  const url = new URL(archive.path, baseURL);
-  if (!["https:", "http:"].includes(url.protocol)) throw new Error("Invalid course archive URL");
-  let cache;
-  try { cache = await globalThis.caches?.open(CACHE); } catch { /* Cache is optional. */ }
-  let response = await cache?.match(url.href);
-  signal?.throwIfAborted();
-  if (!response) response = await fetcher(url.href, {credentials: "omit", signal});
-  if (!response.ok) throw new Error("Unable to download course environment (" + response.status + ")");
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  signal?.throwIfAborted();
-  const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), b => b.toString(16).padStart(2, "0")).join("");
-  if (hash !== archive.sha256 || bytes.length !== archive.size) {
-    await cache?.delete(url.href);
-    throw new Error("Course archive failed its integrity check. Reload to retry.");
-  }
-  try { await cache?.put(url.href, new Response(bytes)); } catch { /* Quota limits do not prevent execution. */ }
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
-
-export async function loadArchives(files, archives, baseURL, onProgress = () => {}, download = verifiedArchive) {
-  // Keep downloads parallel and bounded, and mount in a reproducible order.
-  for (let offset = 0; offset < archives.length; offset += 2) {
-    const batch = archives.slice(offset, offset + 2);
-    const contents = await Promise.all(batch.map(archive => download(archive, baseURL)));
-    for (let index = 0; index < batch.length; index++) {
-      mountArchive(files, batch[index].storePath, contents[index]);
-      onProgress(offset + index + 1);
-    }
-  }
 }
 
 // Serialize commands even when students run several cells at once. A rejection
@@ -71,8 +38,8 @@ async function workspaceLock(name) {
 }
 
 export class CourseVM {
-  constructor({environmentURL, environment, csrfToken = "", onStatus = () => {}, onHistory = () => {}}) {
-    Object.assign(this, {environmentURL, environment, csrfToken, onStatus, onHistory});
+  constructor({environmentURL, environment, engine = "", csrfToken = "", onStatus = () => {}, onHistory = () => {}}) {
+    Object.assign(this, {environmentURL, environment, requestedEngine:engine, csrfToken, onStatus, onHistory});
     this.enqueue = commandQueue();
   }
 
@@ -145,10 +112,22 @@ export class CourseVM {
 
   async boot(signal) {
     signal.throwIfAborted();
-    if (typeof WebAssembly.Suspending !== "function" || typeof WebAssembly.promising !== "function") {
-      throw new Error("The course VM needs a browser with WebAssembly JSPI support.");
+    this.engine = courseEngine(globalThis.WebAssembly, this.requestedEngine);
+    if (typeof AbortSignal.any !== "function" || typeof DecompressionStream !== "function") {
+      throw new Error("Please update your browser to run course exercises. Safari requires iOS 17.4 or newer; current desktop Chrome, Edge, and Firefox also work.");
     }
     await this.openHistory(signal);
+    if (this.engine === "qemu") {
+      const fallback = this.config.fallbackManifest;
+      if (!fallback || ![1, 2].includes(fallback.format) || fallback.system !== "x86_64-linux") {
+        throw new Error("This course does not have a compatibility runtime yet. Please use Safari on iOS 27+, or a current desktop Chrome, Edge, or Firefox.");
+      }
+      this.shell = fallback.shell;
+      if (this.journal.state.pending) await this.journal.append(newEvent("interrupted", {commandId:this.journal.state.pending}));
+      await this.rebuild(this.journal.state.head, signal);
+      this.onStatus("Workspace ready");
+      return;
+    }
     const {manifest, files, assetBaseURL, journalURL} = this.config;
     this.sdk = await import(SDK);
     signal.throwIfAborted();
@@ -181,6 +160,12 @@ export class CourseVM {
   async startKernel(signal) {
     signal?.throwIfAborted();
     this.onStatus("Starting a fresh course environment…");
+    if (this.engine === "qemu") {
+      this.vm = new QemuKernel({onStatus:this.onStatus});
+      const bootSignal = AbortSignal.any([AbortSignal.timeout(240000), ...(signal ? [signal] : [])]);
+      await this.vm.boot({manifest:this.config.fallbackManifest, files:this.config.files, assetBaseURL:this.config.assetBaseURL}, bootSignal);
+      return;
+    }
     if (!this.kernelModule) {
       this.kernelModule = await this.sdk.loadKernelModule(new URL("unkernel.wasm", new URL(SDK, location.href)));
       this.diskTemplate = this.sdk.decodeKwsparse(await this.sdk.gunzipIfNeeded(this.sdk.bundledBoot(this.kernelModule).datadisk));
@@ -212,6 +197,8 @@ export class CourseVM {
 
   async startPython(signal) {
     signal.throwIfAborted();
+    // QEMU's serial agent already owns the same persistent Python evaluator.
+    if (this.engine === "qemu") return this.vm;
     if (!this.pythonSession) {
       const process = await this.vm.spawn(this.shell,["--noprofile","--norc","-c",'. /tmp/base58-environment.sh; exec python3 /course/.base58-python.py --stdio'],{pty:false,cwd:"/data/workspace",signal});
       this.pythonSession = new PythonSession(process);
@@ -224,6 +211,12 @@ export class CourseVM {
     const timeout = AbortSignal.timeout(timeoutMs || command.timeoutMs || (command.program === "python3" ? 120000 : 30000));
     const signal = parentSignal ? AbortSignal.any([timeout, parentSignal]) : timeout;
     try {
+      if (this.engine === "qemu") {
+        try {
+          const result = await this.vm.runCommand(command, signal);
+          return {...result, stdout:boundedOutput(result.stdout), stderr:boundedOutput(result.stderr)};
+        } catch (error) { this.failed = true; throw error; }
+      }
       const request = pythonCellRequest(command);
       if (request !== null) {
         try {

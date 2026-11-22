@@ -2382,7 +2382,7 @@
   <script src="/static/js/course-execution.js"></script>
   <script src="/static/js/course-output.js"></script>
   <script src="/static/js/course-sections.js"></script>
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js" crossorigin="anonymous"></script>
   <script>
     let pyodideReady;
     let courseCellRunnerReady = false;
@@ -2596,6 +2596,7 @@ def __course_check_cell(student_code, check_code):
         renderCourseHistory = renderCommandHistory;
         const preview = shell.dataset.draftPreview === "true" ? "?preview=draft" : "";
         courseVM = new CourseVM({
+          engine: new URLSearchParams(window.location.search).get("engine") || "",
           environmentURL: "/api/courses/" + encodeURIComponent(shell.dataset.courseSlug) + "/environment" + preview,
           csrfToken: shell.dataset.csrfToken || "",
           onHistory: function(state) {
@@ -2877,7 +2878,7 @@ def __course_check_cell(student_code, check_code):
     {{ block "nav" .Page }} {{ end }}
     {{ if .HeroURL }}
       <div class="course-platform_header-art" aria-hidden="true">
-        <img src="{{ .HeroURL }}" alt="" loading="eager">
+        <img src="{{ .HeroURL }}" crossorigin="anonymous" alt="" loading="eager">
       </div>
     {{ end }}
     <div class="course-scroll-indicator" aria-hidden="true">

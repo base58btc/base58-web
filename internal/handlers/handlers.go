@@ -199,7 +199,11 @@ func Routes(ctx *config.AppContext) (http.Handler, error) {
 
 	/* serve files from the "static" directory */
 	fs := http.FileServer(http.Dir("static"))
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+	r.PathPrefix("/static/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Dedicated workers must opt into the same embedder policy as lessons.
+		w.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
+		http.StripPrefix("/static/", fs).ServeHTTP(w, r)
+	}))
 
 	/* special favicon handling */
 	err = AddFaviconRoutes(r)

@@ -17,6 +17,7 @@ target
 
 # Generated, pinned browser VM assets and course Nix archives.
 static/vendor/unkernel-*/
+static/vendor/qemu-*/
 courses/**/runtime/
 
 # Generated Python bytecode.

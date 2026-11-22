@@ -34,7 +34,7 @@
     const run = document.querySelector("#run");
     const stop = document.querySelector("#stop");
     const undo = document.querySelector("#undo");
-    const runtime = new CourseVM({environmentURL: "/environment.json", onStatus: message => { status.textContent = message; }, onHistory: state => {
+    const runtime = new CourseVM({environmentURL: "/environment.json", engine:new URLSearchParams(location.search).get("engine") || "", onStatus: message => { status.textContent = message; }, onHistory: state => {
       renderCommandHistory(document.querySelector("#history"),state);
       undo.disabled = !state.head || Boolean(state.pending);
     }});

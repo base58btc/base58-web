@@ -47,7 +47,7 @@ func testNotebookCourseMarkdown(t *testing.T, slug string, pageCount int) {
 			if len(outline.Pages) != pageCount || (!intro && !markdownHasCourseCode(outline.Markdown)) {
 				t.Fatal("lesson is missing navigation or executable cells")
 			}
-			html := courseMarkdownToHTML(outline.Markdown)
+			html := isolatedCourseImages(courseMarkdownToHTML(outline.Markdown))
 			if bytes.Contains(html, []byte("course-authoring-error")) || bytes.Contains(html, []byte("+++")) || bytes.Contains(html, []byte("???")) || bytes.Contains(html, []byte("~~~")) || bytes.Contains(html, []byte("::: note")) || bytes.Contains(html, []byte("::: references")) {
 				t.Fatal("unrendered fence or authoring error in lesson")
 			}

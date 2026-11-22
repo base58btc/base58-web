@@ -1,0 +1,10 @@
+QEMU course compatibility runtime
+
+Engine release: https://github.com/fzakaria/trynix/releases/tag/engine-20260913-2056
+QEMU source: https://github.com/ktock/qemu-wasm/tree/0ef7b4e2814b231705d8371dd7997f5b72e70baf
+Build scripts, patches, guest init and configuration: https://github.com/fzakaria/trynix/tree/b09adddab28c0f74f6c89c0b6623bb549ff452a7
+Build instructions: https://github.com/fzakaria/trynix/blob/b09adddab28c0f74f6c89c0b6623bb549ff452a7/docs/engine.md
+Linux source: https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.5.tar.xz
+xterm-pty 0.10.1 source: https://github.com/mame/xterm-pty/tree/v0.10.1
+
+Local changes: static/js/course-qemu-memory.mjs lowers the fixed memory import minimum to 1536 MiB. No guest checkpoint or user VM state is distributed or saved. The guest boots from its kernel and initramfs. The command transport and course filesystem integration are in static/js/course-qemu-worker.js and static/guest/course-qemu.py.

@@ -256,10 +256,12 @@ func TestCourseRuntimeFingerprintPostgres(t *testing.T) {
 	}
 	get("/login", 200)
 	type environmentResponse struct {
-		Manifest    courseenv.Manifest `json:"manifest"`
-		ContentHash string             `json:"contentHash"`
-		Workspace   string             `json:"workspace"`
-		JournalURL  string             `json:"journalURL"`
+		Manifest    courseenv.Manifest  `json:"manifest"`
+		Fallback    *courseenv.Manifest `json:"fallbackManifest"`
+		Files       map[string]string   `json:"files"`
+		ContentHash string              `json:"contentHash"`
+		Workspace   string              `json:"workspace"`
+		JournalURL  string              `json:"journalURL"`
 	}
 	readEnvironment := func() environmentResponse {
 		t.Helper()
@@ -272,6 +274,21 @@ func TestCourseRuntimeFingerprintPostgres(t *testing.T) {
 	before := readEnvironment()
 	if before.ContentHash != originalContent || before.Manifest.RuntimeHash == originalContent || !strings.HasSuffix(before.JournalURL, originalContent) {
 		t.Fatalf("runtime and journal identities were not separated: %+v", before)
+	}
+	// Adding another architecture must neither fork the command history nor
+	// expose generated manifests as guest source files.
+	fallback := before.Manifest
+	fallback.System = courseenv.FallbackSystem
+	fallbackJSON, _ := json.Marshal(fallback)
+	if _, err := db.Exec(`INSERT INTO course_version_files (course_version_id,path,content,content_hash) VALUES (1,$1,$2,$3)`, courseenv.FallbackManifestFile, string(fallbackJSON), courseenv.Hash(fallbackJSON)); err != nil {
+		t.Fatal(err)
+	}
+	withFallback := readEnvironment()
+	if withFallback.Fallback == nil || withFallback.Fallback.System != courseenv.FallbackSystem || withFallback.Workspace != before.Workspace || withFallback.JournalURL != before.JournalURL {
+		t.Fatal("fallback changed the existing attempt or was not served")
+	}
+	if _, exists := withFallback.Files[courseenv.FallbackManifestFile]; exists {
+		t.Fatal("fallback manifest leaked into guest sources")
 	}
 	update := func(name, content string) {
 		t.Helper()

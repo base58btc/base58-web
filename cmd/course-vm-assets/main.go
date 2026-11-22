@@ -32,8 +32,12 @@ var assetFiles = map[string]string{
 
 func main() {
 	dir := flag.String("dir", filepath.Join("static", "vendor", "unkernel-"+version), "asset destination directory")
+	qemuDir := flag.String("qemu-dir", filepath.Join("static", "vendor", "qemu-20260913"), "QEMU asset destination directory")
 	flag.Parse()
 	if err := install(&http.Client{Timeout: 2 * time.Minute}, archiveURL, archiveHash, *dir); err != nil {
+		log.Fatal(err)
+	}
+	if err := installQEMU(&http.Client{Timeout: 2 * time.Minute}, *qemuDir); err != nil {
 		log.Fatal(err)
 	}
 }

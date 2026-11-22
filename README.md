@@ -207,11 +207,20 @@ The SDK's MIT license and the kernel's GPL license ship beside the runtime;
 contains its build instructions and kernel patches. The NAR reader is adapted
 from Try Nix, with attribution in `static/licenses/trynix.txt`.
 
-This integration currently supports unkernel's **aarch64 Linux** guest and needs
-a browser with WebAssembly JSPI. It does not include Try Nix's x86-64 QEMU fallback.
-This runtime currently runs on the page thread. Large environments, replay costs, and
-CPU-heavy work should be measured on students' target devices. No runner service
-or runner secret is needed; the command-history migration is required.
+Browsers with WebAssembly JSPI use unkernel's **aarch64 Linux** guest. Browsers
+without JSPI use the **x86-64 QEMU** compatibility guest when the course includes
+`course-runtime-x86_64.json`. Build it with `course-sync bundle --dir COURSE
+--system x86_64-linux`, then verify with the same `--system` flag. The QEMU
+workflow builds Lightning and Taproot on GitHub's x86 Linux runners.
+
+Both engines share the command journal, persistent Python evaluator, and
+replay/undo behavior. Adding the fallback manifest preserves the content hash
+and existing command-history identity. No VM snapshots are saved or loaded.
+The fallback runs in a dedicated worker; unkernel runs on the page thread.
+VM course pages send COOP/COEP headers so QEMU can use WebAssembly threads.
+See [QEMU compatibility and validation](docs/qemu-fallback.md) for device limits,
+asset provenance, local testing, and publishing both architectures together.
+No runner service or runner secret is needed; the command-history migration is required.
 
 ## Postgres course catalog
 

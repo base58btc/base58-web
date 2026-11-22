@@ -20,6 +20,11 @@ def main():
         parser.error(str(error))
 
     class Handler(SimpleHTTPRequestHandler):
+        def end_headers(self):
+            self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+            self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+            super().end_headers()
+
         def do_GET(self):
             request_path = unquote(urlsplit(self.path).path)
             if request_path == "/environment.json":

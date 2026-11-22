@@ -29,6 +29,11 @@ def main():
         parser.error(str(error))
 
     class Handler(SimpleHTTPRequestHandler):
+        def end_headers(self):
+            self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+            self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+            super().end_headers()
+
         def do_GET(self):
             path = unquote(urlsplit(self.path).path)
             # Refresh sources on each lesson/environment request so re-rendered

@@ -103,6 +103,10 @@ func courseMarkdownToHTML(md []byte) []byte {
 	return renderCourseMarkdownToHTML(md, "", "")
 }
 
+func isolatedCourseImages(html []byte) []byte {
+	return bytes.ReplaceAll(html, []byte("<img "), []byte(`<img crossorigin="anonymous" `))
+}
+
 func courseMarkdownToHTMLForCourse(ctx *config.AppContext, courseSlug string, md []byte) []byte {
 	return renderCourseMarkdownToHTML(md, courseSlug, courseAssetBaseURL(ctx))
 }

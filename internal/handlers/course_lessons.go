@@ -95,6 +95,17 @@ func (outline *localCourseOutline) prerequisiteCells() []courseDefinitionCell {
 	return cells
 }
 
+func (outline *localCourseOutline) hasBrowserVM() bool {
+	for _, page := range outline.Pages {
+		for _, cell := range page.codeCells {
+			if cell.Runtime == "python-vm" || cell.Runtime == "cli" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	params := mux.Vars(r)
 	courseSlug := params["course"]
@@ -163,6 +174,14 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		recordCoursePageView(r, ctx, outline.CourseSlug, outline.Current.Path)
 	}
 	versionNumber, latestVersionNumber := courseAttemptVersionNumbers(ctx, attempt)
+	content := courseMarkdownToHTMLForCourse(ctx, outline.CourseSlug, outline.Markdown)
+	if outline.hasBrowserVM() {
+		// Apply to every page in a VM course, including its introduction, so
+		// client-side lesson navigation keeps an isolated document throughout.
+		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+		w.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
+		content = isolatedCourseImages(content)
+	}
 	err = ctx.TemplateCache.ExecuteTemplate(w, "courses/lesson.tmpl", CourseLessonData{
 		Page:                getPage(ctx, title, furlCard),
 		CourseSlug:          outline.CourseSlug,
@@ -171,7 +190,7 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		Previous:            outline.Previous,
 		Next:                outline.Next,
 		Sidebar:             outline.Items,
-		ContentHTML:         template.HTML(courseMarkdownToHTMLForCourse(ctx, outline.CourseSlug, outline.Markdown)),
+		ContentHTML:         template.HTML(content),
 		DefinitionCells:     outline.prerequisiteCells(),
 		HasCode:             markdownHasCourseCode(outline.Markdown),
 		HeroURL:             heroURL,

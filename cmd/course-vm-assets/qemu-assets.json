@@ -1,0 +1,54 @@
+[
+  {
+    "name": "out.js",
+    "url": "https://github.com/fzakaria/trynix/releases/download/engine-20260913-2056/out.js",
+    "hash": "sha256-ZLpgSkrQrS3euwlAqYEuQ/D4pr1y/biL89RmZqGcxrc="
+  },
+  {
+    "name": "qemu-system-x86_64.wasm",
+    "url": "https://github.com/fzakaria/trynix/releases/download/engine-20260913-2056/qemu-system-x86_64.wasm",
+    "hash": "sha256-jg9PFzUom/DhEtzbJd4bie2A4shU5RjXCyFkJmj/zGI="
+  },
+  {
+    "name": "qemu-system-x86_64.worker.js",
+    "url": "https://github.com/fzakaria/trynix/releases/download/engine-20260913-2056/qemu-system-x86_64.worker.js",
+    "hash": "sha256-jvqwKpy17mPO0i6YU7znTLuJXRWl+z1ROf74VcUPYuo="
+  },
+  {
+    "name": "guest/bzImage",
+    "url": "https://trynix.dev/guest/bzImage",
+    "hash": "sha256-pemVqhxy+olj/osRr1pWEr998RxeiNHv/eWeQiSQI0k=",
+    "source": "guest/bzImage"
+  },
+  {
+    "name": "guest/initramfs.cpio.gz",
+    "url": "https://trynix.dev/guest/initramfs.cpio.gz",
+    "hash": "sha256-5ewD3Gf+9zaN1EObAXI0VXOxXvi1Tl3cw7f1eNyytlU=",
+    "source": "guest/initramfs.cpio.gz"
+  },
+  {
+    "name": "guest/bios-256k.bin",
+    "url": "https://raw.githubusercontent.com/ktock/qemu-wasm/0ef7b4e2814b231705d8371dd7997f5b72e70baf/pc-bios/bios-256k.bin",
+    "hash": "sha256-8dTzlgERl+uYkCllnN4lB1HMcRwza4+75vd8/g3F3Ng="
+  },
+  {
+    "name": "guest/vgabios-stdvga.bin",
+    "url": "https://raw.githubusercontent.com/ktock/qemu-wasm/0ef7b4e2814b231705d8371dd7997f5b72e70baf/pc-bios/vgabios-stdvga.bin",
+    "hash": "sha256-ZRUTUZ+eDVuZ07BRqPXGjbaemHM5tZpEHTcQaMNMFGs="
+  },
+  {
+    "name": "guest/kvmvapic.bin",
+    "url": "https://raw.githubusercontent.com/ktock/qemu-wasm/0ef7b4e2814b231705d8371dd7997f5b72e70baf/pc-bios/kvmvapic.bin",
+    "hash": "sha256-zfBXpxsH47UrGcviEL3vpZJQ0BqYELlg9/4fmO7ZWic="
+  },
+  {
+    "name": "guest/linuxboot_dma.bin",
+    "url": "https://raw.githubusercontent.com/ktock/qemu-wasm/0ef7b4e2814b231705d8371dd7997f5b72e70baf/pc-bios/linuxboot_dma.bin",
+    "hash": "sha256-nEniVTQMePwS5U7QQ0YrygL7f8opt8+rYv+IpTRLaVA="
+  },
+  {
+    "name": "xterm-pty.js",
+    "url": "https://cdn.jsdelivr.net/npm/xterm-pty@0.10.1/index.js",
+    "hash": "sha256-0kKlaKOx70h+3gDhAQjtvEuf2T3hLbDvaUybgeaRxkk="
+  }
+]
