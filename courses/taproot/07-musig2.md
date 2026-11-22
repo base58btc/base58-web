@@ -2,7 +2,7 @@
 
 In this module we'll be making a series of MuSig2 scripts.
 
-We'll then build a MAST of the scripts, and lock up some bitcoin to them. 
+We'll then build a MAST of the scripts, and lock up some bitcoin to them.
 Finally we'll practice unlocking the script using a tapscript spend.
 
 ## Picking our private keys
@@ -36,7 +36,7 @@ N of N
 
 Keys: 444, 555, 666
 
-"Aggregate key". 
+"Aggregate key".
     444 + 555 -> 999
 
 Three scripts to spend:
@@ -105,17 +105,17 @@ def taptree_builder(tree):
         leaf_hash = make_leaf(script_bytes)
         print("leaf:", leaf_hash.hex())
         return leaf_hash
-    
-    # calculate the branch hash. 
+
+    # calculate the branch hash.
     assert len(tree) == 2
     left = taptree_builder(tree[0])
     right = taptree_builder(tree[1])
-    
+
     # we have to order the left + right "alphabetically"
     # thank you arik :)
     if left > right:
         right, left = left, right
-    
+
     branch_hash = tag_hash(b'TapBranch', left + right)
     print("branch:", branch_hash.hex())
     return branch_hash
@@ -198,7 +198,7 @@ locktime: 0000 0000
 +++ taproot-m025 python-vm
 import re
 def cleanup_tx(hmn_read_tx):
-    """ Given a block of text, strip out everything except 
+    """ Given a block of text, strip out everything except
         the hex strings
     """
     ret_val = []
@@ -248,13 +248,13 @@ def parse_tx_bytes_mine(tx_hex):
     ptr += 2
 
   count, size = parse_compact_size(tx_bytes[ptr:])
-  ptr += size 
+  ptr += size
   tx['inputs'] = []
   for _ in range(0, count):
     inputx, size = parse_input_bytes(tx_bytes[ptr:])
     ptr += size
     tx['inputs'].append(inputx)
- 
+
   count, size = parse_compact_size(tx_bytes[ptr:])
   ptr += size
   tx['outputs'] = []
@@ -280,7 +280,7 @@ from codes import size_compact_size
 
 def sigmsg_default(tx_hex, input_index, annex_bytes, amounts_bytes, scriptpubkeys_bytes, ext_flag):
     txdata = parse_tx_bytes_mine(tx_hex)
-    
+
     result = b''
     result += bytes([0x00]) # sighash_flag
     result += txdata['version']
@@ -289,23 +289,23 @@ def sigmsg_default(tx_hex, input_index, annex_bytes, amounts_bytes, scriptpubkey
     all_input_outpoints = b''
     for inp in txdata['inputs']:
         # txid || vout
-        all_input_outpoints += inp['txid'] + inp['vout']    
+        all_input_outpoints += inp['txid'] + inp['vout']
     sha_prevouts = sha256(all_input_outpoints).digest()
     result += sha_prevouts
-    
-    sha_amounts = sha256(b''.join(amounts_bytes)).digest()        
+
+    sha_amounts = sha256(b''.join(amounts_bytes)).digest()
     result += sha_amounts
-    
+
     spks = b''
     for spk in scriptpubkeys_bytes:
         spks += size_compact_size(len(spk)) + spk
     sha_scriptpubkeys = sha256(spks).digest()
     result += sha_scriptpubkeys
-    
+
     all_sequences = [ i['sequence'] for i in txdata['inputs'] ]
     sha_sequences = sha256(b''.join(all_sequences)).digest()
     result += sha_sequences
-    
+
     all_outputs = b''
     for o in txdata['outputs']:
         # amount || compact_size(scriptpubkey) || scriptpubkey
@@ -314,21 +314,21 @@ def sigmsg_default(tx_hex, input_index, annex_bytes, amounts_bytes, scriptpubkey
         all_outputs += o['scriptPubKey']
     sha_outputs = sha256(all_outputs).digest()
     result += sha_outputs
-    
+
     # data about this input
     annex_present = 1 if annex_bytes else 0
     spend_type = 2 * ext_flag + annex_present
     result += (spend_type).to_bytes(1, 'little')
     result += (input_index).to_bytes(4, 'little')
-    
+
     if (annex_bytes):
         size_bytes = size_compact_size(len(annex_bytes))
         sha_annex = sha256(size_bytes + annex_bytes).digest()
         result += sha_annex
-    
+
     # data about this output
     # noop for SIGHASH_DEFAULT
-    
+
     assert len(result) <= 206
     return result
 +++
@@ -410,12 +410,12 @@ def build_proof_of_inclusion(tree, script):
         script_bytes = bytes.fromhex(tree)
         leaf_hash = make_leaf(script_bytes)
         return leaf_hash, [], script == tree
-    
-    # calculate the branch hash. 
+
+    # calculate the branch hash.
     assert len(tree) == 2
     left_hash, left_proof, left_target = build_proof_of_inclusion(tree[0], script)
     right_hash, right_proof, right_target = build_proof_of_inclusion(tree[1], script)
-    
+
     proof = []
     if left_target:
         left_proof.append(right_hash)
@@ -423,7 +423,7 @@ def build_proof_of_inclusion(tree, script):
     elif right_target:
         right_proof.append(left_hash)
         proof = right_proof
-        
+
     # we have to order the left + right "alphabetically"
     # thank you arik :)
     if left_hash > right_hash:

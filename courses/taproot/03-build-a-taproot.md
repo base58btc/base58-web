@@ -26,7 +26,7 @@ What are the steps we need to do for this:
 
 nifty's script: OP_4 OP_ADD OP_8 OP_EQUAL  (requires OP_4 to unlock)
 
-Convert to script: 
+Convert to script:
         OP_4 OP_ADD OP_8 OP_EQUAL
         54935887
 
@@ -59,7 +59,7 @@ tree = [nifty]
 
 ## Build a Merkle root
 
-## Write a function to compute a leaf hash
+### Write a function to compute a leaf hash
 
 ???
 id: taproot-w057
@@ -157,17 +157,17 @@ We'll then use that number (scalar) as if it were a private key and find the cur
 def make_tweak_pubkey(pubkey, merkle_root_bytes):
     # Find the bytes for the x-value of the internal pubkey
     pubkey_bytes = pubkey.point()[0].to_bytes(32, 'big')
-    
+
     # Compute the tweak hash (TapTweak tag + pubkey + merkle root)
     tweak_bytes = tag_hash(b'TapTweak', pubkey_bytes + merkle_root_bytes)
     # Convert that hash into a scalar (so we can make it a point)
     tweak_int = int.from_bytes(tweak_bytes, 'big')
     # Make sure our tweak is inside the "point range (n)"
     assert tweak_int < n
-    
+
     # Multiply the tweak by the Generator Point (G) which gives us T
     T = coincurve.PrivateKey.from_int(tweak_int).public_key
-    
+
     return T
 +++
 
@@ -192,7 +192,7 @@ For some reason the spec makes everything more fancy that it needs to be.
 The biggest difference is that we "promote" the internal pubkey to a x-only pubkey (even) before we add it to the tweak.
 
 +++ taproot-w073 python-vm
-def make_external_pubkey(pubkey, T):    
+def make_external_pubkey(pubkey, T):
     P = lift_x(pubkey.point()[0])
     Q = coincurve.PublicKey.combine_keys([P, T])
     return Q

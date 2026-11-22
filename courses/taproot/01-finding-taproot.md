@@ -1,5 +1,7 @@
 # Finding Taproot in the wild
 
+Let's go to mempool.space and find some taproot addresses in the wild!
+
 ## Start a regtest wallet
 
 +++ taproot-start python-vm
@@ -7,10 +9,6 @@ from lab import bitcoin, start_bitcoin, mine, find_output
 
 start_bitcoin()
 +++
-
-Let's go to mempool.space and find some taproot addresses in the wild!
-
-
 
 ## How to spot a taproot address
 
@@ -108,4 +106,3 @@ What type does Bitcoin Core report for this P2TR output?
 - witness_v0_keyhash [That is a version-0 key-hash output.]
 - scripthash [P2SH uses a different output script.]
 ~~~
-

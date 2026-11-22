@@ -120,7 +120,70 @@ func TestCourseCatalogPostgres(t *testing.T) {
 	}
 }
 
+func TestTaprootActivationPreservesCatalogAndStudentsPostgres(t *testing.T) {
+	_, _, db := commandTestServer(t, "")
+	ctx := context.Background()
+	// A failed activation must not consume the one-time marker.
+	if err := database.ActivateTaproot(ctx, db); err == nil {
+		t.Fatal("activated Taproot without its imported catalog record")
+	}
+	export := catalogFixture()
+	if _, err := database.ImportCatalog(ctx, db, export); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO course_entitlements(person_id,course_slug) VALUES(1,'taproot')`); err != nil {
+		t.Fatal(err)
+	}
+	before, err := database.GetCourse(db, "taproot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.ActivateTaproot(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	after, err := database.GetCourse(db, "taproot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.ID != before.ID || after.Tag != before.Tag || after.Title != before.Title ||
+		after.PriceUSD != before.PriceUSD || after.Availability != before.Availability ||
+		after.Difficulty != before.Difficulty || !reflect.DeepEqual(after.Format, before.Format) ||
+		after.Visible != before.Visible || after.Feature != before.Feature || after.HeaderImg != before.HeaderImg ||
+		after.CourseURL != "/courses/taproot/00-welcome" || len(after.Chapters) != 8 {
+		t.Fatalf("incorrect Taproot activation: %+v", after)
+	}
+	var entitlements int
+	if err := db.QueryRow(`SELECT count(*) FROM course_entitlements WHERE person_id=1 AND course_slug='taproot'`).Scan(&entitlements); err != nil || entitlements != 1 {
+		t.Fatalf("lost enrollment: %d %v", entitlements, err)
+	}
+	sessions, err := database.GetCourseSessions(db, "taproot")
+	if err != nil || !reflect.DeepEqual(sessions, export.Sessions["taproot"]) {
+		t.Fatalf("historical sessions changed: %+v %v", sessions, err)
+	}
+	if _, err := db.Exec(`UPDATE courses SET title='Edited Taproot',description='Edited description',price_usd=75 WHERE slug='taproot'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.ActivateTaproot(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	edited, err := database.GetCourse(db, "taproot")
+	if err != nil || edited.Title != "Edited Taproot" || edited.ShortDesc != "Edited description" || edited.PriceUSD != 75 {
+		t.Fatalf("activation overwrote admin edits: %+v %v", edited, err)
+	}
+}
+
 func TestLightningCatalogEnrollmentPostgres(t *testing.T) {
+	testNotebookCatalogEnrollment(t, "lightning", "02-invoices", []string{"5 chapters", "2 code exercises", "12 multiple choice questions"})
+}
+
+func TestTaprootCatalogEnrollmentPostgres(t *testing.T) {
+	testNotebookCatalogEnrollment(t, "taproot", "02-schnorr-signatures", []string{"8 chapters", "3 code exercises", "8 multiple choice questions"})
+}
+
+func testNotebookCatalogEnrollment(t *testing.T, slug, lesson string, includes []string) {
+	t.Helper()
+	coursePath := "/courses/" + slug
+
 	_, _, db := commandTestServer(t, "")
 	// commandTestServer seeds fixed IDs for its history fixtures.
 	if _, err := db.Exec(`SELECT setval('people_id_seq',2); SELECT setval('course_versions_id_seq',1); SELECT setval('course_attempts_id_seq',2)`); err != nil {
@@ -133,20 +196,23 @@ func TestLightningCatalogEnrollmentPostgres(t *testing.T) {
 	if err := database.ActivateLightning(context.Background(), db); err != nil {
 		t.Fatal(err)
 	}
+	if err := database.ActivateTaproot(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
 	session := scs.New()
 	ctx := &config.AppContext{DB: db, Session: session, Infos: log.New(io.Discard, "", 0), Err: log.New(io.Discard, "", 0), Env: &types.EnvConfig{DBDriver: "postgres", Domain: "localhost", Port: "8080", CourseAssetBucket: "test", CourseAssetRegion: "nyc3"}}
 	if err := SyncLocalCourseVersions(ctx); err != nil {
 		t.Fatal(err)
 	}
-	lightning, err := database.GetCourse(db, "lightning")
+	course, err := database.GetCourse(db, slug)
 	if err != nil {
 		t.Fatal(err)
 	}
-	outline, err := loadLocalCourse(localCoursesRoot, "lightning", "")
+	outline, err := loadLocalCourse(localCoursesRoot, slug, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, chapter := range lightning.Chapters {
+	for i, chapter := range course.Chapters {
 		if chapter.Title != outline.Items[i+1].Title {
 			t.Errorf("catalog chapter %q differs from lesson %q", chapter.Title, outline.Items[i+1].Title)
 		}
@@ -177,12 +243,12 @@ func TestLightningCatalogEnrollmentPostgres(t *testing.T) {
 	}
 	for _, path := range []string{"/", "/courses"} {
 		body := get(path)
-		if !strings.Contains(body, "/courses/lightning") || !strings.Contains(body, "Lightning: BOLTs in a flash") {
-			t.Fatalf("Lightning missing from %s", path)
+		if !strings.Contains(body, coursePath) || !strings.Contains(body, course.Title) {
+			t.Fatalf("%s missing from %s", slug, path)
 		}
 	}
-	body := get("/courses/lightning")
-	for _, text := range []string{"Start Course", "5 chapters", "2 code exercises", "12 multiple choice questions"} {
+	body := get(coursePath)
+	for _, text := range append([]string{"Start Course"}, includes...) {
 		if !strings.Contains(body, text) {
 			t.Errorf("landing missing %q", text)
 		}
@@ -192,7 +258,6 @@ func TestLightningCatalogEnrollmentPostgres(t *testing.T) {
 			t.Errorf("landing retained placeholder %q", text)
 		}
 	}
-	get("/courses/taproot") // Stub still renders without a Notion client.
 	missing, err := client.Get(server.URL + "/courses/missing-course")
 	if err != nil {
 		t.Fatal(err)
@@ -205,7 +270,7 @@ func TestLightningCatalogEnrollmentPostgres(t *testing.T) {
 	if len(csrf) != 2 {
 		t.Fatal("missing signup CSRF")
 	}
-	response, err := client.PostForm(server.URL+"/courses/lightning/signup", url.Values{"csrf_token": {csrf[1]}, "email": {"catalog-test@example.invalid"}, "display_name": {"Catalog test"}})
+	response, err := client.PostForm(server.URL+coursePath+"/signup", url.Values{"csrf_token": {csrf[1]}, "email": {"catalog-test@example.invalid"}, "display_name": {"Catalog test"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,10 +285,10 @@ func TestLightningCatalogEnrollmentPostgres(t *testing.T) {
 		t.Fatal("missing development verification link")
 	}
 	get(link[1])
-	get("/courses/lightning/02-invoices?section=decode-the-notebook-s-examples")
-	for _, path := range []string{"/courses/lightning", "/dashboard"} {
+	get(coursePath + "/" + lesson)
+	for _, path := range []string{coursePath, "/dashboard"} {
 		body := get(path)
-		if !strings.Contains(body, "/courses/lightning/02-invoices") {
+		if !strings.Contains(body, coursePath+"/"+lesson) {
 			t.Fatalf("resume missing from %s", path)
 		}
 	}
@@ -231,7 +296,7 @@ func TestLightningCatalogEnrollmentPostgres(t *testing.T) {
 		AssetBaseURL string
 		Manifest     struct{ Archives []struct{ Path string } }
 	}
-	if err := json.Unmarshal([]byte(get("/api/courses/lightning/environment")), &environment); err != nil {
+	if err := json.Unmarshal([]byte(get("/api/courses/"+slug+"/environment")), &environment); err != nil {
 		t.Fatal(err)
 	}
 	if len(environment.Manifest.Archives) == 0 {
@@ -249,15 +314,15 @@ func TestLightningCatalogEnrollmentPostgres(t *testing.T) {
 		}
 	}
 	responseRecorder := httptest.NewRecorder()
-	LocalCourseRuntimeAsset(responseRecorder, httptest.NewRequest("GET", "/_course-runtime/lightning/runtime/test", nil), &config.AppContext{IsProd: true})
+	LocalCourseRuntimeAsset(responseRecorder, httptest.NewRequest("GET", "/_course-runtime/"+slug+"/runtime/test", nil), &config.AppContext{IsProd: true})
 	if responseRecorder.Code != 404 {
 		t.Fatal("local runtime route enabled in production")
 	}
-	if _, ok := localRuntimeFile("lightning", "../../.env"); ok {
+	if _, ok := localRuntimeFile(slug, "../../.env"); ok {
 		t.Fatal("local runtime route allows traversal")
 	}
 	// Anonymous visitors cannot fetch account state or create an enrollment without CSRF.
-	response, err = http.Get(server.URL + "/api/courses/lightning/environment")
+	response, err = http.Get(server.URL + "/api/courses/" + slug + "/environment")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +330,7 @@ func TestLightningCatalogEnrollmentPostgres(t *testing.T) {
 	if response.StatusCode != 403 {
 		t.Fatalf("anonymous environment: %d", response.StatusCode)
 	}
-	response, err = http.PostForm(server.URL+"/courses/lightning/signup", url.Values{"email": {"no-csrf@example.invalid"}})
+	response, err = http.PostForm(server.URL+coursePath+"/signup", url.Values{"email": {"no-csrf@example.invalid"}})
 	if err != nil {
 		t.Fatal(err)
 	}

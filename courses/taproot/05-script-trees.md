@@ -173,12 +173,12 @@ def build_proof_of_inclusion(tree, script):
         script_bytes = bytes.fromhex(tree)
         leaf_hash = make_leaf(script_bytes)
         return leaf_hash, [], script == tree
-    
-    # calculate the branch hash. 
+
+    # calculate the branch hash.
     assert len(tree) == 2
     left_hash, left_proof, left_target = build_proof_of_inclusion(tree[0], script)
     right_hash, right_proof, right_target = build_proof_of_inclusion(tree[1], script)
-    
+
     proof = []
     if left_target:
         left_proof.append(right_hash)
@@ -186,7 +186,7 @@ def build_proof_of_inclusion(tree, script):
     elif right_target:
         right_proof.append(left_hash)
         proof = right_proof
-        
+
     # we have to order the left + right "alphabetically"
     # thank you arik :)
     if left_hash > right_hash:
@@ -211,7 +211,7 @@ control_block.hex()
 +++
 
 +++ taproot-w137 python-vm
-wits = [size_compact_size(len(unlock_script)) + unlock_script, 
+wits = [size_compact_size(len(unlock_script)) + unlock_script,
         size_compact_size(len(leaf_script)) + leaf_script,
         size_compact_size(len(control_block)) + control_block]
 
@@ -282,7 +282,7 @@ control_block.hex()
 from codes import size_compact_size
 
 
-wits = [size_compact_size(len(unlock_script)) + unlock_script, 
+wits = [size_compact_size(len(unlock_script)) + unlock_script,
         size_compact_size(len(leaf_script)) + leaf_script,
         size_compact_size(len(control_block)) + control_block]
 

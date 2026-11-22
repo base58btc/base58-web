@@ -272,3 +272,46 @@ func ActivateLightning(ctx context.Context, db *sql.DB) error {
 	}
 	return tx.Commit()
 }
+
+// ActivateTaproot connects the existing catalog identity to its notebook port.
+// A rerun preserves subsequent admin edits, enrollment, and historical sessions.
+func ActivateTaproot(ctx context.Context, db *sql.DB) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `INSERT INTO course_catalog_updates(name) VALUES('taproot-course-launch') ON CONFLICT DO NOTHING`)
+	if err != nil {
+		return err
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return tx.Commit()
+	}
+	chapters, _ := json.Marshal([]types.ChapterInfo{
+		{Title: "Finding Taproot in the wild", Desc: "Recognize P2TR outputs and lift x-only public keys."},
+		{Title: "Schnorr signatures", Desc: "Parse transactions, compute signature messages, and sign and verify."},
+		{Title: "Build a Taproot output", Desc: "Hash a script leaf, choose an internal key, and construct an output."},
+		{Title: "Spend a Tapscript", Desc: "Assemble a witness and control block for a script-path spend."},
+		{Title: "Balanced and unbalanced script trees", Desc: "Build Merkle trees and compare proofs and transaction sizes."},
+		{Title: "Multisig with OP_CHECKSIGADD", Desc: "Construct and spend a 2-of-3 threshold script."},
+		{Title: "MuSig2 and Tapscript spends", Desc: "Aggregate keys and partial signatures for a script-path spend."},
+		{Title: "FROST threshold signatures", Desc: "Generate shares and create a 2-of-3 key-path signature."},
+	})
+	result, err = tx.ExecContext(ctx, `UPDATE courses SET
+ header_img=COALESCE(NULLIF(header_img,''),'/static/img/courses/taproot.png'),
+ course_host='Base58',course_url='/courses/taproot/00-welcome',
+ description='Explore Taproot through Schnorr signatures, script trees, and three ways to build multisignature spends.',
+ long_description='Work through the Base58 Taproot workshop with editable Python examples, coding challenges, and questions. Build and spend Taproot outputs, compare balanced and unbalanced script trees, and experiment with OP_CHECKSIGADD, MuSig2, and FROST.',
+ includes='["8 chapters"]',chapters=$1,updated_at=CURRENT_TIMESTAMP
+ WHERE slug='taproot' AND catalog_imported_at IS NOT NULL`, string(chapters))
+	if err != nil {
+		return err
+	}
+	n, _ = result.RowsAffected()
+	if n != 1 {
+		return errors.New("import the Taproot catalog record before activating Taproot")
+	}
+	return tx.Commit()
+}

@@ -13,10 +13,19 @@ import (
 // Validate the actual notebook port against the production renderer. An optional
 // output directory provides complete lesson pages for local visual inspection.
 func TestLightningCourseMarkdown(t *testing.T) {
+	testNotebookCourseMarkdown(t, "lightning", 6)
+}
+
+func TestTaprootCourseMarkdown(t *testing.T) {
+	testNotebookCourseMarkdown(t, "taproot", 9)
+}
+
+func testNotebookCourseMarkdown(t *testing.T, slug string, pageCount int) {
+	t.Helper()
 	root := filepath.Join("..", "..", "courses")
-	files, err := filepath.Glob(filepath.Join(root, "lightning", "*.md"))
-	if err != nil || len(files) != 6 {
-		t.Fatalf("expected six Lightning lessons: %v (%d)", err, len(files))
+	files, err := filepath.Glob(filepath.Join(root, slug, "*.md"))
+	if err != nil || len(files) != pageCount {
+		t.Fatalf("expected %d %s lessons: %v (%d)", pageCount, slug, err, len(files))
 	}
 	tmpl, err := template.ParseFiles(
 		filepath.Join("..", "..", "templates", "courses", "lesson.tmpl"),
@@ -30,12 +39,12 @@ func TestLightningCourseMarkdown(t *testing.T) {
 	for _, file := range files {
 		t.Run(filepath.Base(file), func(t *testing.T) {
 			lesson := strings.TrimSuffix(filepath.Base(file), ".md")
-			outline, err := loadLocalCourse(root, "lightning", lesson)
+			outline, err := loadLocalCourse(root, slug, lesson)
 			if err != nil {
 				t.Fatal(err)
 			}
 			intro := lesson == "00-welcome"
-			if len(outline.Pages) != 6 || (!intro && !markdownHasCourseCode(outline.Markdown)) {
+			if len(outline.Pages) != pageCount || (!intro && !markdownHasCourseCode(outline.Markdown)) {
 				t.Fatal("lesson is missing navigation or executable cells")
 			}
 			html := courseMarkdownToHTML(outline.Markdown)
@@ -60,8 +69,8 @@ func TestLightningCourseMarkdown(t *testing.T) {
 			}
 			var page bytes.Buffer
 			err = tmpl.ExecuteTemplate(&page, "lesson.tmpl", CourseLessonData{
-				CourseSlug: "lightning", CourseTitle: "Lightning, from transactions to onions",
-				HeroURL:         "/static/img/courses/lightning.png",
+				CourseSlug: slug, CourseTitle: outline.CourseTitle,
+				HeroURL:         "/static/img/courses/" + slug + ".png",
 				DefinitionCells: outline.prerequisiteCells(),
 				Current:         outline.Current, Previous: outline.Previous, Next: outline.Next,
 				Sidebar: outline.Items, ContentHTML: template.HTML(html), HasCode: markdownHasCourseCode(outline.Markdown), IsLocalPreview: true,
@@ -70,7 +79,7 @@ func TestLightningCourseMarkdown(t *testing.T) {
 				t.Fatal(err)
 			}
 			if export := os.Getenv("BASE58_RENDER_COURSE_DIR"); export != "" {
-				dest := filepath.Join(export, "courses", "lightning", lesson)
+				dest := filepath.Join(export, "courses", slug, lesson)
 				if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 					t.Fatal(err)
 				}

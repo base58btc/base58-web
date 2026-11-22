@@ -1,11 +1,11 @@
 # Multisig with OP_CHECKSIGADD
 
-Specifically a "threshold multisig".  "2 of 3" // 5 of 7 etc 
+Specifically a "threshold multisig".  "2 of 3" // 5 of 7 etc
 
-Why this particular task? 
+Why this particular task?
     - Highlights the removal of OP_CHECKMULTISIG and its replacement
     - Why FROST vs MuSig2
-    
+
 
 What are the three ways we're going to do a threshold spend?
 
@@ -36,8 +36,8 @@ pubkeys = [ coincurve.PrivateKey.from_int(x).public_key for x in private_keys ]
 ## OP_CHECKSIGADD
 
 `<pubkey> OP_CHECKSIG <pubkey2> OP_CHECKSIGADD <pubkey3> OP_CHECKSIGADD OP_2 OP_EQUAL`
-    
-    
+
+
 #### OP_CHECKSIGADD from `interpeter.cpp`
 ```
     const valtype& sig = stacktop(-3);
@@ -128,7 +128,7 @@ Now we have a locked up some bitcoin. Let's spend it!
 +++ taproot-w170 python-vm
 import re
 def cleanup_tx(hmn_read_tx):
-    """ Given a block of text, strip out everything except 
+    """ Given a block of text, strip out everything except
         the hex strings
     """
     ret_val = []
@@ -230,7 +230,7 @@ def print_witnesses(wits):
     print(size_compact_size(len(wits)).hex())
     for witness in wits:
         print(size_compact_size(len(witness)).hex() + witness.hex())
-        
+
 print_witnesses(wits)
 +++
 

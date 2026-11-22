@@ -46,6 +46,10 @@ def main():
                         code = solutions[block_id]
                         challenges += 1
                         print(f"PASS {block_id} rejects the unfinished starter", flush=True)
+                    if block_id == "taproot-w041":
+                        # Exploring a different address in chapter 1 must not
+                        # replace the key used for the historical signature.
+                        namespace["x_val"] = coincurve.PrivateKey.from_int(17).public_key.point()[0]
                     result = kernel.run_cell(code, namespace, check=check)
                     assert result["ok"], f"{lesson.name}:{block_id}\n{result['output']}"
                     count += 1

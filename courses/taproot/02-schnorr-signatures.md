@@ -41,13 +41,13 @@ def parse_tx_bytes_mine(tx_hex):
     ptr += 2
 
   count, size = parse_compact_size(tx_bytes[ptr:])
-  ptr += size 
+  ptr += size
   tx['inputs'] = []
   for _ in range(0, count):
     inputx, size = parse_input_bytes(tx_bytes[ptr:])
     ptr += size
     tx['inputs'].append(inputx)
- 
+
   count, size = parse_compact_size(tx_bytes[ptr:])
   ptr += size
   tx['outputs'] = []
@@ -106,7 +106,7 @@ print(len(sig))
 
 What message did this signature sign?
 
-Finding the "sighash" of that message. 
+Finding the "sighash" of that message.
 
 Take the bitcoin transaction that the signature was embedded into. From this transaction, we'll create a hash.
 
@@ -132,7 +132,7 @@ from codes import size_compact_size
 
 def sigmsg_default(tx_hex, input_index, annex_bytes, amounts_bytes, scriptpubkeys_bytes, ext_flag):
     txdata = parse_tx_bytes_mine(tx_hex)
-    
+
     result = b''
     result += bytes([0x00]) # sighash_flag
     result += txdata['version']
@@ -141,23 +141,23 @@ def sigmsg_default(tx_hex, input_index, annex_bytes, amounts_bytes, scriptpubkey
     all_input_outpoints = b''
     for inp in txdata['inputs']:
         # txid || vout
-        all_input_outpoints += inp['txid'] + inp['vout']    
+        all_input_outpoints += inp['txid'] + inp['vout']
     sha_prevouts = sha256(all_input_outpoints).digest()
     result += sha_prevouts
-    
-    sha_amounts = sha256(b''.join(amounts_bytes)).digest()        
+
+    sha_amounts = sha256(b''.join(amounts_bytes)).digest()
     result += sha_amounts
-    
+
     spks = b''
     for spk in scriptpubkeys_bytes:
         spks += size_compact_size(len(spk)) + spk
     sha_scriptpubkeys = sha256(spks).digest()
     result += sha_scriptpubkeys
-    
+
     all_sequences = [ i['sequence'] for i in txdata['inputs'] ]
     sha_sequences = sha256(b''.join(all_sequences)).digest()
     result += sha_sequences
-    
+
     all_outputs = b''
     for o in txdata['outputs']:
         # amount || compact_size(scriptpubkey) || scriptpubkey
@@ -166,21 +166,21 @@ def sigmsg_default(tx_hex, input_index, annex_bytes, amounts_bytes, scriptpubkey
         all_outputs += o['scriptPubKey']
     sha_outputs = sha256(all_outputs).digest()
     result += sha_outputs
-    
+
     # data about this input
     annex_present = 1 if annex_bytes else 0
     spend_type = 2 * ext_flag + annex_present
     result += (spend_type).to_bytes(1, 'little')
     result += (input_index).to_bytes(4, 'little')
-    
+
     if (annex_bytes):
         size_bytes = size_compact_size(len(annex_bytes))
         sha_annex = sha256(size_bytes + annex_bytes).digest()
         result += sha_annex
-    
+
     # data about this output
     # noop for SIGHASH_DEFAULT
-    
+
     assert len(result) <= 206
     return result
 +++
@@ -253,6 +253,9 @@ For this, we'll need the `verify` function, which is defined in BIP340.
 
 +++ taproot-w041 python-vm
 # there are three inputs to the verify function: pubkey, message, signature
+# Use the key in this transaction's spent output, even if you explored a
+# different address in the previous chapter.
+x_val = int.from_bytes(scriptpubkeys_bytes[input_index][2:], "big")
 pk = x_val
 m = sighash
 sig = sig
@@ -272,23 +275,23 @@ def verify(x_val, m, sig):
     s = int.from_bytes(sig[32:], 'big')
     if s >= n:
         return False
-    
+
     P_bytes = (x_val).to_bytes(32, 'big')
     challenge_hash = tag_hash(b'BIP0340/challenge', sig[:32] + P_bytes + m)
     e = int.from_bytes(challenge_hash, 'big') % n
-    
+
     # e * P
     eP = P.multiply(e.to_bytes(32, 'big'))
     # s * G
     sG = coincurve.PrivateKey.from_int(s).public_key
     neg_eP = invert_point(eP)
-    
+
     # R = sG - eP = sG + -eP
     R = coincurve.PublicKey.combine_keys([sG, neg_eP])
-    
+
     if not has_even_y(R):
         return False
-    
+
     return R.point()[0] == r
 +++
 
@@ -324,23 +327,22 @@ def scalar_to_pubkey(scalar_val):
     assert scalar_val != 0 and scalar_val < n
     P = coincurve.PrivateKey.from_int(scalar_val).public_key
     result = scalar_val if has_even_y(P) else n - scalar_val
-    
+
     return result, P
 
 
 def sign_msg(privkey_int, msg, nonce_int):
     d, P = scalar_to_pubkey(privkey_int)
     k, R = scalar_to_pubkey(nonce_int)
-    
+
     bytes_R = (R.point()[0].to_bytes(32, 'big'))
     bytes_P = (P.point()[0].to_bytes(32, 'big'))
     challenge_hash = tag_hash(b'BIP0340/challenge', bytes_R + bytes_P + msg)
     e = int.from_bytes(challenge_hash, 'big') % n
-    
-    # ~~~BEGIN SCHNORR PART~~~
+
+    # Schnorr signature scalar
     s = (k + e * d) % n
-    # ~~~ END SCHNORR PART ~~~
-    
+
     sig = bytes_R + s.to_bytes(32, 'big')
     assert verify(P.point()[0], msg, sig)
     return sig

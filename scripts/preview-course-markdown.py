@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serve the actual Lightning lessons and their prepared browser runtime locally."""
+"""Serve rendered course lessons and their prepared browser runtime locally."""
 import argparse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -12,12 +12,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dir", type=Path, default=Path("target/lightning-preview"))
     parser.add_argument("--course-dir", type=Path, default=Path("courses/lightning"))
+    parser.add_argument("--course", default="lightning", help="course slug in the rendered URLs")
     parser.add_argument("--port", type=int, default=8099)
     args = parser.parse_args()
     rendered = args.dir.resolve()
     static = Path(__file__).resolve().parents[1] / "static"
-    if not (rendered / "courses/lightning/00-welcome").is_file():
-        parser.error("Export the lesson pages first; see docs/lightning-port.md")
+    if not args.course or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-_" for c in args.course):
+        parser.error("Invalid course slug")
+    course_path = f"/courses/{args.course}"
+    environment_path = f"/api/courses/{args.course}/environment"
+    if not (rendered / f"courses/{args.course}/00-welcome").is_file():
+        parser.error("Export the lesson pages first; see the course port documentation")
     try:
         environment, archives = load_bundle(args.course_dir, args.port, "lesson-preview-")
     except (OSError, ValueError) as error:
@@ -29,13 +34,13 @@ def main():
             # Refresh sources on each lesson/environment request so re-rendered
             # Markdown can reuse the bundle without restarting the preview.
             current = environment
-            if path == "/api/courses/lightning/environment" or path.startswith("/courses/"):
+            if path == environment_path or path.startswith(course_path + "/"):
                 try:
                     current, _ = load_bundle(args.course_dir, args.port, "lesson-preview-")
                 except (OSError, ValueError) as error:
                     self.send_error(409, str(error))
                     return
-            if path == "/api/courses/lightning/environment":
+            if path == environment_path:
                 data = json.dumps(current).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -44,9 +49,9 @@ def main():
                 self.end_headers()
                 self.wfile.write(data)
                 return
-            if path == "/":
+            if path in ("/", course_path, course_path + "/"):
                 self.send_response(302)
-                self.send_header("Location", "/courses/lightning/00-welcome")
+                self.send_header("Location", course_path + "/00-welcome")
                 self.end_headers()
                 return
             if path in archives:
@@ -55,7 +60,7 @@ def main():
             elif path.startswith("/static/"):
                 root, relative = static, path[len("/static/"):]
                 file = (root / relative).resolve()
-            elif path.startswith("/courses/"):
+            elif path.startswith(course_path + "/"):
                 root, relative = rendered, path.lstrip("/")
                 file = (root / relative).resolve()
             else:
@@ -82,7 +87,7 @@ def main():
             with file.open("rb") as source:
                 self.copyfile(source, self.wfile)
 
-    print(f"Lightning course preview: http://127.0.0.1:{args.port}/courses/lightning/00-welcome", flush=True)
+    print(f"Course preview: http://127.0.0.1:{args.port}{course_path}/00-welcome", flush=True)
     ThreadingHTTPServer(("127.0.0.1", args.port), Handler).serve_forever()
 
 

@@ -56,6 +56,10 @@ course-sync publish --server http://localhost:8080 --course taproot
 
 The Lightning workshop port is in `courses/lightning`; see
 [its notebook mapping and validation instructions](docs/lightning-port.md).
+
+The Taproot workshop port is in `courses/taproot`; see
+[its notebook mapping, runtime build, and validation instructions](docs/taproot-port.md).
+It connects to the existing Taproot catalog entry with `course-catalog activate-taproot`.
 Cells marked `+++ id python-vm` run the flake's Python inside the VM, including
 native libraries and persistent globals. Existing unmarked cells use Pyodide.
 

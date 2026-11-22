@@ -32,7 +32,7 @@ Use the funding outpoint and the destination script from the previous cells. Lea
 +++ taproot-w088 python-vm
 import re
 def cleanup_tx(hmn_read_tx):
-    """ Given a block of text, strip out everything except 
+    """ Given a block of text, strip out everything except
         the hex strings
     """
     ret_val = []
@@ -63,9 +63,9 @@ We need to put into the witness stack:
  - the unlocking script
  - original leaf script
  - "control block": this has all the data you need to verify the external public key
- 
+
  #### Nifty's Unlock Script is...
- 
+
  Well my original leaf script
 
 +++ taproot-w090 python-vm

@@ -35,7 +35,7 @@ func run() error {
 	assets := flag.String("assets", "static/img/catalog", "directory for durable imported images; deploy this with static assets")
 	flag.Parse()
 	if flag.NArg() != 1 {
-		return fmt.Errorf("usage: course-catalog [-file path] export|import|activate-lightning")
+		return fmt.Errorf("usage: course-catalog [-file path] export|import|activate-lightning|activate-taproot")
 	}
 	secrets := os.Getenv("SECRETS_FILE")
 	if secrets == "" {
@@ -47,7 +47,7 @@ func run() error {
 	if flag.Arg(0) == "export" {
 		return exportCatalog(*file, *assets)
 	}
-	if flag.Arg(0) != "import" && flag.Arg(0) != "activate-lightning" {
+	if flag.Arg(0) != "import" && flag.Arg(0) != "activate-lightning" && flag.Arg(0) != "activate-taproot" {
 		return fmt.Errorf("unknown command %q", flag.Arg(0))
 	}
 	db, err := database.Open(&types.EnvConfig{DBDriver: os.Getenv("DB_DRIVER"), DatabaseURL: os.Getenv("DATABASE_URL")}, os.Getenv("IS_PROD") == "1")
@@ -58,6 +58,13 @@ func run() error {
 		return fmt.Errorf("DB_DRIVER and DATABASE_URL are required")
 	}
 	defer db.Close()
+	if flag.Arg(0) == "activate-taproot" {
+		if err := database.ActivateTaproot(context.Background(), db); err != nil {
+			return err
+		}
+		fmt.Println("Taproot catalog entry connected to the local course.")
+		return nil
+	}
 	if flag.Arg(0) == "activate-lightning" {
 		if err := database.ActivateLightning(context.Background(), db); err != nil {
 			return err

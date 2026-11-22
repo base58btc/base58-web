@@ -8,6 +8,9 @@ on:
       - .github/workflows/taproot-runtime.yml
       - cmd/course-sync/**
       - internal/courseenv/**
+      - scripts/test-taproot-course.py
+      - scripts/testdata/taproot-challenge-solutions.json
+      - static/guest/course-python.py
       - courses/taproot/**
       - '!courses/taproot/**/*.[mM][dD]'
       - '!courses/taproot/course-runtime.json'
