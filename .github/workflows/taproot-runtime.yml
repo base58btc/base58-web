@@ -1,0 +1,75 @@
+name: Build Taproot browser runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/taproot-runtime-build]
+    paths:
+      - .github/workflows/taproot-runtime.yml
+      - cmd/course-sync/**
+      - internal/courseenv/**
+      - courses/taproot/**
+      - '!courses/taproot/**/*.[mM][dD]'
+      - '!courses/taproot/course-runtime.json'
+      - courses/taproot/nix/**
+      - flake.lock
+      - go.mod
+      - go.sum
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taproot-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@d698718aa798980d17dd749f03beae0b51183399 # v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - name: Build and test the bundle tool
+        run: |
+          test "$(uname -m)" = aarch64
+          mkdir -p target
+          nix shell --inputs-from . nixpkgs#go_1_25 --command sh -eu -c '
+            go test ./cmd/course-sync ./internal/courseenv
+            go build -o target/course-sync ./cmd/course-sync
+          '
+      - name: Build and verify the locked Linux environment
+        run: |
+          target/course-sync bundle --dir courses/taproot
+          target/course-sync verify-bundle --dir courses/taproot
+      - name: Exercise Python and every Taproot lesson cell
+        run: |
+          nix develop path:./courses/taproot --no-update-lock-file --no-write-lock-file --command sh -eu -c '
+            python3 scripts/test-course-python.py
+            python3 scripts/test-taproot-course.py
+          '
+          # Tests must leave the bundled runtime inputs unchanged.
+          target/course-sync verify-bundle --dir courses/taproot
+      - name: Package the course sources and runtime together
+        run: |
+          mkdir -p target/taproot-artifact
+          # Archive only tracked course sources plus the generated bundle.
+          # Keep local lab data and Python caches out of the artifact.
+          git ls-files -z courses/taproot > target/taproot-files
+          printf '%s\0' courses/taproot/course-runtime.json courses/taproot/runtime >> target/taproot-files
+          tar --null -T target/taproot-files -cf target/taproot-artifact/taproot-course.tar
+          git rev-parse HEAD > target/taproot-artifact/BUILD_COMMIT
+          cd target/taproot-artifact
+          sha256sum taproot-course.tar > SHA256SUMS
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: taproot-runtime-${{ github.sha }}
+          path: target/taproot-artifact/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

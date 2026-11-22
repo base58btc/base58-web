@@ -1,0 +1,5 @@
+{
+  "taproot-w038": "from hashlib import sha256\n\ndef tag_hash(tag, data_bytes):\n    taghash = sha256(tag).digest()\n    return sha256(taghash + taghash + data_bytes).digest()",
+  "taproot-w057": "from codes import size_compact_size\n\ndef make_leaf(script_bytes):\n    leaf_version = 0xc0\n    data = bytes([leaf_version]) + size_compact_size(len(script_bytes)) + script_bytes\n    return tag_hash(b'TapLeaf', data)",
+  "taproot-w113": "def taptree_builder(tree):\n    if isinstance(tree, str):\n        script_bytes = bytes.fromhex(tree)\n        leaf_hash = make_leaf(script_bytes)\n        print(\"leaf:\", leaf_hash.hex())\n        return leaf_hash\n    \n    # calculate the branch hash. \n    assert len(tree) == 2\n    left = taptree_builder(tree[0])\n    right = taptree_builder(tree[1])\n    \n    # we have to order the left + right \"alphabetically\"\n    # thank you arik :)\n    if left > right:\n        right, left = left, right\n    \n    branch_hash = tag_hash(b'TapBranch', left + right)\n    print(\"branch:\", branch_hash.hex())\n    return branch_hash"
+}
