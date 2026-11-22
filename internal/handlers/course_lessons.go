@@ -38,8 +38,9 @@ type CourseNavItem struct {
 	MultipleChoiceCount int
 	Children            []*CourseNavItem
 
-	order    int
-	filePath string
+	order     int
+	filePath  string
+	codeCells []courseDefinitionCell
 }
 
 type CourseLessonData struct {
@@ -51,6 +52,7 @@ type CourseLessonData struct {
 	Next                *CourseNavItem
 	Sidebar             []*CourseNavItem
 	ContentHTML         template.HTML
+	DefinitionCells     []courseDefinitionCell
 	HasCode             bool
 	HeroURL             string
 	HeroAlt             string
@@ -81,6 +83,17 @@ type localCourseOutline struct {
 var errLocalCourseNotFound = errors.New("local course not found")
 var errLocalCoursePageNotFound = errors.New("local course page not found")
 var errLocalCourseEmpty = errors.New("local course has no pages")
+
+func (outline *localCourseOutline) prerequisiteCells() []courseDefinitionCell {
+	var cells []courseDefinitionCell
+	for _, page := range outline.Pages {
+		if page == outline.Current {
+			break
+		}
+		cells = append(cells, page.codeCells...)
+	}
+	return cells
+}
 
 func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext) {
 	params := mux.Vars(r)
@@ -159,6 +172,7 @@ func CourseLesson(w http.ResponseWriter, r *http.Request, ctx *config.AppContext
 		Next:                outline.Next,
 		Sidebar:             outline.Items,
 		ContentHTML:         template.HTML(courseMarkdownToHTMLForCourse(ctx, outline.CourseSlug, outline.Markdown)),
+		DefinitionCells:     outline.prerequisiteCells(),
 		HasCode:             markdownHasCourseCode(outline.Markdown),
 		HeroURL:             heroURL,
 		HeroAlt:             heroAlt,
@@ -795,6 +809,7 @@ func navItemFromFile(courseDir, courseSlug, sectionDir, filename string) (*Cours
 		MultipleChoiceCount: countCourseFenceBlocks(markdown, courseMultipleChoiceFence),
 		order:               orderFromNumber(number),
 		filePath:            filePath,
+		codeCells:           courseDefinitionCells(markdown, lessonPath, courseLessonURL(courseSlug, lessonPath)),
 	}, true, nil
 }
 

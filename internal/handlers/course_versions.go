@@ -438,6 +438,7 @@ func navItemFromVersionFile(courseSlug, sectionDir, filename string, content str
 		lessonPath = sectionDir + "/" + slug
 	}
 	return &CourseNavItem{
+		codeCells:      courseDefinitionCells([]byte(content), lessonPath, courseLessonURL(courseSlug, lessonPath)),
 		Number:         number,
 		DisplayNumber:  number,
 		Title:          titleFromMarkdown([]byte(content), titleFromSlug(label)),

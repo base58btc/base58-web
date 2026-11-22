@@ -107,13 +107,16 @@ func courseMarkdownToHTMLForCourse(ctx *config.AppContext, courseSlug string, md
 	return renderCourseMarkdownToHTML(md, courseSlug, courseAssetBaseURL(ctx))
 }
 
-func renderCourseMarkdownToHTML(md []byte, courseSlug, assetBaseURL string) []byte {
+func parseCourseMarkdown(md []byte) ast.Node {
 	// Definition-list lookahead consumes a following ::: note as a definition
 	// before our block hook can see it. Course notes own the colon fence syntax.
 	extensions := parser.CommonExtensions&^parser.DefinitionLists | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
 	p := parser.NewWithExtensions(extensions)
 	p.Opts.ParserHook = courseParserHook
+	return p.Parse(md)
+}
 
+func renderCourseMarkdownToHTML(md []byte, courseSlug, assetBaseURL string) []byte {
 	courseRenderer := &courseMarkdownRenderer{
 		courseSlug:   courseSlug,
 		assetBaseURL: assetBaseURL,
@@ -123,7 +126,50 @@ func renderCourseMarkdownToHTML(md []byte, courseSlug, assetBaseURL string) []by
 		RenderNodeHook: courseRenderer.renderHook,
 	})
 
-	return markdown.Render(p.Parse(md), renderer)
+	return markdown.Render(parseCourseMarkdown(md), renderer)
+}
+
+// Only editable source belongs in the definition lookup, never challenge checks.
+// Use the same Markdown parser and ID counters as the lesson renderer so every
+// candidate points to a real cell, including legacy cells without explicit IDs.
+type courseDefinitionCell struct {
+	LessonPath string `json:"lessonPath"`
+	URL        string `json:"url"`
+	BlockID    string `json:"blockId"`
+	Runtime    string `json:"runtime"`
+	Source     string `json:"source"`
+}
+
+func courseDefinitionCells(md []byte, lessonPath, lessonURL string) []courseDefinitionCell {
+	var cells []courseDefinitionCell
+	codeCount, challengeCount := 0, 0
+	ast.WalkFunc(parseCourseMarkdown(md), func(node ast.Node, entering bool) ast.WalkStatus {
+		if !entering {
+			return ast.GoToNext
+		}
+		var id, runtime, source, authoringError string
+		switch block := node.(type) {
+		case *courseCodeBlock:
+			codeCount++
+			id, runtime, source, authoringError = block.ID, block.Runtime, block.Content, block.Err
+			if id == "" {
+				id = fmt.Sprintf("code-%d", codeCount)
+			}
+		case *courseCodeChallengeBlock:
+			challengeCount++
+			id, runtime, source, authoringError = block.ID, block.Runtime, block.StarterCode, block.Err
+			if id == "" {
+				id = fmt.Sprintf("codecheck-%d", challengeCount)
+			}
+		default:
+			return ast.GoToNext
+		}
+		if authoringError == "" {
+			cells = append(cells, courseDefinitionCell{lessonPath, lessonURL, id, runtime, source})
+		}
+		return ast.GoToNext
+	})
+	return cells
 }
 
 func courseAssetBaseURL(ctx *config.AppContext) string {
@@ -714,10 +760,7 @@ func renderCourseCodeBlock(w io.Writer, cb *courseCodeBlock, blockID string) {
 	}
 
 	escapedID := template.HTMLEscapeString(blockID)
-	idAttr := ""
-	if cb.ID != "" {
-		idAttr = fmt.Sprintf(` id="%s"`, escapedID)
-	}
+	idAttr := fmt.Sprintf(` id="%s"`, escapedID)
 	escaped := template.HTMLEscapeString(cb.Content)
 	fmt.Fprintf(w, `<div%s class="cell codeset course-code-cell" data-course-block-id="%s" data-course-block-type="code-cell" data-course-runtime="%s">
   <div class="code-runner">

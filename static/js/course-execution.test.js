@@ -49,3 +49,53 @@ test("unrelated errors, nested definitions, and misspelled names do not suggest 
   assert.equal(execution.missingPythonDefinition("ValueError: Invalid BOLT 11 Bech32 checksum", ['def bech32_decode(text): pass']), null);
   assert.equal(execution.missingPythonDefinition("NameError: name 'value' is not defined", ['value == 3']), null);
 });
+
+test("definition lookup recognizes imported aliases and multiline imports", () => {
+  assert.deepEqual(execution.pythonDefinitions(`import os.path, json as json_codec
+from coincurve import (
+    PublicKey as SigningKey,
+    PrivateKey,
+)
+from .helpers import decode
+from helpers import *`), ["os", "json_codec", "SigningKey", "PrivateKey", "decode"]);
+});
+
+test("definition lookup recognizes unpacking, chained and annotated assignments", () => {
+  assert.deepEqual(execution.pythonDefinitions(`network, amount = parse_hrp(hrp)
+(left, [right, *rest]) = values
+first = second = 1
+answer: dict[str, int] = {}
+uninitialized: int
+one = 1; two = 2
+async def fetch(): pass
+class Invoice: pass`), ["network", "amount", "left", "right", "rest", "first", "second", "answer", "one", "two", "fetch", "Invoice"]);
+});
+
+test("comments, strings, locals, comparisons and attribute updates aren't definitions", () => {
+  const source = `# fake = 1
+doc = '''
+fake = 1
+def false_definition(): pass
+'''
+text = "ignored = 2; import nope"
+def outer():
+    local = 3
+    import hidden
+class Container:
+    member = 4
+result = call(
+keyword = 5,
+)
+value == 3
+value += 1
+obj.attribute = 2
+items[index] = 3
+obj.attribute: int = 3`;
+  assert.deepEqual(execution.pythonDefinitions(source), ["doc", "text", "outer", "Container", "result"]);
+});
+
+test("missing names use the latest actual definition and Python's suggested-name suffix", () => {
+  const error = "NameError: name 'decode' is not defined. Did you mean: 'encode'?";
+  assert.deepEqual(execution.missingPythonDefinition(error, ["def decode(): pass", "from helper import decode", "print(decode())"]), {name:"decode",index:1});
+  assert.equal(execution.missingPythonDefinition("UnboundLocalError: local variable 'decode' referenced before assignment", ["decode = 1"]), null);
+});

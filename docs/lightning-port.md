@@ -34,6 +34,15 @@ The protocol uses private descriptors so student `input()` sees EOF and raw subp
 
 Lesson navigation replaces the course page content while keeping the VM and interpreter alive. Sidebar, previous/next, keyboard shortcuts, and browser back/forward share this navigation path. Running cells finish and save before the content changes; editor drafts and answers survive navigation. A different attempt/version, preview mode, or course requires a full navigation. Reloading, leaving the course, or Save and stop closes the VM; reopening reconstructs it from the journal.
 
+Missing-name errors offer “Go to definition of NAME →” when an earlier editable
+cell supplies that name. Lesson pages include prerequisite cell sources from the
+same course version; lookup prefers saved student code and current editor drafts.
+It recognizes top-level assignments, unpacking, imports, functions, and classes,
+and keeps Pyodide and VM Python definitions separate. Dynamic globals, wildcard
+imports, and function-local bindings are not inferred. Definition jumps preserve
+the live interpreter and create a distinct browser history entry, including
+same-page jumps; Back restores the viewport at the original error.
+
 Chapters with multiple level-two headings display one subchapter at a time: an overview followed by each heading's section. The Lightning Markdown headings define the views linked from the sidebar and Previous/Next controls. A `?section=...` URL opens a particular subchapter; `?section=last` supports returning to the end of the previous chapter. Pagination preserves the original chapter path and cell IDs for saved answers, editor drafts, outputs, and command history. Template-only pagination changes preserve the bundle and history. Runtime-input edits require a new matching bundle; lesson Markdown edits reuse it. Without JavaScript, the complete chapter is still readable.
 
 The first visible lesson with VM cells starts preparing its workspace just after the page paints, without waiting for Play. Preparation loads the tools, replays the recorded history, and warms the persistent Python interpreter for Python lessons. It runs no new lesson cells and adds no synthetic commands to the journal. An early Play click waits for the same preparation; later clicks use the warm interpreter. Save and stop cancels background startup and suppresses further automatic startup until the student explicitly resumes or runs a cell. Loading details stay in the Workspace menu.

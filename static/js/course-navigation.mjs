@@ -56,7 +56,7 @@ export function installCourseNavigation({beforeNavigate, beforeSwap, afterSwap, 
     else location.assign(url.href);
   }
 
-  async function navigate(href, {pop = false, scroll = [0,0]} = {}) {
+  async function navigate(href, {pop = false, scroll} = {}) {
     const url = new URL(href, displayedURL);
     if (!pop) saveScroll();
     const request = requests.begin();
@@ -90,15 +90,18 @@ export function installCourseNavigation({beforeNavigate, beforeSwap, afterSwap, 
       if (heading) { heading.tabIndex = -1; heading.focus({preventScroll:true}); }
       let anchor;
       try { anchor = url.hash && document.getElementById(decodeURIComponent(url.hash.slice(1))); } catch { /* Invalid hash: use the page top. */ }
-      if (anchor) anchor.scrollIntoView();
-      else window.scrollTo(...scroll);
+      // Back/Forward returns to the viewport the student left, even when that
+      // history entry originally arrived at an anchor farther up the page.
+      if (pop && scroll) window.scrollTo(...scroll);
+      else if (anchor) anchor.scrollIntoView();
+      else window.scrollTo(...(scroll || [0,0]));
       showNotice("");
     } catch (error) {
       if (!request.active()) return;
       if (pop) history.replaceState(displayedState, "", displayedURL.href);
       showNotice(error.message || "Unable to load lesson. Try again.");
     } finally {
-      if (request.active()) markBusy(false);
+      if (request.active()) { markBusy(false); saveScroll(); }
     }
   }
 
@@ -106,25 +109,29 @@ export function installCourseNavigation({beforeNavigate, beforeSwap, afterSwap, 
     const link = event.target.closest("a[href]");
     if (!link || link.target || link.hasAttribute("download") || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const url = new URL(link.href, location.href);
-    if (!["http:","https:"].includes(url.protocol) || (url.pathname === displayedURL.pathname && url.search === displayedURL.search && url.origin === displayedURL.origin)) return;
+    if (!["http:","https:"].includes(url.protocol) || (url.href === displayedURL.href && !link.hasAttribute("data-course-definition"))) return;
     event.preventDefault();
+    // Webflow's delegated smooth-scroll handler drops the section query and
+    // replaces history state for same-chapter anchors. Own course links first.
+    if (isLessonURL(url, displayedURL, shell().dataset.courseSlug)) event.stopPropagation();
     navigate(url.href);
-  });
+  }, {capture:true});
   window.addEventListener("popstate", event => {
-    if (location.pathname === displayedURL.pathname && location.search === displayedURL.search) {
+    if (location.href === displayedURL.href) {
       // Back followed quickly by Forward can return to the still-visible page
       // while the first fetch is pending. That fetch must no longer commit.
       requests.begin();
       markBusy(false); showNotice("");
       displayedURL = new URL(location.href);
+      displayedState = event.state;
       const position = positions.get(event.state?.courseLesson?.key);
       if (position) window.scrollTo(...position);
       return;
     }
-    navigate(location.href, {pop:true, scroll:positions.get(event.state?.courseLesson?.key) || [0,0]});
+    navigate(location.href, {pop:true, scroll:positions.get(event.state?.courseLesson?.key)});
   });
   window.addEventListener("hashchange", () => {
-    if (location.pathname === displayedURL.pathname && location.search === displayedURL.search) displayedURL = new URL(location.href);
+    if (!busy && location.pathname === displayedURL.pathname && location.search === displayedURL.search) displayedURL = new URL(location.href);
   });
   return navigate;
 }

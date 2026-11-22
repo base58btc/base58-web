@@ -61,7 +61,9 @@ func TestLightningCourseMarkdown(t *testing.T) {
 			var page bytes.Buffer
 			err = tmpl.ExecuteTemplate(&page, "lesson.tmpl", CourseLessonData{
 				CourseSlug: "lightning", CourseTitle: "Lightning, from transactions to onions",
-				Current: outline.Current, Previous: outline.Previous, Next: outline.Next,
+				HeroURL:         "/static/img/courses/lightning.png",
+				DefinitionCells: outline.prerequisiteCells(),
+				Current:         outline.Current, Previous: outline.Previous, Next: outline.Next,
 				Sidebar: outline.Items, ContentHTML: template.HTML(html), HasCode: markdownHasCourseCode(outline.Markdown), IsLocalPreview: true,
 			})
 			if err != nil {
